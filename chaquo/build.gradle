@@ -49,3 +49,12 @@ dependencies {
     implementation project(':catvod')
     coreLibraryDesugaring libs.desugar
 }
+
+afterEvaluate {
+    def buildPythonTasks = tasks.matching { it.name.startsWith('buildPython') }
+    tasks.matching {
+        it.name.startsWith('install') && it.name.endsWith('PythonRequirements')
+    }.configureEach {
+        dependsOn buildPythonTasks
+    }
+}

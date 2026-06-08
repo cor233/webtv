@@ -51,7 +51,8 @@ public class HomeWebBridge {
 
     @JavascriptInterface
     public void invoke(String requestId, String method, String payload) {
-        Task.execute(() -> handle(requestId, method, WebCall.object(payload)));
+        final boolean trusted = controller.isTrustedHomePage();
+        Task.execute(() -> handle(requestId, method, WebCall.object(payload), trusted));
     }
 
     @JavascriptInterface
@@ -66,8 +67,12 @@ public class HomeWebBridge {
 
     @JavascriptInterface
     public String resourceUrl(String url, String options) {
+        return resourceUrl(url, options, controller.isTrustedHomePage());
+    }
+
+    private String resourceUrl(String url, String options, boolean trusted) {
         JsonObject object = WebCall.object(options);
-        if (!controller.isTrustedHomePage() && sensitiveRequest(object)) throw new SecurityException("Forbidden method: net.resourceUrl");
+        if (!trusted && sensitiveRequest(object)) throw new SecurityException("Forbidden method: net.resourceUrl");
         StringBuilder builder = new StringBuilder(Server.get().getAddress("/webResource?url=")).append(encode(url));
         if (object.has("headers")) builder.append("&headers=").append(encode(object.get("headers").toString()));
         if ("include".equals(Json.safeString(object, "credentials"))) builder.append("&credentials=include");
@@ -92,14 +97,14 @@ public class HomeWebBridge {
         results.remove(id);
     }
 
-    private void handle(String requestId, String method, JsonObject payload) {
+    private void handle(String requestId, String method, JsonObject payload, boolean trusted) {
         try {
             SpiderDebug.log("webhome", "invoke method=%s", method);
-            guard(method, payload);
+            guard(method, payload, trusted);
             String result = switch (method) {
                 case "net.request" -> WebCall.request(payload, controller);
-                case "net.resourceUrl" -> quote(resourceUrl(Json.safeString(payload, "url"), payload.toString()));
-                case "player.playUrl" -> playUrl(payload);
+                case "net.resourceUrl" -> quote(resourceUrl(Json.safeString(payload, "url"), payload.toString(), trusted));
+                case "player.playUrl" -> playUrl(payload, trusted);
                 case "player.playVod" -> playVod(payload);
                 case "player.control" -> control(payload);
                 case "player.status" -> WebCall.request(statusPayload());
@@ -130,8 +135,8 @@ public class HomeWebBridge {
         }
     }
 
-    private void guard(String method, JsonObject payload) {
-        if (controller.isTrustedHomePage()) return;
+    private void guard(String method, JsonObject payload, boolean trusted) {
+        if (trusted) return;
         if ("net.request".equals(method) && sensitiveRequest(payload)) throw new SecurityException("Forbidden method: " + method);
         if ("player.playUrl".equals(method)) validatePlayable(Json.safeString(payload, "url"));
         if ("app.history".equals(method) || "device.info".equals(method) || "config.info".equals(method) || "app.openSetting".equals(method) || "pan.check".equals(method) || method.startsWith("cache.")) throw new SecurityException("Forbidden method: " + method);
@@ -150,10 +155,10 @@ public class HomeWebBridge {
         }
     }
 
-    private String playUrl(JsonObject payload) {
+    private String playUrl(JsonObject payload, boolean trusted) {
         String url = Json.safeString(payload, "url");
         String title = Json.safeString(payload, "title");
-        if (payload.has("headers") || "include".equals(Json.safeString(payload, "credentials"))) url = resourceUrl(url, payload.toString());
+        if (payload.has("headers") || "include".equals(Json.safeString(payload, "credentials"))) url = resourceUrl(url, payload.toString(), trusted);
         final String playUrl = url;
         final String playTitle = TextUtils.isEmpty(title) ? playUrl : title;
         SpiderDebug.log("webhome", "player.playUrl title=%s url=%s", playTitle, playUrl);

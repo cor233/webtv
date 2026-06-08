@@ -1,0 +1,121 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 37
+          build-tools-version: 36.0.0
+          packages: |
+            platform-tools
+            platforms;android-28
+            platforms;android-29
+            platforms;android-37
+            build-tools;36.0.0
+
+      - name: Write local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          cat local.properties
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: List build variants
+        run: ./gradlew :app:tasks --all 2>&1 | grep -E "assemble.*Release$" | head -20
+
+      - name: Build mobile-arm64
+        run: ./gradlew :app:assembleMobileArm64_v8a${{ inputs.build_type || 'Release' }}
+
+      - name: Build mobile-armv7
+        run: ./gradlew :app:assembleMobileArmeabi_v7a${{ inputs.build_type || 'Release' }}
+
+      - name: Build leanback-arm64
+        run: ./gradlew :app:assembleLeanbackArm64_v8a${{ inputs.build_type || 'Release' }}
+
+      - name: Build leanback-armv7
+        run: ./gradlew :app:assembleLeanbackArmeabi_v7a${{ inputs.build_type || 'Release' }}
+
+      - name: Collect APKs
+        id: collect
+        run: |
+          mkdir -p dist
+          find app/build/outputs/apk -name "*.apk" -type f -exec cp -v {} dist/ \;
+          ls -la dist/
+
+      - name: Upload APKs to Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          body: |
+            ## ${{ github.ref_name }} — Security Hardening Release
+
+            Built automatically by GitHub Actions. See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for the full changelog.
+
+            ### 4 个 APK 产物
+
+            - `mobile-arm64_v8a.apk` — 手机端 arm64 (v8a)
+            - `mobile-armeabi_v7a.apk` — 手机端 armv7
+            - `leanback-arm64_v8a.apk` — TV 端 arm64 (v8a)
+            - `leanback-armeabi_v7a.apk` — TV 端 armv7
+
+            ### 兼容性提示
+
+            - 远程 JAR 必须带 `;sha256;` 否则不加载
+            - Android 11+ 文件管理走 SAF，不再申请 `MANAGE_EXTERNAL_STORAGE`
+            - 自更新改为导出到 Downloads 通知用户手动安装
+            - 旧设备（Android ≤ 10）行为不变
+          files: |
+            dist/mobile-arm64_v8a.apk
+            dist/mobile-armeabi_v7a.apk
+            dist/leanback-arm64_v8a.apk
+            dist/leanback-armeabi_v7a.apk
+          fail_on_unmatched_files: false
+
+      - name: Upload APKs as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webtv-apks-${{ github.ref_name }}
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 30

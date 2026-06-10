@@ -1,5 +1,40 @@
 # Changelog
 
+## 5.5.15 — Backup & CustomCsp Storage Fix (2026-06-11)
+
+修复备份/恢复和自定义 CSP 功能在 Android 11+ 上静默失败的问题。
+
+### 修复
+
+- **Path.tv()**: 备份文件从外部存储 `Environment.getExternalStorageDirectory()` 迁移到内部存储 `Context.getFilesDir()`，无需 `MANAGE_EXTERNAL_STORAGE` 权限
+- **CustomCspSetting**: CSP 配置目录从 `Path.root("TV/CustomCsp")` 迁移到 `Path.files()`，自定义 CSP 站点的 registry.json 和 index.html 可正常读写
+
+### 原因
+
+v5.5.7 安全审计移除了 `MANAGE_EXTERNAL_STORAGE` 权限，v5.5.10 将 `hasFileAccess()` 在 Android 11+ 改为始终返回 `true`。但由于该权限实际未被授予，写入外部存储的操作静默失败，用户点击备份/恢复按钮后无任何效果。
+
+## 5.5.14 — CI Build Fix (2026-06-10)
+
+修复 EventBus 注解处理器导致的编译错误。
+
+### 修复
+
+- **EpgParser**: 合并重复的 `getEpg()` 方法，XXE 安全校验统一走一个入口
+- **EventBus**: `Startup.java` 改用 `EventBus.getDefault()`，移除 `eventBusIndex` 注解处理器参数和依赖
+
+## 5.5.13 — P0 Security Fixes (2026-06-10)
+
+基于 v5.5.12 的 P0 级安全修复版本，修复 6 个严重安全漏洞。
+
+### 修复
+
+- **EPG XXE 防护**: EpgParser 拒绝 `<!DOCTYPE` 并启用 `FEATURE_SECURE_PROCESSING`
+- **EPG GZIP 炸弹防护**: 添加解压大小限制
+- **HomeWebBridge 缓存隔离**: WebView 缓存按 origin 隔离
+- **MediaSourceFactory 缓存安全**: ExoPlayer 缓存配置加固
+- **Room 迁移链完整性**: 数据库迁移 fallback 链修复
+- **其他**: token 泄漏修复、Notify 安全加固、ReDoS 修复等
+
 ## 5.5.12 — Fix GitHub Release CI (2026-06-10)
 
 修复 Release 创建 401 认证错误，改用 `gh release create` CLI。

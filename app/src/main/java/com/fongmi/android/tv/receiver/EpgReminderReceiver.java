@@ -12,6 +12,10 @@ public class EpgReminderReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent == null) return;
+        if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
+            EpgReminder.onBootCompleted();
+            return;
+        }
         String channelName = intent.getStringExtra("channelName");
         String programTitle = intent.getStringExtra("programTitle");
         String programStart = intent.getStringExtra("programStart");

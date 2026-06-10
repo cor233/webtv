@@ -70,6 +70,7 @@ public class Local implements Process {
             for (String k : files.keySet()) {
                 String fn = safeName(params.get(k));
                 File temp = new File(files.get(k));
+                if (temp.length() > MAX_UPLOAD_BYTES) return Nano.error(Status.BAD_REQUEST, "Upload too large: " + fn);
                 if (fn.toLowerCase().endsWith(".zip")) unzip(temp, dir);
                 else Path.copy(temp, safeChild(dir, fn));
             }
@@ -199,8 +200,9 @@ public class Local implements Process {
         return name;
     }
 
-    private static final long MAX_UNZIP_ENTRY_SIZE = 100 * 1024 * 1024; // 100MB per entry
-    private static final long MAX_UNZIP_TOTAL_SIZE = 500 * 1024 * 1024;  // 500MB total
+    private static final long MAX_UPLOAD_BYTES = 100 * 1024 * 1024;       // 100MB per upload
+    private static final long MAX_UNZIP_ENTRY_SIZE = 100 * 1024 * 1024;   // 100MB per entry
+    private static final long MAX_UNZIP_TOTAL_SIZE = 500 * 1024 * 1024;    // 500MB total
     private static final int MAX_UNZIP_ENTRIES = 1000;
 
     private void unzip(File zip, File dir) throws IOException {

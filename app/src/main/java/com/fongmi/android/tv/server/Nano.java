@@ -29,6 +29,7 @@ import fi.iki.elonen.NanoHTTPD;
 public class Nano extends NanoHTTPD {
 
     private static final String INDEX = "index.html";
+    private static final long MAX_CONTENT_LENGTH = 200L * 1024 * 1024;
 
     private List<Process> process;
 
@@ -82,6 +83,12 @@ public class Nano extends NanoHTTPD {
 
     private void parse(IHTTPSession session, Map<String, String> files) {
         try {
+            String cl = session.getHeaders().get("content-length");
+            if (cl != null) {
+                long len = Long.parseLong(cl);
+                if (len < 0) return;
+                if (len > MAX_CONTENT_LENGTH) throw new IllegalArgumentException("Content-Length exceeds " + MAX_CONTENT_LENGTH + " bytes");
+            }
             String ct = session.getHeaders().get("content-type");
             if (ct != null) session.getHeaders().put("content-type", ct.replace("multipart/form-data", "multipart/form-data; charset=utf-8"));
             session.parseBody(files);

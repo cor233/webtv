@@ -3,6 +3,7 @@ package com.fongmi.android.tv.bean;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.room.Entity;
+import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
 import com.fongmi.android.tv.App;
@@ -17,7 +18,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-@Entity
+@Entity(indices = @Index(value = {"type", "createTime"}))
 public class Keep implements Diffable<Keep> {
 
     @NonNull

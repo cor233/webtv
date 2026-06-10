@@ -29,7 +29,8 @@ import java.util.concurrent.TimeUnit;
 
 @Entity(indices = {
     @Index(value = {"cid", "createTime"}),
-    @Index(value = {"cid", "vodName"})
+    @Index(value = {"cid", "vodName"}),
+    @Index(value = {"createTime"})
 })
 public class History implements Diffable<History> {
 

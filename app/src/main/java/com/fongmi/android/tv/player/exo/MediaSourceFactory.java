@@ -33,6 +33,7 @@ import java.util.Map;
 
 public class MediaSourceFactory implements MediaSource.Factory {
 
+    private static final long MAX_CACHE_BYTES = 256L * 1024 * 1024;
     private final DefaultMediaSourceFactory defaultMediaSourceFactory;
     private HttpDataSource.Factory httpDataSourceFactory;
     private DataSource.Factory dataSourceFactory;
@@ -90,7 +91,7 @@ public class MediaSourceFactory implements MediaSource.Factory {
     }
 
     private DataSource.Factory getDataSourceFactory() {
-        if (dataSourceFactory == null) dataSourceFactory = getCacheDataSource(new DefaultDataSource.Factory(App.get(), getHttpDataSourceFactory()));
+        if (dataSourceFactory == null) dataSourceFactory = getCacheDataSource(new CharsetDetectDataSource.Factory(new DefaultDataSource.Factory(App.get(), getHttpDataSourceFactory())));
         return dataSourceFactory;
     }
 

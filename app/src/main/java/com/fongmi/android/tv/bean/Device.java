@@ -24,7 +24,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-@Entity(indices = @Index(value = {"uuid", "name"}, unique = true))
+@Entity(indices = {@Index(value = {"uuid", "name"}, unique = true), @Index(value = {"type"})})
 public class Device implements Diffable<Device>, Comparable<Device> {
 
     @PrimaryKey(autoGenerate = true)

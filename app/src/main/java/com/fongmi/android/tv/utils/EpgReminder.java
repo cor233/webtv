@@ -17,6 +17,15 @@ import com.fongmi.android.tv.receiver.EpgReminderReceiver;
 public class EpgReminder {
 
     private static final String CHANNEL_EPG = "epg_reminder";
+    private static volatile Runnable bootCallback;
+
+    public static void setBootCallback(Runnable callback) {
+        bootCallback = callback;
+    }
+
+    public static void onBootCompleted() {
+        if (bootCallback != null) bootCallback.run();
+    }
 
     public static void createChannel() {
         try {

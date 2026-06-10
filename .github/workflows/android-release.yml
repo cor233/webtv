@@ -93,39 +93,38 @@ jobs:
           find app/build/outputs/apk -name "*.apk" -type f -exec cp -v {} dist/ \;
           ls -la dist/
 
-      - name: Upload APKs to Release
+      - name: Write release notes
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-          generate_release_notes: false
-          body: |
-            ## ${{ github.ref_name }} — Security Hardening Release
+        run: |
+          cat > dist/release-notes.md << 'NOTESEOF'
+          ## ${{ github.ref_name }} — Security Hardening Release
 
-            Built automatically by GitHub Actions. See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for the full changelog.
+          Built automatically by GitHub Actions. See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for the full changelog.
 
-            ### 4 个 APK 产物
+          ### 4 个 APK 产物
 
-            - `mobile-arm64_v8a.apk` — 手机端 arm64 (v8a)
-            - `mobile-armeabi_v7a.apk` — 手机端 armv7
-            - `leanback-arm64_v8a.apk` — TV 端 arm64 (v8a)
-            - `leanback-armeabi_v7a.apk` — TV 端 armv7
+          - `mobile-arm64_v8a.apk` — 手机端 arm64 (v8a)
+          - `mobile-armeabi_v7a.apk` — 手机端 armv7
+          - `leanback-arm64_v8a.apk` — TV 端 arm64 (v8a)
+          - `leanback-armeabi_v7a.apk` — TV 端 armv7
 
-            ### 兼容性提示
+          ### 兼容性提示
 
-            - 远程 JAR 必须带 `;sha256;` 否则不加载
-            - Android 11+ 文件管理走 SAF，不再申请 `MANAGE_EXTERNAL_STORAGE`
-            - 自更新改为导出到 Downloads 通知用户手动安装
-            - 旧设备（Android ≤ 10）行为不变
-          files: |
-            dist/mobile-arm64_v8a.apk
-            dist/mobile-armeabi_v7a.apk
-            dist/leanback-arm64_v8a.apk
-            dist/leanback-armeabi_v7a.apk
-          fail_on_unmatched_files: false
+          - 远程 JAR 必须带 `;sha256;` 否则不加载
+          - Android 11+ 文件管理走 SAF，不再申请 `MANAGE_EXTERNAL_STORAGE`
+          - 自更新改为导出到 Downloads 通知用户手动安装
+          - 旧设备（Android ≤ 10）行为不变
+          NOTESEOF
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes-file dist/release-notes.md \
+            dist/*.apk
 
       - name: Upload APKs as workflow artifact
         if: always()

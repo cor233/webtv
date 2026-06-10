@@ -1,5 +1,9 @@
 # Changelog
 
+## 5.5.11 — Release Signing (2026-06-10)
+
+启用 release keystore 签名，用户可直接覆盖安装无需卸载。
+
 ## 5.5.10 — Storage Permission Loop Fix (2026-06-10)
 
 修复每次启动都跳转「所有文件访问」权限页面但无法授权的问题。

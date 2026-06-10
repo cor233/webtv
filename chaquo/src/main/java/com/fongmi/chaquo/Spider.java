@@ -18,6 +18,7 @@ public class Spider extends com.github.catvod.crawler.Spider {
     private final PyObject app;
     private final PyObject obj;
     private final String api;
+    private final String apiBase;
     private final Gson gson;
 
     public Spider(PyObject app, PyObject obj, String api) {
@@ -25,6 +26,7 @@ public class Spider extends com.github.catvod.crawler.Spider {
         this.app = app;
         this.obj = obj;
         this.api = api;
+        this.apiBase = api.replaceFirst(";(sha256|md5);[0-9a-fA-F]+$", "");
     }
 
     @Override
@@ -130,8 +132,26 @@ public class Spider extends com.github.catvod.crawler.Spider {
     }
 
     private void download(String name) {
-        String path = Path.py(name).getAbsolutePath();
-        String url = UriUtil.resolve(api, name);
-        app.callAttr("download", path, url);
+        String cleanName = name;
+        String hashType = null;
+        String hashValue = null;
+        if (name.contains(";sha256;")) {
+            String[] parts = name.split(";sha256;", 2);
+            cleanName = parts[0];
+            hashType = "sha256";
+            hashValue = parts[1].trim();
+        } else if (name.contains(";md5;")) {
+            String[] parts = name.split(";md5;", 2);
+            cleanName = parts[0];
+            hashType = "md5";
+            hashValue = parts[1].trim();
+        }
+        String path = Path.py(cleanName).getAbsolutePath();
+        String url = UriUtil.resolve(apiBase, cleanName);
+        if (hashType != null) {
+            app.callAttr("download_verified", path, url, hashType, hashValue);
+        } else {
+            app.callAttr("download", path, url);
+        }
     }
 }

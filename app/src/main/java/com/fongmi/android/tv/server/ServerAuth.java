@@ -45,8 +45,8 @@ public class ServerAuth {
     }
 
     private static String remoteIp(NanoHTTPD.IHTTPSession session) {
-        String ip = session.getParms().get("NanoHttpd.RemoteAddress");
-        if (TextUtils.isEmpty(ip)) ip = session.getHeaders().get("x-forwarded-for");
+        String ip = session.getHeaders().get("remote-addr");
+        if (TextUtils.isEmpty(ip)) ip = session.getHeaders().get("http-client-ip");
         return ip;
     }
 

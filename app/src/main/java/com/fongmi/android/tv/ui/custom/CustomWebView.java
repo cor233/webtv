@@ -8,7 +8,6 @@ import android.net.http.SslError;
 import android.text.TextUtils;
 import android.view.ViewGroup;
 import android.webkit.ConsoleMessage;
-import android.webkit.CookieManager;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -107,7 +106,6 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
     }
 
     private void start(Map<String, String> headers) {
-        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true);
         checkHeader(url, headers);
         loadUrl(url, headers);
     }
@@ -115,7 +113,6 @@ public class CustomWebView extends WebView implements DialogInterface.OnDismissL
     private void checkHeader(String url, Map<String, String> headers) {
         for (String key : headers.keySet()) {
             if (HttpHeaders.USER_AGENT.equalsIgnoreCase(key)) getSettings().setUserAgentString(headers.get(key));
-            else if (HttpHeaders.COOKIE.equalsIgnoreCase(key)) CookieManager.getInstance().setCookie(url, headers.get(key));
         }
     }
 

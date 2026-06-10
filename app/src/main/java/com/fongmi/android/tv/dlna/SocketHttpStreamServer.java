@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.dlna;
 
+import com.github.catvod.crawler.SpiderDebug;
+
 import org.jupnp.model.message.Connection;
 import org.jupnp.model.message.StreamRequestMessage;
 import org.jupnp.model.message.StreamResponseMessage;
@@ -24,13 +26,26 @@ import java.net.SocketException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 public class SocketHttpStreamServer implements StreamServer<SocketHttpStreamServer.Configuration> {
 
+    private static final Set<String> ALLOWED_ACTIONS = Set.of(
+        "SetAVTransportURI", "Play", "Stop", "Pause", "Seek", "Next", "Previous",
+        "GetPositionInfo", "GetTransportInfo", "GetMediaInfo", "GetCurrentTransportActions",
+        "GetDeviceCapabilities", "GetTransportSettings",
+        "SetVolume", "GetVolume", "SetMute", "GetMute",
+        "SetVolumeDB", "GetVolumeDBRange",
+        "SetPlayMode", "SetRecordQualityMode"
+    );
+
+    private final Set<String> controlPoints = Collections.synchronizedSet(new HashSet<>());
     private final Configuration configuration;
     private ServerSocket serverSocket;
     private volatile boolean stopped;
@@ -48,6 +63,9 @@ public class SocketHttpStreamServer implements StreamServer<SocketHttpStreamServ
     @Override
     public void init(InetAddress bindAddress, Router router) throws InitializationException {
         this.router = router;
+        if (bindAddress.isAnyLocalAddress()) {
+            SpiderDebug.log("dlna", "warning: DLNA server binding to wildcard 0.0.0.0");
+        }
         try {
             serverSocket = new ServerSocket();
             serverSocket.setReuseAddress(true);
@@ -71,12 +89,31 @@ public class SocketHttpStreamServer implements StreamServer<SocketHttpStreamServ
         }
     }
 
+    public void addControlPoint(InetAddress addr) {
+        controlPoints.add(addr.getHostAddress());
+    }
+
+    public void removeControlPoint(InetAddress addr) {
+        controlPoints.remove(addr.getHostAddress());
+    }
+
+    private boolean isKnownPeer(Socket socket) {
+        if (controlPoints.isEmpty()) return true;
+        String peer = socket.getInetAddress().getHostAddress();
+        return controlPoints.contains(peer);
+    }
+
     @Override
     public void run() {
         while (!stopped) {
             try {
                 Socket socket = serverSocket.accept();
                 socket.setSoTimeout(30_000);
+                if (!isKnownPeer(socket)) {
+                    SpiderDebug.log("dlna", "rejected unknown control point: %s", socket.getInetAddress().getHostAddress());
+                    socket.close();
+                    continue;
+                }
                 router.received(new SocketUpnpStream(router.getProtocolFactory(), socket));
             } catch (SocketException e) {
                 break;
@@ -132,6 +169,15 @@ public class SocketHttpStreamServer implements StreamServer<SocketHttpStreamServ
                     return;
                 }
                 Map<String, List<String>> headers = readHeaders(is);
+                if (!isAllowedAction(headers)) {
+                    OutputStream os = socket.getOutputStream();
+                    writeStatusLine(os, 403, "Forbidden");
+                    writeHeader(os, "Content-Length", "0");
+                    writeEndHeaders(os);
+                    os.flush();
+                    socket.close();
+                    return;
+                }
                 StreamRequestMessage requestMessage = buildRequestMessage(parts[0], parts[1], headers);
                 readBodyInto(is, requestMessage, headers);
                 StreamResponseMessage responseMessage = process(requestMessage);
@@ -177,6 +223,15 @@ public class SocketHttpStreamServer implements StreamServer<SocketHttpStreamServ
             while (offset < len && (read = is.read(body, offset, len - offset)) != -1) offset += read;
             if (msg.isContentTypeMissingOrText()) msg.setBodyCharacters(body);
             else msg.setBody(UpnpMessage.BodyType.BYTES, body);
+        }
+
+        private static boolean isAllowedAction(Map<String, List<String>> headers) {
+            List<String> values = headers.get("soapaction");
+            if (values == null || values.isEmpty()) return true;
+            String action = values.get(0).replace("\"", "");
+            int hash = action.lastIndexOf('#');
+            String name = hash >= 0 ? action.substring(hash + 1) : action.substring(action.lastIndexOf('/') + 1);
+            return ALLOWED_ACTIONS.contains(name);
         }
 
         private void writeResponse(OutputStream os, StreamResponseMessage msg) throws IOException {

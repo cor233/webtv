@@ -1,22 +1,57 @@
 import os
+import re
+import hashlib
 import requests
 from importlib.machinery import SourceFileLoader
 import json
 
 
 def spider(cache, api):
-    name = os.path.basename(api)
+    url, hash_type, hash_val = parse_hash(api)
+    name = os.path.basename(url)
     path = cache + '/' + name
-    download(path, api)
+    if hash_type:
+        download_verified(path, url, hash_type, hash_val)
+    elif url.startswith('http'):
+        raise RuntimeError('remote .py without ;sha256; is rejected: ' + url)
+    else:
+        writeFile(path, str.encode(api))
     name = name.split('.')[0]
     return SourceFileLoader(name, path).load_module().Spider()
 
 
 def download(path, api):
-    if api.startswith('http'):
-        writeFile(path, redirect(api).content)
+    url, hash_type, hash_val = parse_hash(api)
+    if hash_type:
+        download_verified(path, url, hash_type, hash_val)
+    elif url.startswith('http'):
+        raise RuntimeError('remote .py without ;sha256; is rejected: ' + url)
     else:
         writeFile(path, str.encode(api))
+
+
+def download_verified(path, url, hash_type, hash_val):
+    content = redirect(url).content
+    if hash_type and not verify_hash(content, hash_type, hash_val):
+        raise RuntimeError('hash mismatch for ' + url + ' expected ' + hash_type + ':' + hash_val)
+    writeFile(path, content)
+
+
+def verify_hash(content, typ, expected):
+    if typ == 'sha256':
+        actual = hashlib.sha256(content).hexdigest()
+        return actual == expected
+    if typ == 'md5':
+        actual = hashlib.md5(content).hexdigest()
+        return actual == expected
+    return False
+
+
+def parse_hash(api):
+    m = re.search(r';(sha256|md5);([0-9a-fA-F]+)$', api)
+    if m:
+        return api[:m.start()], m.group(1), m.group(2).lower()
+    return api, None, None
 
 
 def writeFile(path, content):

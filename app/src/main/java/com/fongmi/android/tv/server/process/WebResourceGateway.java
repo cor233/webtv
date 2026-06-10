@@ -3,6 +3,7 @@ package com.fongmi.android.tv.server.process;
 import android.text.TextUtils;
 
 import com.fongmi.android.tv.server.Nano;
+import com.github.catvod.Proxy;
 import com.fongmi.android.tv.server.impl.Process;
 import com.fongmi.android.tv.web.CookieBridge;
 import com.fongmi.android.tv.web.HeaderPolicy;
@@ -121,8 +122,24 @@ public class WebResourceGateway implements Process {
     }
 
     private boolean isAllowedOrigin(String origin) {
-        if (TextUtils.isEmpty(origin)) return true;
+        if (TextUtils.isEmpty(origin)) return false;
         if ("null".equals(origin)) return false;
-        return origin.startsWith("http://127.0.0.1") || origin.startsWith("http://localhost") || origin.startsWith("https://localhost") || origin.startsWith("http://[::1]");
+        try {
+            URI uri = URI.create(origin);
+            String host = uri.getHost();
+            if (host == null) return false;
+            int port = uri.getPort();
+            if ("http".equals(uri.getScheme())) {
+                if ("127.0.0.1".equals(host) || "localhost".equals(host) || "[::1]".equals(host)) {
+                    return port == -1 || port == Proxy.getPort();
+                }
+            }
+            if ("https".equals(uri.getScheme()) && "localhost".equals(host)) {
+                return port == -1;
+            }
+            return false;
+        } catch (Throwable e) {
+            return false;
+        }
     }
 }

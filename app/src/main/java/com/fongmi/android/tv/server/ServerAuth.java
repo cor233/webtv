@@ -25,7 +25,8 @@ public class ServerAuth {
 
     public static boolean isLocal(NanoHTTPD.IHTTPSession session) {
         String ip = remoteIp(session);
-        return TextUtils.isEmpty(ip) || "127.0.0.1".equals(ip) || "::1".equals(ip) || "localhost".equalsIgnoreCase(ip);
+        if (TextUtils.isEmpty(ip)) return false;
+        return "127.0.0.1".equals(ip) || "::1".equals(ip) || "localhost".equalsIgnoreCase(ip);
     }
 
     public static boolean allow(NanoHTTPD.IHTTPSession session, String url) {
@@ -44,8 +45,9 @@ public class ServerAuth {
     }
 
     private static String remoteIp(NanoHTTPD.IHTTPSession session) {
-        String ip = session.getHeaders().get("remote-addr");
-        return TextUtils.isEmpty(ip) ? session.getHeaders().get("http-client-ip") : ip;
+        String ip = session.getParms().get("NanoHttpd.RemoteAddress");
+        if (TextUtils.isEmpty(ip)) ip = session.getHeaders().get("x-forwarded-for");
+        return ip;
     }
 
     private static String token() {

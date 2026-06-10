@@ -55,8 +55,8 @@ public class DriveCheck implements Process {
 
     private Response cors(Response response, IHTTPSession session) {
         String origin = session.getHeaders().get("origin");
-        if (TextUtils.isEmpty(origin) || "null".equals(origin) || origin.startsWith("http://127.0.0.1") || origin.startsWith("http://localhost") || origin.startsWith("file://"))
-            response.addHeader("Access-Control-Allow-Origin", TextUtils.isEmpty(origin) ? "*" : origin);
+        boolean allowed = TextUtils.isEmpty(origin) || origin.startsWith("http://127.0.0.1") || origin.startsWith("http://localhost") || origin.startsWith("file://");
+        if (allowed) response.addHeader("Access-Control-Allow-Origin", TextUtils.isEmpty(origin) ? "*" : origin);
         response.addHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
         response.addHeader("Access-Control-Allow-Headers", "*");
         response.addHeader("Access-Control-Expose-Headers", "*");

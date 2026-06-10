@@ -121,7 +121,8 @@ public class WebResourceGateway implements Process {
     }
 
     private boolean isAllowedOrigin(String origin) {
-        if (TextUtils.isEmpty(origin) || "null".equals(origin)) return true;
+        if (TextUtils.isEmpty(origin)) return true;
+        if ("null".equals(origin)) return false;
         return origin.startsWith("http://127.0.0.1") || origin.startsWith("http://localhost") || origin.startsWith("https://localhost") || origin.startsWith("http://[::1]") || origin.startsWith("file://");
     }
 }

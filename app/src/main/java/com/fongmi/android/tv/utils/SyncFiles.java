@@ -81,14 +81,21 @@ public class SyncFiles {
         return result;
     }
 
+    private static final int MAX_ENTRIES = 1000;
+    private static final long MAX_ENTRY_SIZE = 100 * 1024 * 1024;
+    private static final long MAX_TOTAL_SIZE = 500 * 1024 * 1024;
+
     public static int restoreArchive(File archive) throws IOException {
         if (archive == null || !archive.isFile() || archive.length() <= 0) return 0;
         File root = Path.root().getCanonicalFile();
         int count = 0;
+        int entries = 0;
+        long totalSize = 0;
         byte[] buffer = new byte[BUFFER_SIZE];
         try (ZipInputStream zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(archive), BUFFER_SIZE))) {
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
+                if (++entries > MAX_ENTRIES) throw new IOException("Too many entries in sync archive");
                 String path = normalize(entry.getName());
                 if (path.isEmpty()) continue;
                 File out = new File(root, path);
@@ -96,9 +103,15 @@ public class SyncFiles {
                 if (entry.isDirectory()) {
                     out.mkdirs();
                 } else {
+                    long entrySize = 0;
                     try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(Path.create(out)), BUFFER_SIZE)) {
                         int read;
-                        while ((read = zis.read(buffer)) != -1) bos.write(buffer, 0, read);
+                        while ((read = zis.read(buffer)) != -1) {
+                            bos.write(buffer, 0, read);
+                            entrySize += read;
+                            if (entrySize > MAX_ENTRY_SIZE) throw new IOException("Entry too large: " + entry.getName());
+                            if ((totalSize += read) > MAX_TOTAL_SIZE) throw new IOException("Total uncompressed size too large");
+                        }
                     }
                     if (entry.getTime() > 0) out.setLastModified(entry.getTime());
                     count++;

@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
 
-    <base-config cleartextTrafficPermitted="false">
+    <!-- Base: allow cleartext HTTP for media/live streams (most live TV uses HTTP) -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
 
+    <!-- Force HTTPS for config sources, update servers, and remote JAR endpoints -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">cnb.cool</domain>
         <domain includeSubdomains="true">github.com</domain>

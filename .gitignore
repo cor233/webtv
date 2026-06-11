@@ -1,6 +1,7 @@
 .DS_Store
 .idea/
 .vscode/
+.claude/
 .gradle/
 build/
 dist/
@@ -10,6 +11,7 @@ Release/
 *.aab
 *.jks
 *.keystore
+*.keystore.b64
 local.properties
 node_modules/
 package-lock.json

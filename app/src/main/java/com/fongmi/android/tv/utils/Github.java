@@ -41,8 +41,10 @@ public class Github {
 
     private static boolean isChina() {
         String cached = Prefers.getString("geo_country");
-        if (cached != null && !cached.isEmpty()) {
-            return "CN".equals(cached);
+        if (cached != null && !cached.isEmpty()) return "CN".equals(cached);
+        if (isZhLocale()) {
+            Prefers.put("geo_country", "CN");
+            return true;
         }
         try {
             String json = OkHttp.string(GEO_URL);
@@ -54,6 +56,11 @@ public class Github {
             SpiderDebug.log(e);
             return false;
         }
+    }
+
+    private static boolean isZhLocale() {
+        java.util.Locale locale = java.util.Locale.getDefault();
+        return "CN".equalsIgnoreCase(locale.getCountry()) || "zh".equalsIgnoreCase(locale.getLanguage());
     }
 
     private static String getUrl(String name) {

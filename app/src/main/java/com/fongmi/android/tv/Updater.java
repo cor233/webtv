@@ -125,7 +125,10 @@ public class Updater implements Download.Callback, UpdateListener {
     public void success(File file) {
         Task.execute(() -> {
             if (install(file)) {
-                App.post(this::dismiss);
+                App.post(() -> {
+                    Notify.show(R.string.update_confirm);
+                    dismiss();
+                });
                 return;
             }
             String path = exportToDownloads(file);
@@ -139,17 +142,15 @@ public class Updater implements Download.Callback, UpdateListener {
 
     private boolean install(File file) {
         try {
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            Uri uri;
+            Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                uri = FileProvider.getUriForFile(App.get(), App.get().getPackageName() + ".provider", file);
+                Uri uri = FileProvider.getUriForFile(App.get(), App.get().getPackageName() + ".provider", file);
+                intent.setDataAndType(uri, "application/vnd.android.package-archive");
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             } else {
-                uri = Uri.fromFile(file);
+                intent.setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive");
             }
-            intent.setDataAndType(uri, "application/vnd.android.package-archive");
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             App.get().startActivity(intent);
             return true;
         } catch (Exception e) {

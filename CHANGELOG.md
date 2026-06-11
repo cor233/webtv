@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.5.30 — Fix Update Mirror Selection & Install (2026-06-11)
+
+修复版本更新下载走 GitHub 慢和下载后不弹出安装的问题。
+
+### 修复
+
+- **镜像选择**: `isChina()` 新增系统语言/地区本地检测，不再仅依赖 `ip-api.com`（国内可能被墙导致默认走 GitHub）
+- **安装确认**: 下载完成后改用 `ACTION_INSTALL_PACKAGE` 触发安装，并先弹出 Toast 提示
+- **安装鲁棒**: 精简重复的 `FLAG_GRANT_READ_URI_PERMISSION`，Android N+ 走 FileProvider
+
 ## 5.5.29 — Fix Live TV URL Refresh on Error (2026-06-11)
 
 修复电视直播源 token 过期后无法自动刷新的问题。

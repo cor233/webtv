@@ -1,5 +1,14 @@
 # Changelog
 
+## 5.5.31 — Code Cleanup & CNB Sync Robustness (2026-06-11)
+
+代码整洁和 CI 稳定性改进。
+
+### 修复
+
+- **死代码清理**: 删除未使用的 `CharsetDetectDataSource.java`（v5.5.20 已从 `MediaSourceFactory` 移除引用）
+- **CNB 同步鲁棒性**: 同步失败不再中断 CI 流程，增加错误日志和跳过逻辑
+
 ## 5.5.30 — Fix Update Mirror Selection & Install (2026-06-11)
 
 修复版本更新下载走 GitHub 慢和下载后不弹出安装的问题。

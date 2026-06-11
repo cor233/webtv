@@ -3,6 +3,7 @@ package com.fongmi.android.tv.api.loader;
 import android.content.Context;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.utils.DependencyTrust;
 import com.fongmi.android.tv.utils.Download;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.crawler.Spider;
@@ -105,6 +106,10 @@ public class JarLoader {
                 if (!verify(file, hashType, hash)) {
                     Path.clear(file);
                     SpiderDebug.log("jar", "hash mismatch key=%s url=%s type=%s", key, jar, hashType);
+                    return;
+                }
+                if (!DependencyTrust.confirm("JAR", jar, hashType, hash, file)) {
+                    SpiderDebug.log("jar", "remote jar not trusted key=%s url=%s", key, jar);
                     return;
                 }
                 load(key, file);

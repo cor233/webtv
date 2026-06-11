@@ -28,6 +28,7 @@ import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.web.HomeWebController;
+import com.fongmi.android.tv.web.HomeWebBridge;
 import com.fongmi.android.tv.web.ext.WebHomeExtensionRegistry;
 import com.fongmi.android.tv.web.ext.WebHomeExtensionSourceStore;
 import com.github.catvod.utils.Json;
@@ -287,6 +288,7 @@ public class WebHomeExtensionDebugDialog extends BaseAlertDialog implements Home
 
     private void refreshConsole() {
         StringBuilder builder = new StringBuilder();
+        if (controller != null) builder.append(HomeWebBridge.diagnostics(controller)).append("\n");
         for (String line : consoleLines) builder.append(line).append('\n');
         binding.consoleText.setText(builder.toString());
     }

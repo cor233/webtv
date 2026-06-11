@@ -1,5 +1,17 @@
 # Changelog
 
+## 5.5.24 — Dependency Trust & WebHome Security Controls (2026-06-11)
+
+新增远程依赖加载确认、WebHome Bridge 诊断和服务端安全控制。
+
+### 新增
+
+- **远程 JAR 确认**: 远程 JAR 首次加载时显示 URL、hash、大小和配置源，用户确认后按配置源 + URL + hash 持久化授信
+- **Python 依赖保护**: 继续强制远程 Python 依赖携带 `;sha256;` / `;md5;` 并下载后校验
+- **WebHome Bridge 诊断**: 调试 Console 展示当前 origin、trusted 状态、Bridge 调用计数和最近拒绝记录
+- **Token 轮换**: `/manage/security?resetToken=1` 可重置本次运行 token，并返回 token 前缀预览
+- **IP allowlist**: `/manage/security?ipMode=all|lan|local` 支持服务端访问范围控制，默认 `all` 保持兼容
+
 ## 5.5.21 — IP-based Update Mirror & CI Sync (2026-06-11)
 
 新增 IP 地理位置检测，自动选择 GitHub（国际）或 cnb.cool（中国大陆）更新源。

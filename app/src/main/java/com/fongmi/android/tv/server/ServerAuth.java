@@ -2,6 +2,8 @@ package com.fongmi.android.tv.server;
 
 import android.text.TextUtils;
 
+import com.github.catvod.utils.Prefers;
+
 import java.security.SecureRandom;
 
 import fi.iki.elonen.NanoHTTPD;
@@ -10,10 +12,26 @@ public class ServerAuth {
 
     private static final String HEADER = "x-fongmi-token";
     private static final String BEARER = "Bearer ";
-    private static final String TOKEN = token();
+    private static volatile String TOKEN = token();
 
     public static String tokenValue() {
         return TOKEN;
+    }
+
+    public static String tokenPreview() {
+        return TOKEN.substring(0, Math.min(4, TOKEN.length())) + "****";
+    }
+
+    public static void resetToken() {
+        TOKEN = token();
+    }
+
+    public static String ipMode() {
+        return Prefers.getString("server_ip_allow", "all");
+    }
+
+    public static void setIpMode(String mode) {
+        Prefers.put("server_ip_allow", TextUtils.isEmpty(mode) ? "all" : mode);
     }
 
     // Note: token in query string may leak via Referer headers and logs.
@@ -24,15 +42,32 @@ public class ServerAuth {
     }
 
     public static boolean isLocal(NanoHTTPD.IHTTPSession session) {
-        String ip = remoteIp(session);
+        return isLocalIp(remoteIp(session));
+    }
+
+    private static boolean isLocalIp(String ip) {
         if (TextUtils.isEmpty(ip)) return false;
         return "127.0.0.1".equals(ip) || "::1".equals(ip) || "localhost".equalsIgnoreCase(ip);
     }
 
+    private static boolean isLanIp(String ip) {
+        if (TextUtils.isEmpty(ip)) return false;
+        return ip.startsWith("10.") || ip.startsWith("192.168.") || ip.matches("172\\.(1[6-9]|2[0-9]|3[0-1])\\..*") || ip.startsWith("169.254.");
+    }
+
     public static boolean allow(NanoHTTPD.IHTTPSession session, String url) {
+        if (!allowIp(session)) return false;
         if (!protectedPath(url)) return true;
         if (isLocal(session)) return true;
         return TOKEN.equals(session.getParms().get("token")) || TOKEN.equals(session.getHeaders().get(HEADER)) || bearer(session);
+    }
+
+    private static boolean allowIp(NanoHTTPD.IHTTPSession session) {
+        String mode = ipMode();
+        if ("all".equals(mode)) return true;
+        String ip = remoteIp(session);
+        if (isLocalIp(ip)) return true;
+        return "lan".equals(mode) && isLanIp(ip);
     }
 
     private static boolean protectedPath(String url) {

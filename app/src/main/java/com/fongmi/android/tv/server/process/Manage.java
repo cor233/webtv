@@ -12,6 +12,7 @@ import com.fongmi.android.tv.bean.Device;
 import com.fongmi.android.tv.bean.SyncOptions;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.server.Nano;
+import com.fongmi.android.tv.server.ServerAuth;
 import com.fongmi.android.tv.server.impl.Process;
 import com.fongmi.android.tv.service.ManageService;
 import com.fongmi.android.tv.setting.CustomCspSetting;
@@ -67,6 +68,7 @@ public class Manage implements Process {
         try {
             ManageService.touch();
             if (url.equals("/manage/session")) return session(session.getParms());
+            if (url.equals("/manage/security")) return security(session.getParms());
             if (url.equals("/manage/background/settings")) return backgroundSettings(session);
             if (url.equals("/manage/devices")) return devices(session.getParms());
             if (url.equals("/manage/remote/ping")) return remotePing(session.getParms());
@@ -93,6 +95,17 @@ public class Manage implements Process {
         } catch (Exception e) {
             return Nano.error(e.getMessage());
         }
+    }
+
+    private Response security(Map<String, String> params) {
+        String mode = params.get("ipMode");
+        if (!TextUtils.isEmpty(mode)) ServerAuth.setIpMode(mode);
+        if (bool(params.get("resetToken"), false)) ServerAuth.resetToken();
+        JsonObject object = new JsonObject();
+        object.addProperty("tokenPreview", ServerAuth.tokenPreview());
+        object.addProperty("ipMode", ServerAuth.ipMode());
+        object.addProperty("time", System.currentTimeMillis());
+        return json(object);
     }
 
     private Response session(Map<String, String> params) {

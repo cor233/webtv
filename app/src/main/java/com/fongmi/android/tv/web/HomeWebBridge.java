@@ -30,12 +30,19 @@ import com.google.gson.JsonObject;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 public class HomeWebBridge {
 
     private static final int INLINE_LIMIT = 12000;
     private static final int CHUNK_SIZE = 60000;
+    private static final int DIAG_LIMIT = 80;
+    private static final Map<String, Integer> CALL_COUNTS = new ConcurrentHashMap<>();
+    private static final List<String> EVENTS = Collections.synchronizedList(new ArrayList<>());
 
     private final HomeWebController controller;
     private final Activity activity;
@@ -98,6 +105,8 @@ public class HomeWebBridge {
     }
 
     private void handle(String requestId, String method, JsonObject payload, boolean trusted) {
+        String origin = controller.getTrustedOrigin();
+        record(origin, method, "call", trusted);
         try {
             SpiderDebug.log("webhome", "invoke method=%s", method);
             guard(method, payload, trusted);
@@ -129,9 +138,39 @@ public class HomeWebBridge {
                 case "navigation.reload" -> reload();
                 default -> throw new IllegalArgumentException("Unknown method: " + method);
             };
+            record(origin, method, "ok", trusted);
             resolve(requestId, result);
         } catch (Throwable e) {
+            record(origin, method, "deny:" + e.getMessage(), trusted);
             reject(requestId, e.getMessage());
+        }
+    }
+
+    public static String diagnostics(HomeWebController controller) {
+        StringBuilder builder = new StringBuilder();
+        String origin = controller == null ? "" : controller.getTrustedOrigin();
+        builder.append("Bridge Sandbox\n");
+        builder.append("Origin: ").append(origin).append('\n');
+        builder.append("Trusted: ").append(controller != null && controller.isTrustedHomePage()).append("\n\n");
+        builder.append("Call Counts\n");
+        LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : CALL_COUNTS.entrySet()) if (entry.getKey().startsWith(origin + "|")) counts.put(entry.getKey().substring(origin.length() + 1), entry.getValue());
+        if (counts.isEmpty()) builder.append("-\n");
+        else for (Map.Entry<String, Integer> entry : counts.entrySet()) builder.append(entry.getKey()).append(": ").append(entry.getValue()).append('\n');
+        builder.append("\nRecent Events\n");
+        synchronized (EVENTS) {
+            int start = Math.max(0, EVENTS.size() - 30);
+            for (int i = start; i < EVENTS.size(); i++) builder.append(EVENTS.get(i)).append('\n');
+        }
+        return builder.toString();
+    }
+
+    private static void record(String origin, String method, String result, boolean trusted) {
+        String key = origin + "|" + method;
+        CALL_COUNTS.merge(key, 1, Integer::sum);
+        synchronized (EVENTS) {
+            EVENTS.add((trusted ? "T" : "U") + " " + result + " " + method + " @ " + origin);
+            while (EVENTS.size() > DIAG_LIMIT) EVENTS.remove(0);
         }
     }
 

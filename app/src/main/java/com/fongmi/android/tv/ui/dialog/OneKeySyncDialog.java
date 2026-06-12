@@ -408,7 +408,7 @@ public class OneKeySyncDialog extends BaseBottomSheetDialog implements SyncDevic
                     if (res.isSuccessful()) App.post(() -> {
                         if (archive != null) archive.delete();
                         setSyncing(false);
-                        Notify.show(R.string.sync_success);
+                        Notify.show(getString(R.string.sync_success_device, selected == null ? getString(R.string.sync_remote_device) : selected.getName()));
                         dismiss();
                     });
                     else retry(url, body, archive, retry, res.message());

@@ -22,6 +22,7 @@ import com.fongmi.android.tv.event.ServerEvent;
 import com.fongmi.android.tv.impl.ConfigListener;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.ui.custom.CustomTextListener;
+import com.fongmi.android.tv.utils.ConfigImport;
 import com.fongmi.android.tv.utils.FileChooser;
 import com.fongmi.android.tv.utils.QRCode;
 import com.fongmi.android.tv.utils.ResUtil;
@@ -138,8 +139,8 @@ public class ConfigDialog extends BaseAlertDialog {
 
     private void onPositive(View view) {
         String name = binding.name.getText().toString().trim();
-        String text = binding.text.getText().toString().trim();
-        if (edit) Config.find(url, type).url(text).update();
+        String text = ConfigImport.normalize(binding.text.getText().toString());
+        if (edit) Config.find(url, type).url(text).name(name).update();
         if (text.isEmpty()) Config.delete(url, type);
         if (name.isEmpty()) ((ConfigListener) requireActivity()).setConfig(Config.find(text, type));
         else ((ConfigListener) requireActivity()).setConfig(Config.find(text, name, type));
@@ -179,7 +180,9 @@ public class ConfigDialog extends BaseAlertDialog {
         App.post(() -> {
             if (activity.isFinishing() || activity.isDestroyed()) return;
             dismissAllowingStateLoss();
-            App.post(() -> ((ConfigListener) activity).setConfig(Config.find("file:/" + path.replace(Path.rootPath(), ""), type)), 100);
+            String name = binding.name.getText().toString().trim();
+            String text = ConfigImport.normalize("file:/" + path.replace(Path.rootPath(), ""));
+            App.post(() -> ((ConfigListener) activity).setConfig(TextUtils.isEmpty(name) ? Config.find(text, type) : Config.find(text, name, type)), 100);
         }, 100);
     });
 }

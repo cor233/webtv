@@ -20,6 +20,7 @@ import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.databinding.DialogConfigBinding;
 import com.fongmi.android.tv.impl.ConfigListener;
 import com.fongmi.android.tv.ui.custom.CustomTextListener;
+import com.fongmi.android.tv.utils.ConfigImport;
 import com.fongmi.android.tv.utils.FileChooser;
 import com.github.catvod.utils.Path;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -74,7 +75,7 @@ public class ConfigDialog extends BaseAlertDialog {
     protected void initView() {
         binding.name.setText(getConfig().getName());
         binding.url.setText(ori = getConfig().getUrl());
-        binding.input.setVisibility(edit ? View.VISIBLE : View.GONE);
+        binding.input.setVisibility(View.VISIBLE);
         binding.url.setSelection(TextUtils.isEmpty(ori) ? 0 : ori.length());
     }
 
@@ -124,17 +125,19 @@ public class ConfigDialog extends BaseAlertDialog {
     }
 
     private void onPositive(DialogInterface dialog, int which) {
-        String url = binding.url.getText().toString().trim();
+        String url = ConfigImport.normalize(binding.url.getText().toString());
         String name = binding.name.getText().toString().trim();
         if (edit) Config.find(ori, type).url(url).name(name).update();
         if (url.isEmpty()) Config.delete(ori, type);
-        ((ConfigListener) requireParentFragment()).setConfig(Config.find(url, type));
+        ((ConfigListener) requireParentFragment()).setConfig(TextUtils.isEmpty(name) ? Config.find(url, type) : Config.find(url, name, type));
         dismiss();
     }
 
     private final ActivityResultLauncher<Intent> launcher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
         if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) return;
-        ((ConfigListener) requireParentFragment()).setConfig(Config.find("file:/" + FileChooser.getPathFromUri(result.getData().getData()).replace(Path.rootPath(), ""), type));
+        String path = FileChooser.getPathFromUri(result.getData().getData());
+        if (TextUtils.isEmpty(path)) return;
+        ((ConfigListener) requireParentFragment()).setConfig(Config.find(ConfigImport.normalize("file:/" + path.replace(Path.rootPath(), "")), binding.name.getText().toString().trim(), type));
         dismiss();
     });
 }

@@ -33,6 +33,7 @@ import com.fongmi.android.tv.ui.dialog.HistoryDialog;
 import com.fongmi.android.tv.ui.dialog.LiveDialog;
 import com.fongmi.android.tv.ui.dialog.RestoreDialog;
 import com.fongmi.android.tv.ui.dialog.SiteDialog;
+import com.fongmi.android.tv.utils.ConfigImport;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.PermissionUtil;
@@ -129,11 +130,37 @@ public class SettingActivity extends BaseActivity implements ConfigListener, Sit
 
     @Override
     public void setConfig(Config config) {
+        config.url(ConfigImport.normalize(config.getUrl()));
         if (config.getUrl().startsWith("file")) {
-            PermissionUtil.requestFile(this, allGranted -> load(config));
+            PermissionUtil.requestFile(this, allGranted -> previewAndLoad(config));
         } else {
-            load(config);
+            previewAndLoad(config);
         }
+    }
+
+    private void previewAndLoad(Config config) {
+        ConfigImport.Preview preview = ConfigImport.preview(config);
+        if (!preview.valid()) {
+            Notify.show(getString(R.string.dialog_config_validation_failed, preview.summary()));
+            return;
+        }
+        if (config.getUrl().isEmpty()) {
+            Notify.show(R.string.dialog_config_validation_empty);
+            load(config);
+            return;
+        }
+        Notify.show(previewMessage(preview));
+        load(config);
+    }
+
+    private String previewMessage(ConfigImport.Preview preview) {
+        String extra = (preview.hasLogo() ? getString(R.string.dialog_config_preview_logo) : "") + (preview.hasHomePage() ? getString(R.string.dialog_config_preview_homepage) : "");
+        return switch (preview.type()) {
+            case 0 -> getString(preview.depot() ? R.string.dialog_config_preview_depot : R.string.dialog_config_preview_vod, preview.primaryCount(), preview.depot() ? 0 : preview.secondaryCount(), preview.depot() ? "" : extra);
+            case 1 -> getString(preview.depot() ? R.string.dialog_config_preview_depot : R.string.dialog_config_preview_live, preview.primaryCount());
+            case 2 -> getString(R.string.dialog_config_preview_wall);
+            default -> preview.summary();
+        } + (preview.title().isEmpty() ? "" : " · " + preview.title());
     }
 
     private void load(Config config) {

@@ -324,13 +324,17 @@
     <string name="sync_pull">拉取</string>
     <string name="sync_select_all">全選</string>
     <string name="sync_select_none">取消</string>
-    <string name="sync_item_config">接口與站源列表</string>
-    <string name="sync_item_spider">Jar/腳本保存資料</string>
-    <string name="sync_item_webhome">WebHome 主頁資料</string>
+    <string name="sync_item_config">配置與站源</string>
+    <string name="sync_item_spider">本地腳本/Jar 資料</string>
+    <string name="sync_item_webhome">WebHome 資料</string>
     <string name="sync_item_search">搜尋記錄</string>
-    <string name="sync_item_history">觀看記錄</string>
-    <string name="sync_item_keep">收藏資料</string>
+    <string name="sync_item_history">繼續觀看</string>
+    <string name="sync_item_keep">收藏</string>
     <string name="sync_item_settings">應用設定</string>
+    <string name="sync_success_device">同步完成 · %1$s</string>
+    <string name="keep_missing_config">原配置已不存在，改為打開搜尋結果。</string>
+    <string name="history_title_resume">繼續觀看</string>
+    <string name="keep_title_library">我的收藏</string>
     <string name="sync_paths_title">同步目錄</string>
     <string name="sync_paths_edit">編輯</string>
     <string name="sync_paths_desc">每行一個外置儲存相對路徑，預設同步 TV、TVBox、TVData。可加入本地包目錄；目錄內容會隨 Jar/腳本保存資料一起同步。</string>
@@ -395,6 +399,18 @@
     <string name="dialog_select_title">選擇章節</string>
     <string name="dialog_config_hint">請輸入配置…</string>
     <string name="dialog_config_name">請輸入名稱…</string>
+    <string name="dialog_config_preview_vod">點播配置 · %1$d 個站點 · %2$d 個直播項%3$s</string>
+    <string name="dialog_config_preview_live">直播配置 · %1$d 個入口</string>
+    <string name="dialog_config_preview_wall">壁紙配置</string>
+    <string name="dialog_config_preview_depot">配置倉庫 · %1$d 個入口</string>
+    <string name="dialog_config_preview_logo"> · 含 logo</string>
+    <string name="dialog_config_preview_homepage"> · 含首頁</string>
+    <string name="dialog_config_validation_failed">導入校驗失敗：%1$s</string>
+    <string name="dialog_config_validation_empty">已清空當前配置</string>
+    <string name="config_center_vod">管理點播配置</string>
+    <string name="config_center_live">管理直播配置</string>
+    <string name="config_center_wall">管理壁紙配置</string>
+    <string name="config_delete_warn">刪除這個配置後，會一併移除關聯的歷史和收藏。</string>
     <string name="dialog_config_url">請輸入網址…</string>
 
     <!-- Error -->

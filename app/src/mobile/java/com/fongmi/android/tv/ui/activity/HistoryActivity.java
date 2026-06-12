@@ -50,6 +50,7 @@ public class HistoryActivity extends BaseActivity implements HistoryAdapter.OnCl
     @Override
     protected void initView(Bundle savedInstanceState) {
         setSupportActionBar(mBinding.toolbar);
+        if (getSupportActionBar() != null) getSupportActionBar().setTitle(R.string.history_title_resume);
         setRecyclerView();
         getHistory();
     }

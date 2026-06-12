@@ -52,6 +52,7 @@ public class KeepActivity extends BaseActivity implements KeepAdapter.OnClickLis
     @Override
     protected void initView(Bundle savedInstanceState) {
         setSupportActionBar(mBinding.toolbar);
+        if (getSupportActionBar() != null) getSupportActionBar().setTitle(R.string.keep_title_library);
         setRecyclerView();
         getKeep();
     }
@@ -101,9 +102,14 @@ public class KeepActivity extends BaseActivity implements KeepAdapter.OnClickLis
     @Override
     public void onItemClick(Keep item) {
         Config config = Config.find(item.getCid());
-        if (config == null) SearchActivity.start(this, item.getVodName());
-        else if (item.getCid() != VodConfig.getCid()) loadConfig(config, item);
-        else VideoActivity.start(this, item.getSiteKey(), item.getVodId(), item.getVodName(), item.getVodPic());
+        if (config == null) {
+            Notify.show(R.string.keep_missing_config);
+            SearchActivity.start(this, item.getVodName());
+        } else if (item.getCid() != VodConfig.getCid()) {
+            loadConfig(config, item);
+        } else {
+            VideoActivity.start(this, item.getSiteKey(), item.getVodId(), item.getVodName(), item.getVodPic());
+        }
     }
 
     @Override

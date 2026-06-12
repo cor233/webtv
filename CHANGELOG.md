@@ -1,6 +1,6 @@
 # Changelog
 
-## 5.5.39 — Remove external integration layer (2026-06-12)
+## 5.5.40 — Shell UX Improvements (2026-06-12)
 
 移除一批不再维护的外部集成能力，并恢复正式仓库构建配置。
 

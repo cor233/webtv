@@ -171,6 +171,31 @@ jobs:
           git commit -m "${{ github.ref_name }}"
           git push origin HEAD:main 2>&1 || echo "WARNING: CNB push failed"
 
+      - name: Sync TV source
+        if: startsWith(github.ref, 'refs/tags/v') && env.CNB_TOKEN != ''
+        continue-on-error: true
+        env:
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+        run: |
+          rm -rf cnb-tv
+          git clone --depth 1 "https://cnb:$CNB_TOKEN@cnb.cool/code_free/TV" cnb-tv 2>&1 || { echo "WARNING: TV source clone failed, skipping sync"; exit 0; }
+          cd cnb-tv
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          path = Path('api.json')
+          text = path.read_text(encoding='utf-8')
+          pattern = r'\n\s*\{\s*"key":\s*"版本信息",\s*"name":\s*"版本｜信息",\s*"type":\s*3,\s*"api":\s*"csp_Market",\s*"searchable":\s*0,\s*"changeable":\s*0,\s*"indexs":\s*0,\s*"ext":\s*"https://pizazz\.s3\.bitiful\.net/single\.json"\s*\},'
+          text = re.sub(pattern, '', text, count=1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add api.json
+          git diff --cached --quiet && { echo "No TV source changes to push"; exit 0; }
+          git commit -m "chore: sync TV source for ${{ github.ref_name }}"
+          git push origin HEAD:master 2>&1 || echo "WARNING: TV source push failed"
+
       - name: Upload APKs as workflow artifact
         if: always()
         uses: actions/upload-artifact@v4

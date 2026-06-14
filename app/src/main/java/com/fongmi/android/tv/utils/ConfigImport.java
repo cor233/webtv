@@ -9,6 +9,7 @@ import com.fongmi.android.tv.api.Decoder;
 import com.fongmi.android.tv.bean.Config;
 import com.fongmi.android.tv.bean.Depot;
 import com.fongmi.android.tv.impl.Callback;
+import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.utils.Json;
 import com.github.catvod.utils.Path;
 import com.google.gson.JsonArray;
@@ -37,6 +38,7 @@ public class ConfigImport {
                 default -> Preview.error(config.getType(), url, "未知配置类型");
             };
         } catch (Throwable e) {
+            SpiderDebug.log(e);
             return Preview.error(config.getType(), url, Notify.getError(R.string.error_config_get, e));
         }
     }

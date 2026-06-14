@@ -7,6 +7,7 @@ import android.view.View;
 
 import androidx.viewbinding.ViewBinding;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.BuildConfig;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Updater;
@@ -38,6 +39,7 @@ import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.PermissionUtil;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.Task;
 import com.github.catvod.bean.Doh;
 import com.github.catvod.net.OkHttp;
 
@@ -139,7 +141,13 @@ public class SettingActivity extends BaseActivity implements ConfigListener, Sit
     }
 
     private void previewAndLoad(Config config) {
-        ConfigImport.Preview preview = ConfigImport.preview(config);
+        Task.execute(() -> {
+            ConfigImport.Preview preview = ConfigImport.preview(config);
+            App.post(() -> handlePreview(config, preview));
+        });
+    }
+
+    private void handlePreview(Config config, ConfigImport.Preview preview) {
         if (!preview.valid()) {
             Notify.show(getString(R.string.dialog_config_validation_failed, preview.summary()));
             return;

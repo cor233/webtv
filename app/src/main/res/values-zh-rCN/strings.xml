@@ -434,6 +434,7 @@
 
     <!-- Update -->
     <string name="update_version">发现新版本 <xliff:g name="name">%s</xliff:g></string>
+    <string name="update_current_version">当前版本：<xliff:g name="name">%s</xliff:g></string>
     <string name="update_check">正在检测更新…</string>
     <string name="update_confirm">更新</string>
     <string name="update_export_done">已下载到 <xliff:g name="path">%s</xliff:g>，请用文件管理器打开安装</string>

@@ -26,6 +26,7 @@ import okhttp3.Request;
 import okhttp3.Protocol;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.Interceptor;
 import okhttp3.logging.HttpLoggingInterceptor;
 
 public class OkHttp {
@@ -201,12 +202,28 @@ public class OkHttp {
     }
 
     private static OkHttpClient.Builder getBuilder() {
-        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns());
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(requestInterceptor()).addInterceptor(authInterceptor()).addNetworkInterceptor(httpsUpgradeInterceptor()).addNetworkInterceptor(responseInterceptor()).connectTimeout(TIMEOUT, TimeUnit.MILLISECONDS).readTimeout(TIMEOUT, TimeUnit.MILLISECONDS).writeTimeout(TIMEOUT, TimeUnit.MILLISECONDS).dns(dns());
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY);
         builder.proxyAuthenticator(authenticator());
         //builder.addNetworkInterceptor(logging);
         builder.proxySelector(selector());
         return builder;
+    }
+
+    private static Interceptor httpsUpgradeInterceptor() {
+        return chain -> {
+            Request request = chain.request();
+            HttpUrl url = request.url();
+            if (!url.isHttps() && isHttpsOnlyHost(url.host())) {
+                HttpUrl httpsUrl = url.newBuilder().scheme("https").build();
+                request = request.newBuilder().url(httpsUrl).build();
+            }
+            return chain.proceed(request);
+        };
+    }
+
+    private static boolean isHttpsOnlyHost(String host) {
+        return host.equals("cnb.cool") || host.endsWith(".cnb.cool") || host.equals("github.com") || host.endsWith(".github.com") || host.equals("githubusercontent.com") || host.endsWith(".githubusercontent.com") || host.equals("raw.githubusercontent.com") || host.endsWith(".raw.githubusercontent.com");
     }
 
     private static class DebugEventListener extends EventListener {

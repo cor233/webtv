@@ -6,7 +6,11 @@ import com.fongmi.android.tv.server.Server;
 import com.github.catvod.utils.UriUtil;
 import com.google.common.net.HttpHeaders;
 
+import java.util.Set;
+
 public class UrlUtil {
+
+    private static final Set<String> HTTPS_ONLY = Set.of("cnb.cool", "github.com", "githubusercontent.com", "raw.githubusercontent.com");
 
     public static Uri uri(String url) {
         return Uri.parse(url.trim().replace("\\", ""));
@@ -44,12 +48,20 @@ public class UrlUtil {
     }
 
     public static String convert(String url) {
+        url = httpsUpgrade(url);
         String scheme = scheme(url);
         String path = null;
         if ("assets".equals(scheme)) path = "/";
         else if ("file".equals(scheme)) path = "/file/";
         else if ("proxy".equals(scheme)) path = "/proxy?";
         return path != null ? url.replace(scheme + "://", Server.get().getAddress(path)) : url;
+    }
+
+    private static String httpsUpgrade(String url) {
+        if (url == null || !url.startsWith("http://")) return url;
+        String host = host(url);
+        for (String domain : HTTPS_ONLY) if (host.equals(domain) || host.endsWith("." + domain)) return url.replaceFirst("^http://", "https://");
+        return url;
     }
 
     public static String getName(String url) {

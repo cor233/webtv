@@ -76,7 +76,7 @@ public class Updater implements UpdateListener {
         String cnbUrl = CNB_RELEASE + "/" + apkName;
         dialog = UpdateDialog.create()
                 .title(ResUtil.getString(R.string.update_version, version))
-                .desc(desc + "\n\n" + ResUtil.getString(R.string.update_manual_msg))
+                .desc(desc + "\n\n" + ResUtil.getString(R.string.update_current_version, BuildConfig.VERSION_NAME) + "\n" + ResUtil.getString(R.string.update_manual_msg))
                 .listener(this)
                 .show(activity);
     }

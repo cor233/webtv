@@ -7,7 +7,7 @@
 用户自己找 JSON / 配置源，再在 App 内导入、管理、同步和使用。
 
 [![Release](https://img.shields.io/github/v/release/motao123/webtv?label=release)](https://github.com/motao123/webtv/releases)
-[![Android](https://img.shields.io/badge/Android-5.0%2B-3DDC84)](#下载安装)
+[![Android](https://img.shields.io/badge/Android-7.0%2B-3DDC84)](#下载安装)
 [![TV](https://img.shields.io/badge/Android%20TV-Leanback-4285F4)](#下载安装)
 
 </div>
@@ -51,7 +51,7 @@
 
 ## 下载安装
 
-最新版本：**v5.5.49**
+最新版本：**v5.5.50**
 
 下载地址：
 
@@ -61,12 +61,14 @@
 
 | 设备类型 | 推荐 APK |
 | --- | --- |
+| Android TV / 不确定架构 | `leanback-universal.apk` |
 | Android TV / 新电视盒子 | `leanback-arm64_v8a.apk` |
 | Android TV / 老盒子 | `leanback-armeabi_v7a.apk` |
+| Android 手机 / 不确定架构 | `mobile-universal.apk` |
 | Android 手机 / 新设备 | `mobile-arm64_v8a.apk` |
 | Android 手机 / 老设备 | `mobile-armeabi_v7a.apk` |
 
-> 不确定 CPU 架构时，优先下载 `arm64_v8a`。
+> 不确定 CPU 架构时，优先下载对应设备的 `universal` 通用包。
 
 ---
 

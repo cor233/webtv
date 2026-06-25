@@ -74,11 +74,17 @@ jobs:
           python3.10 --version
           python3.10 -m venv --help >/dev/null
 
+      - name: Build mobile-universal
+        run: ./gradlew :app:assembleMobileUniversal${{ inputs.build_type || 'Release' }}
+
       - name: Build mobile-arm64
         run: ./gradlew :app:assembleMobileArm64_v8a${{ inputs.build_type || 'Release' }}
 
       - name: Build mobile-armv7
         run: ./gradlew :app:assembleMobileArmeabi_v7a${{ inputs.build_type || 'Release' }}
+
+      - name: Build leanback-universal
+        run: ./gradlew :app:assembleLeanbackUniversal${{ inputs.build_type || 'Release' }}
 
       - name: Build leanback-arm64
         run: ./gradlew :app:assembleLeanbackArm64_v8a${{ inputs.build_type || 'Release' }}
@@ -118,12 +124,14 @@ jobs:
 
           Built automatically by GitHub Actions. See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for the full changelog.
 
-          ### 4 个 APK 产物
+          ### 6 个 APK 产物
 
-          - `mobile-arm64_v8a.apk` — 手机端 arm64 (v8a)
-          - `mobile-armeabi_v7a.apk` — 手机端 armv7
+          - `leanback-universal.apk` — TV 端通用包，适合不确定架构的电视/盒子
           - `leanback-arm64_v8a.apk` — TV 端 arm64 (v8a)
           - `leanback-armeabi_v7a.apk` — TV 端 armv7
+          - `mobile-universal.apk` — 手机端通用包，适合不确定架构的手机
+          - `mobile-arm64_v8a.apk` — 手机端 arm64 (v8a)
+          - `mobile-armeabi_v7a.apk` — 手机端 armv7
 
           ### 兼容性提示
 

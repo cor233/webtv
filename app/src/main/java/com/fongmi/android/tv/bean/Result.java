@@ -119,6 +119,7 @@ public class Result implements Parcelable {
     }
 
     public static Result fromXml(String str) {
+        if (str == null || str.contains("<!DOCTYPE") || str.contains("<!ENTITY")) return empty();
         try {
             return new Persister().read(Result.class, str, false).trans();
         } catch (Exception e) {

@@ -152,9 +152,17 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     public static void file(FragmentActivity activity, String path) {
-        if (TextUtils.isEmpty(path)) return;
+        if (TextUtils.isEmpty(path) || !isPlayableFilePath(path)) return;
         String name = new File(path).getName();
         start(activity, SiteApi.PUSH, "file://" + path, name);
+    }
+
+    private static boolean isPlayableFilePath(String path) {
+        String value = path.replace('\\', '/');
+        if (value.contains("/../") || value.endsWith("/..") || value.contains("/./")) return false;
+        if (value.startsWith("/data/data/") || value.startsWith("/data/user/") || value.startsWith("/proc/") || value.startsWith("/system/")) return false;
+        String lower = value.toLowerCase();
+        return lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".avi") || lower.endsWith(".ts") || lower.endsWith(".m3u8") || lower.endsWith(".flv") || lower.endsWith(".mp3") || lower.endsWith(".flac") || lower.endsWith(".m4a") || lower.endsWith(".wav") || lower.endsWith(".webm") || lower.endsWith(".mov") || lower.endsWith(".m2ts") || lower.endsWith(".rmvb") || lower.endsWith(".wmv") || lower.endsWith(".mpg") || lower.endsWith(".mpeg");
     }
 
     public static void cast(Activity activity, History history) {

@@ -4,6 +4,7 @@ import android.text.TextUtils;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.utils.Task;
+import com.fongmi.android.tv.utils.UrlSafety;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
 import com.google.gson.JsonObject;
@@ -123,6 +124,10 @@ public final class PlaybackWebhookSender {
     }
 
     private void post(WebhookConfig config, Delivery delivery) throws Exception {
+        if (!UrlSafety.isSafeHttpUrl(config.url)) {
+            SpiderDebug.log("webhook", "reject unsafe url config=%s", config.id);
+            throw new IllegalStateException("Webhook URL 不允许指向内网地址");
+        }
         RequestBody body = RequestBody.create(delivery.payload, JSON);
         Request.Builder builder = new Request.Builder().url(config.url).post(body);
         builder.header("Content-Type", "application/json");

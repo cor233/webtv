@@ -59,10 +59,13 @@ def writeFile(path, content):
         f.write(content)
 
 
-def redirect(url):
-    rsp = requests.get(url, allow_redirects=False, verify=False)
+def redirect(url, hops=0):
+    if hops > 5:
+        raise RuntimeError('too many redirects for ' + url)
+    verify = not url.startswith('http://')
+    rsp = requests.get(url, allow_redirects=False, verify=verify)
     if 'Location' in rsp.headers:
-        return redirect(rsp.headers['Location'])
+        return redirect(rsp.headers['Location'], hops + 1)
     else:
         return rsp
 

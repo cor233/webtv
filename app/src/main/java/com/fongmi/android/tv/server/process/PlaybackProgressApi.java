@@ -11,6 +11,8 @@ import com.fongmi.android.tv.playback.PlaybackProgressWriter;
 import com.fongmi.android.tv.playback.ViewingRecordSyncStore;
 import com.fongmi.android.tv.server.impl.Process;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.utils.UrlSafety;
+import com.github.catvod.Proxy;
 import com.github.catvod.crawler.SpiderDebug;
 import com.google.gson.JsonObject;
 
@@ -25,6 +27,8 @@ import fi.iki.elonen.NanoHTTPD.IHTTPSession;
 import fi.iki.elonen.NanoHTTPD.Response;
 
 public class PlaybackProgressApi implements Process {
+
+    private static final int MAX_BODY_BYTES = 10 * 1024 * 1024;
 
     @Override
     public boolean isRequest(IHTTPSession session, String url) {
@@ -63,6 +67,7 @@ public class PlaybackProgressApi implements Process {
         if (!TextUtils.isEmpty(body)) return body;
         int length = length(session);
         if (length <= 0) return "";
+        if (length > MAX_BODY_BYTES) throw new IllegalArgumentException("请求体过大，最大支持 10MB");
         InputStream input = session.getInputStream();
         ByteArrayOutputStream output = new ByteArrayOutputStream(length);
         byte[] buffer = new byte[Math.min(8192, length)];
@@ -121,8 +126,9 @@ public class PlaybackProgressApi implements Process {
 
     private Response cors(Response response, IHTTPSession session) {
         String origin = session.getHeaders().get("origin");
-        response.addHeader("Access-Control-Allow-Origin", TextUtils.isEmpty(origin) ? "*" : origin);
-        response.addHeader("Access-Control-Allow-Credentials", "true");
+        boolean allowed = UrlSafety.isLoopbackOrigin(origin, Proxy.getPort());
+        response.addHeader("Access-Control-Allow-Origin", allowed ? origin : "");
+        response.addHeader("Access-Control-Allow-Credentials", allowed ? "true" : "false");
         response.addHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
         response.addHeader("Access-Control-Allow-Headers", "*");
         response.addHeader("Access-Control-Expose-Headers", "*");

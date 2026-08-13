@@ -9,6 +9,7 @@ import com.fongmi.android.tv.player.PlaybackRouteRegistry;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.utils.UrlSafety;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
@@ -417,6 +418,7 @@ public final class MpvHlsProxy extends NanoHTTPD {
     }
 
     private okhttp3.Response fetch(Session session, String url, @Nullable String range, boolean identityEncoding) throws IOException {
+        if (!UrlSafety.isSafeMediaUrl(url)) throw new SecurityException("Unsafe stream url: " + shortUrl(url));
         Request.Builder builder = new Request.Builder().url(url);
         for (Map.Entry<String, String> entry : session.headers.entrySet()) {
             if (TextUtils.isEmpty(entry.getKey()) || TextUtils.isEmpty(entry.getValue())) continue;
@@ -809,9 +811,11 @@ public final class MpvHlsProxy extends NanoHTTPD {
 
     private int parseSessionId(IHTTPSession session) {
         try {
-            return Integer.parseInt(session.getParms().get("s"));
+            String value = session.getParms().get("s");
+            if (TextUtils.isEmpty(value)) return -1;
+            return Integer.parseInt(value);
         } catch (Throwable e) {
-            return sessionId;
+            return -1;
         }
     }
 

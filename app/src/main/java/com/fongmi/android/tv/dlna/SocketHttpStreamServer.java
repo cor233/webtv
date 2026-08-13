@@ -36,6 +36,9 @@ import java.util.Set;
 
 public class SocketHttpStreamServer implements StreamServer<SocketHttpStreamServer.Configuration> {
 
+    private static final int MAX_LINE_LENGTH = 8192;
+    private static final int MAX_BODY_LENGTH = 10 * 1024 * 1024;
+
     private static final Set<String> ALLOWED_ACTIONS = Set.of(
         "SetAVTransportURI", "Play", "Stop", "Pause", "Seek", "Next", "Previous",
         "GetPositionInfo", "GetTransportInfo", "GetMediaInfo", "GetCurrentTransportActions",
@@ -144,6 +147,7 @@ public class SocketHttpStreamServer implements StreamServer<SocketHttpStreamServ
                 }
                 sb.append((char) b);
                 prev = b;
+                if (sb.length() > MAX_LINE_LENGTH) throw new IOException("Request line too long");
             }
             return sb.toString();
         }
@@ -220,6 +224,7 @@ public class SocketHttpStreamServer implements StreamServer<SocketHttpStreamServ
             if (length == null || length.isEmpty()) return;
             int len = Integer.parseInt(length.get(0).trim());
             if (len <= 0) return;
+            if (len > MAX_BODY_LENGTH) throw new IOException("Content-Length too large");
             byte[] body = new byte[len];
             int offset = 0, read;
             while (offset < len && (read = is.read(body, offset, len - offset)) != -1) offset += read;

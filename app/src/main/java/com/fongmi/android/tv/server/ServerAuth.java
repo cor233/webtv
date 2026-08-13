@@ -63,8 +63,9 @@ public class ServerAuth {
     public static boolean allow(NanoHTTPD.IHTTPSession session, String url) {
         if (!allowIp(session)) return false;
         if (!protectedPath(url)) return true;
-        if (isLocal(session)) return true;
-        return TOKEN.equals(session.getParms().get("token")) || TOKEN.equals(session.getHeaders().get(HEADER)) || bearer(session);
+        if (isSensitivePath(url)) return hasToken(session);
+        if (isLocal(session) && isLoopbackHost(session)) return true;
+        return hasToken(session);
     }
 
     private static boolean allowIp(NanoHTTPD.IHTTPSession session) {
@@ -75,8 +76,34 @@ public class ServerAuth {
         return "lan".equals(mode) && isLanIp(ip);
     }
 
+    private static boolean hasToken(NanoHTTPD.IHTTPSession session) {
+        return TOKEN.equals(session.getParms().get("token")) || TOKEN.equals(session.getHeaders().get(HEADER)) || bearer(session);
+    }
+
     private static boolean protectedPath(String url) {
-        return url.startsWith("/manage/") || url.startsWith("/file") || url.startsWith("/upload") || url.startsWith("/newFolder") || url.startsWith("/delFolder") || url.startsWith("/delFile") || url.startsWith("/debug/") || url.startsWith("/cache") || url.startsWith("/action") || url.startsWith("/proxy") || url.startsWith("/webResource") || url.startsWith("/pan/check") || url.startsWith("/parse") || url.startsWith("/media") || url.startsWith("/tvbus") || url.startsWith("/device");
+        return url.startsWith("/manage/") || url.startsWith("/file") || url.startsWith("/upload") || url.startsWith("/newFolder") || url.startsWith("/delFolder") || url.startsWith("/delFile") || url.startsWith("/debug/") || url.startsWith("/cache") || url.startsWith("/action") || url.startsWith("/proxy") || url.startsWith("/webResource") || url.startsWith("/pan/check") || url.startsWith("/parse") || url.startsWith("/media") || url.startsWith("/tvbus") || url.startsWith("/device") || url.startsWith("/api/playback") || url.startsWith("/playback");
+    }
+
+    /**
+     * State-changing or sensitive paths that must carry the server token even from loopback,
+     * so a same-device malicious app/page cannot silently mutate state without the token.
+     */
+    private static boolean isSensitivePath(String url) {
+        return url.startsWith("/manage/") || url.startsWith("/file") || url.startsWith("/upload") || url.startsWith("/newFolder") || url.startsWith("/delFolder") || url.startsWith("/delFile") || url.startsWith("/debug/") || url.startsWith("/cache") || url.startsWith("/action") || url.startsWith("/pan/check") || url.startsWith("/api/playback") || url.startsWith("/playback");
+    }
+
+    /**
+     * Guards against DNS-rebinding: a loopback request is only trusted when its Host header
+     * explicitly names the loopback interface, never an attacker-controlled hostname.
+     */
+    private static boolean isLoopbackHost(NanoHTTPD.IHTTPSession session) {
+        String host = session.getHeaders().get("host");
+        if (TextUtils.isEmpty(host)) return false;
+        String name = host.trim();
+        int colon = name.lastIndexOf(':');
+        if (colon > 0) name = name.substring(0, colon);
+        if (name.startsWith("[") && name.endsWith("]")) name = name.substring(1, name.length() - 1);
+        return isLocalIp(name);
     }
 
     private static boolean bearer(NanoHTTPD.IHTTPSession session) {

@@ -313,6 +313,7 @@ public class DriveCheckService {
     }
 
     private DriveCheckResult checkUC(DriveCheckItem item, String normalized) throws Exception {
+        if (!isUcHost(normalized)) return result(item, normalized, STATE_UNCERTAIN, false, "链接格式无效");
         HttpResult http = request("GET", normalized, null, headers("User-Agent", mobileUa()));
         if (http.code == 404) return result(item, normalized, STATE_BAD, false, "链接失效");
         String text = http.body.toLowerCase(Locale.ROOT);
@@ -640,6 +641,22 @@ public class DriveCheckService {
             query = query.isEmpty() ? "pwd=" + enc(password) : query + "&pwd=" + enc(password);
         }
         return query.isEmpty() ? path : path + "?" + query;
+    }
+
+    /** Restricts UC drive checks to UC's own domains so a crafted share link cannot SSRF arbitrary hosts. */
+    private static boolean isUcHost(String url) {
+        if (TextUtils.isEmpty(url)) return false;
+        try {
+            java.net.URI uri = java.net.URI.create(url);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            if (scheme == null || host == null) return false;
+            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) return false;
+            String lower = host.toLowerCase(Locale.ROOT);
+            return lower.equals("uc.cn") || lower.endsWith(".uc.cn");
+        } catch (Throwable e) {
+            return false;
+        }
     }
 
     private static byte[] decode(String encoding, byte[] bytes) throws Exception {

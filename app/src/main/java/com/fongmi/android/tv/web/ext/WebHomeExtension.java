@@ -4,6 +4,7 @@ import android.text.TextUtils;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.utils.UrlUtil;
+import com.fongmi.android.tv.utils.UrlSafety;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Json;
@@ -239,6 +240,7 @@ public class WebHomeExtension {
         File file = cache(prefix + Util.md5(url) + suffix);
         String cached = Path.read(file);
         try {
+            if (!UrlSafety.isSafeHttpUrl(url)) return cached;
             String text = OkHttp.string(url);
             if (!TextUtils.isEmpty(text)) {
                 Path.write(file, text.getBytes(StandardCharsets.UTF_8));

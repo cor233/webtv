@@ -5,13 +5,13 @@ import android.text.TextUtils;
 import com.fongmi.android.tv.server.Nano;
 import com.github.catvod.Proxy;
 import com.fongmi.android.tv.server.impl.Process;
+import com.fongmi.android.tv.utils.UrlSafety;
 import com.fongmi.android.tv.web.CookieBridge;
 import com.fongmi.android.tv.web.HeaderPolicy;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
 
 import java.io.InputStream;
-import java.net.InetAddress;
 import java.net.URI;
 import java.util.Map;
 
@@ -25,6 +25,8 @@ import okhttp3.RequestBody;
 
 public class WebResourceGateway implements Process {
 
+    private static final int MAX_REDIRECTS = 5;
+
     @Override
     public boolean isRequest(IHTTPSession session, String url) {
         return url.startsWith("/webResource");
@@ -37,17 +39,15 @@ public class WebResourceGateway implements Process {
         try {
             Map<String, String> params = session.getParms();
             String target = params.get("url");
-            if (!isAllowed(target)) return cors(Nano.error(Response.Status.BAD_REQUEST, "Unsupported url"), session);
+            if (!UrlSafety.isSafeHttpUrl(target)) return cors(Nano.error(Response.Status.BAD_REQUEST, "Unsupported url"), session);
             Map<String, String> headers = HeaderPolicy.withDefaultUa(HeaderPolicy.parse(params.get("headers")));
             copyRange(session, headers);
             Request.Builder builder = new Request.Builder().url(target).headers(HeaderPolicy.of(headers));
             CookieBridge.apply(builder.build().url(), builder, "include".equals(params.get("credentials")), HeaderPolicy.hasCookie(headers));
             builder.method(getMethod(session), getBody(session, builder.build().headers(), files));
-            Request request = builder.build();
             long start = System.currentTimeMillis();
-            SpiderDebug.log("web-resource", "%s %s", request.method(), request.url());
-            response = OkHttp.client().newCall(request).execute();
-            SpiderDebug.log("web-resource", "%s %s -> %s in %sms", request.method(), request.url(), response.code(), System.currentTimeMillis() - start);
+            response = executeWithRedirectCheck(builder.build());
+            SpiderDebug.log("web-resource", "%s %s -> %s in %sms", response.request().method(), response.request().url(), response.code(), System.currentTimeMillis() - start);
             CookieBridge.set(target, response.headers());
             return cors(toResponse(response), session);
         } catch (Throwable e) {
@@ -57,20 +57,29 @@ public class WebResourceGateway implements Process {
         }
     }
 
-    private boolean isAllowed(String url) {
-        if (TextUtils.isEmpty(url) || (!url.startsWith("http://") && !url.startsWith("https://"))) return false;
-        try {
-            String host = URI.create(url).getHost();
-            if (TextUtils.isEmpty(host)) return false;
-            for (InetAddress address : InetAddress.getAllByName(host)) if (isPrivate(address)) return false;
-            return true;
-        } catch (Throwable e) {
-            return false;
+    /**
+     * Executes the request without OkHttp auto-redirect, then manually follows redirects one hop
+     * at a time, re-validating every Location against the SSRF guard so a 30x to an internal
+     * address cannot be silently followed.
+     */
+    private okhttp3.Response executeWithRedirectCheck(Request request) throws Exception {
+        for (int hop = 0; hop <= MAX_REDIRECTS; hop++) {
+            SpiderDebug.log("web-resource", "%s %s", request.method(), request.url());
+            okhttp3.Response response = OkHttp.noRedirect().newCall(request).execute();
+            int code = response.code();
+            boolean redirect = code == 301 || code == 302 || code == 303 || code == 307 || code == 308;
+            if (!redirect) return response;
+            String location = response.header("Location");
+            response.close();
+            if (location == null) throw new IllegalStateException("Redirect without Location");
+            java.net.URL base = request.url().url();
+            String next = new java.net.URL(base, location).toString();
+            if (!UrlSafety.isSafeHttpUrl(next)) throw new SecurityException("Unsafe redirect target");
+            Request.Builder builder = request.newBuilder().url(next);
+            if (code == 303) builder.method("GET", null);
+            request = builder.build();
         }
-    }
-
-    private boolean isPrivate(InetAddress address) {
-        return address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress() || address.isSiteLocalAddress();
+        throw new IllegalStateException("Too many redirects");
     }
 
     private void copyRange(IHTTPSession session, Map<String, String> headers) {

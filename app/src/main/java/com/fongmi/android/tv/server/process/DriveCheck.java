@@ -8,6 +8,8 @@ import com.fongmi.android.tv.bean.drive.DriveCheckRequest;
 import com.fongmi.android.tv.server.Nano;
 import com.fongmi.android.tv.server.impl.Process;
 import com.fongmi.android.tv.service.DriveCheckService;
+import com.fongmi.android.tv.utils.UrlSafety;
+import com.github.catvod.Proxy;
 import com.github.catvod.crawler.SpiderDebug;
 import com.google.gson.JsonObject;
 
@@ -55,8 +57,9 @@ public class DriveCheck implements Process {
 
     private Response cors(Response response, IHTTPSession session) {
         String origin = session.getHeaders().get("origin");
-        response.addHeader("Access-Control-Allow-Origin", TextUtils.isEmpty(origin) ? "*" : origin);
-        response.addHeader("Access-Control-Allow-Credentials", "true");
+        boolean allowed = UrlSafety.isLoopbackOrigin(origin, Proxy.getPort());
+        response.addHeader("Access-Control-Allow-Origin", allowed ? origin : "");
+        response.addHeader("Access-Control-Allow-Credentials", allowed ? "true" : "false");
         response.addHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
         response.addHeader("Access-Control-Allow-Headers", "*");
         response.addHeader("Access-Control-Expose-Headers", "*");

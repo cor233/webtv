@@ -3,6 +3,8 @@
 .vscode/
 .claude/
 .gradle/
+.zcode/
+.zcode/*
 build/
 dist/
 out/

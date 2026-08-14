@@ -64,6 +64,8 @@
 
 最新版本：**v5.6.0**
 
+项目主页（GitHub Pages）：https://motao123.github.io/webtv/
+
 下载地址：
 
 - [GitHub Releases](https://github.com/motao123/webtv/releases)

@@ -8,29 +8,25 @@
 <meta property="og:title" content="WebHomeTV — 影视播放器壳子">
 <meta property="og:description" content="多内核播放 · WebHome 首页 · 局域网同步 · 安全加固">
 <meta property="og:type" content="website">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --primary: #39FF14;
-    --primary-dark: #20C80A;
-    --secondary: #00D4FF;
-    --accent: #A855F7;
-    --ink: #E4E4E7;
-    --body: #A1A1AA;
-    --muted: #A1A1AA;
-    --canvas: #0A0A0A;
-    --surface: #161616;
-    --surface-soft: #0A0A0A;
-    --border: #27272A;
-    --on-primary: #000000;
-    --warning: #F59E0B;
-    --error: #EF4444;
-    --focus-ring: 0 0 0 3px rgba(57, 255, 20, 0.2);
-    --radius: 12px;
-    --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
-    --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+    --blue: #0066cc;
+    --blue-focus: #0071e3;
+    --blue-on-dark: #2997ff;
+    --canvas: #ffffff;
+    --parchment: #f5f5f7;
+    --pearl: #fafafc;
+    --tile-1: #272729;
+    --ink: #1d1d1f;
+    --body-on-dark: #ffffff;
+    --body-muted: #cccccc;
+    --ink-muted-48: #7a7a7a;
+    --hairline: #e0e0e0;
+    --divider-soft: #f0f0f0;
+    --product-shadow: 0 3px 5px 0 rgba(0, 0, 0, 0.22);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
+    --section: 80px;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -38,206 +34,237 @@
   html { scroll-behavior: smooth; }
 
   body {
-    font-family: var(--font-sans);
+    font-family: var(--font);
     background: var(--canvas);
-    color: var(--body);
-    line-height: 1.6;
+    color: var(--ink);
+    line-height: 1.47;
+    letter-spacing: -0.374px;
     -webkit-font-smoothing: antialiased;
   }
 
-  .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+  .container { max-width: 1068px; margin: 0 auto; padding: 0 24px; }
+  .container-wide { max-width: 1440px; margin: 0 auto; padding: 0 32px; }
 
-  a { color: var(--secondary); text-decoration: none; }
-  a:hover { color: var(--ink); }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
 
-  /* ---------- Nav ---------- */
-  nav {
+  /* ---------- Global Nav ---------- */
+  .global-nav {
     position: sticky; top: 0; z-index: 50;
-    background: rgba(10, 10, 10, 0.85);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
+    background: #000000;
+    height: 44px;
+    display: flex; align-items: center;
   }
-  nav .container {
+  .global-nav .container-wide {
     display: flex; align-items: center; justify-content: space-between;
-    height: 64px;
+    width: 100%;
   }
-  .brand {
-    font-family: var(--font-mono); font-weight: 600; color: var(--ink);
-    font-size: 15px; letter-spacing: 0.2px;
-  }
-  .brand .dot { color: var(--primary); }
-  .nav-links { display: flex; gap: 24px; align-items: center; }
-  .nav-links a { color: var(--body); font-size: 14px; font-weight: 600; }
-  .nav-links a:hover { color: var(--primary); }
+  .brand { font-size: 14px; font-weight: 600; color: var(--body-on-dark); letter-spacing: 0; }
+  .brand:hover { text-decoration: none; opacity: 0.8; }
+  .nav-links { display: flex; gap: 20px; }
+  .nav-links a { font-size: 12px; color: var(--body-on-dark); letter-spacing: -0.12px; }
+  .nav-links a:hover { text-decoration: none; color: var(--blue-on-dark); }
 
-  /* ---------- Hero ---------- */
-  header.hero { padding: 96px 0 80px; border-bottom: 1px solid var(--border); }
-  .hero .container { display: grid; grid-template-columns: 5fr 7fr; gap: 48px; align-items: center; }
-  .badge {
+  /* ---------- Hero (light tile) ---------- */
+  .hero { padding: var(--section) 0; background: var(--canvas); }
+  .hero .container { text-align: center; }
+  .hero .sub {
     display: inline-block;
-    background: var(--surface); color: var(--primary);
-    border: 1px solid var(--border);
-    border-radius: 16px; padding: 6px 10px;
-    font-family: var(--font-mono); font-size: 12px; font-weight: 500;
-    margin-bottom: 24px;
+    font-size: 14px; font-weight: 600; color: var(--blue);
+    border: 1px solid var(--hairline);
+    border-radius: 9999px;
+    padding: 6px 16px;
+    margin-bottom: 32px;
+    background: var(--pearl);
   }
-  h1 {
-    font-size: 60px; font-weight: 700; line-height: 1.12; letter-spacing: -1.6px;
-    color: var(--ink); margin-bottom: 24px;
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: 56px; font-weight: 600;
+    line-height: 1.07; letter-spacing: -0.28px;
+    color: var(--ink);
+    max-width: 16ch; margin: 0 auto 24px;
   }
-  h1 .hl { color: var(--primary); }
-  .hero p.lead { font-size: 20px; line-height: 1.6; color: var(--body); margin-bottom: 32px; max-width: 42ch; }
-  .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; }
+  .hero .lead {
+    font-size: 21px; font-weight: 600;
+    line-height: 1.19; letter-spacing: 0.231px;
+    color: var(--ink);
+    max-width: 40ch; margin: 0 auto 40px;
+  }
+  .hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
 
   .btn {
     display: inline-flex; align-items: center; justify-content: center;
-    font-family: var(--font-sans); font-size: 14px; font-weight: 600;
-    border-radius: var(--radius); min-height: 48px; padding: 13px 24px;
-    cursor: pointer; transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+    font-family: var(--font); font-size: 17px; font-weight: 400;
+    border-radius: 9999px; min-height: 44px; padding: 11px 22px;
+    cursor: pointer; transition: transform 160ms ease, background 160ms ease;
+    text-decoration: none;
   }
-  .btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-  .btn-primary { background: var(--primary); color: var(--on-primary); border: 1px solid var(--primary); }
-  .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
-  .btn-primary:active { transform: translateY(1px); }
-  .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
-  .btn-secondary:hover { background: rgba(57, 255, 20, 0.08); }
+  .btn:focus-visible { outline: 2px solid var(--blue-focus); outline-offset: 2px; }
+  .btn:active { transform: scale(0.95); }
+  .btn-primary { background: var(--blue); color: #ffffff; }
+  .btn-primary:hover { background: var(--blue-focus); text-decoration: none; }
+  .btn-secondary { background: transparent; color: var(--blue); border: 1px solid var(--blue); }
+  .btn-secondary:hover { background: rgba(0, 102, 204, 0.05); text-decoration: none; }
 
-  /* Terminal panel */
+  /* Terminal card — product evidence */
   .terminal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: #000000;
+    border-radius: 18px;
     overflow: hidden;
-    font-family: var(--font-mono);
-    font-size: 13px;
+    text-align: left;
+    margin: 56px auto 0;
+    max-width: 560px;
+    box-shadow: var(--product-shadow);
   }
   .terminal-bar {
     display: flex; align-items: center; gap: 8px;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface-soft);
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
   .terminal-bar .t-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
   .t-dot.r { background: #FF5F56; } .t-dot.y { background: #FFBD2E; } .t-dot.g { background: #27C93F; }
-  .terminal-bar .t-title { color: var(--muted); font-size: 12px; margin-left: 8px; }
-  .terminal-body { padding: 20px; color: var(--body); line-height: 1.9; }
-  .terminal-body .prompt { color: var(--primary); }
-  .terminal-body .cmd { color: var(--ink); }
-  .terminal-body .out { color: var(--secondary); }
-  .terminal-body .muted { color: var(--muted); }
+  .terminal-bar .t-title { color: var(--body-muted); font-size: 12px; margin-left: 8px; }
+  .terminal-body { padding: 24px; color: #a1a1a6; font-size: 14px; line-height: 2; font-family: ui-monospace, "SF Mono", monospace; }
+  .terminal-body .prompt { color: var(--blue-on-dark); }
+  .terminal-body .cmd { color: var(--body-on-dark); }
+  .terminal-body .out { color: #30d158; }
+  .terminal-body .muted { color: #6e6e73; }
 
-  /* ---------- Features ---------- */
-  section { padding: 80px 0; }
-  section + section { border-top: 1px solid var(--border); }
-  .sec-head { margin-bottom: 48px; }
-  .sec-head h2 { font-size: 48px; font-weight: 700; line-height: 1.18; letter-spacing: -1px; color: var(--ink); margin-bottom: 16px; }
-  .sec-head p { font-size: 20px; color: var(--body); max-width: 60ch; }
+  /* ---------- Section rhythm ---------- */
+  section.tile-light { background: var(--canvas); padding: var(--section) 0; }
+  section.tile-parchment { background: var(--parchment); padding: var(--section) 0; }
+  section.tile-dark { background: var(--tile-1); padding: var(--section) 0; }
+  section.tile-dark h2, section.tile-dark p.sec-desc { color: var(--body-on-dark); }
+  section.tile-dark .sec-desc { color: var(--body-muted); }
 
+  .sec-head { text-align: center; margin-bottom: 56px; }
+  .sec-head h2 {
+    font-family: var(--font-display);
+    font-size: 40px; font-weight: 600; line-height: 1.10;
+    color: var(--ink); margin-bottom: 16px;
+  }
+  .tile-dark .sec-head h2 { color: var(--body-on-dark); }
+  .sec-head p.sec-desc { font-size: 21px; font-weight: 600; color: var(--ink); line-height: 1.19; max-width: 44ch; margin: 0 auto; }
+  .tile-dark .sec-head p.sec-desc { color: var(--body-muted); }
+
+  /* ---------- Feature cards (utility grid) ---------- */
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
   .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 24px;
-    transition: border-color 160ms ease, transform 160ms ease;
+    background: var(--canvas);
+    border: 1px solid var(--hairline);
+    border-radius: 18px;
+    padding: 24px;
+    transition: transform 160ms ease;
   }
-  .card:hover { border-color: var(--primary); transform: translateY(-2px); }
-  .card .ico { font-size: 22px; margin-bottom: 16px; }
-  .card h3 { font-size: 20px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
-  .card p { font-size: 15px; color: var(--body); }
+  .card:hover { transform: translateY(-2px); }
+  .card .ico { font-size: 28px; margin-bottom: 16px; }
+  .card h3 { font-size: 17px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+  .card p { font-size: 17px; color: #515154; line-height: 1.47; }
   .card code {
-    font-family: var(--font-mono); font-size: 12px;
-    background: var(--surface-soft); border: 1px solid var(--border);
-    border-radius: 4px; padding: 2px 6px; color: var(--primary);
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 13px;
+    background: var(--parchment);
+    border-radius: 5px; padding: 2px 6px; color: var(--blue);
   }
 
-  /* ---------- Kernels ---------- */
+  /* ---------- Kernels (dark tile) ---------- */
   .kernels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
   .kernel {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 32px 24px;
+    background: #2a2a2c;
+    border-radius: 18px;
+    padding: 32px 24px;
     text-align: center;
   }
-  .kernel .k-name { font-family: var(--font-mono); font-size: 28px; font-weight: 600; color: var(--ink); margin-bottom: 12px; }
-  .kernel .k-name.primary { color: var(--primary); }
-  .kernel .k-name.secondary { color: var(--secondary); }
-  .kernel .k-name.accent { color: var(--accent); }
-  .kernel p { font-size: 14px; color: var(--body); }
+  .kernel .k-name { font-size: 34px; font-weight: 600; color: var(--body-on-dark); margin-bottom: 12px; letter-spacing: -0.374px; }
+  .kernel .k-name.blue { color: var(--blue-on-dark); }
+  .kernel p { font-size: 17px; color: var(--body-muted); }
   .kernel .tag {
-    display: inline-block; margin-top: 12px;
-    font-size: 12px; font-weight: 600;
-    border-radius: 16px; padding: 6px 10px;
-    background: var(--surface-soft); color: var(--primary); border: 1px solid var(--border);
+    display: inline-block; margin-top: 16px;
+    font-size: 14px; font-weight: 400; color: var(--body-on-dark);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 9999px; padding: 6px 14px;
   }
 
-  /* ---------- Code panel ---------- */
+  /* ---------- Config code block ---------- */
   .code-block {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 20px;
-    font-family: var(--font-mono); font-size: 13px; line-height: 1.8;
+    background: #1d1d1f;
+    border-radius: 18px;
+    padding: 28px;
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 14px; line-height: 1.9;
     overflow-x: auto;
+    color: #f5f5f7;
   }
-  .code-block .cmt { color: #6B7280; }
-  .code-block .key { color: var(--secondary); }
-  .code-block .str { color: var(--primary); }
-  .code-block .num { color: var(--accent); }
+  .code-block .cmt { color: #6e6e73; }
+  .code-block .key { color: var(--blue-on-dark); }
+  .code-block .str { color: #30d158; }
 
   /* ---------- Download ---------- */
   .dl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
   .dl-row {
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 16px 20px;
+    background: var(--canvas);
+    border: 1px solid var(--hairline);
+    border-radius: 18px; padding: 20px 24px;
     transition: border-color 160ms ease;
   }
-  .dl-row:hover { border-color: var(--primary); }
-  .dl-name { font-family: var(--font-mono); font-size: 13px; color: var(--ink); }
-  .dl-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .dl-row:hover { border-color: var(--blue); }
+  .dl-name { font-family: ui-monospace, "SF Mono", monospace; font-size: 13px; color: var(--ink); }
+  .dl-desc { font-size: 14px; color: var(--ink-muted-48); margin-top: 2px; }
   .dl-btn {
-    font-size: 13px; font-weight: 600; color: var(--primary);
-    border: 1px solid var(--primary); border-radius: 8px;
+    font-size: 14px; font-weight: 400; color: var(--blue);
+    border: 1px solid var(--blue); border-radius: 9999px;
     padding: 8px 16px; white-space: nowrap;
     transition: background 160ms ease;
   }
-  .dl-btn:hover { background: rgba(57, 255, 20, 0.08); color: var(--primary); }
+  .dl-btn:hover { background: rgba(0, 102, 204, 0.05); text-decoration: none; }
 
-  /* ---------- CTA ---------- */
-  .cta { text-align: center; }
-  .cta h2 { font-size: 36px; font-weight: 600; color: var(--ink); margin-bottom: 16px; }
-  .cta p { font-size: 18px; color: var(--body); margin-bottom: 32px; }
+  /* ---------- Security (parchment) ---------- */
+  .tile-parchment .card { background: var(--canvas); border-color: var(--divider-soft); }
+
+  /* ---------- CTA (dark) ---------- */
+  .cta h2 { font-size: 34px; font-weight: 600; color: var(--body-on-dark); margin-bottom: 16px; letter-spacing: -0.374px; }
+  .cta p { font-size: 21px; font-weight: 600; color: var(--body-muted); margin-bottom: 32px; }
+  .cta .btn-primary { background: var(--blue); }
+  .cta .btn-secondary { color: var(--blue-on-dark); border-color: var(--blue-on-dark); }
 
   /* ---------- Footer ---------- */
-  footer { border-top: 1px solid var(--border); padding: 48px 0 64px; }
-  footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-  footer .copy { font-size: 13px; color: var(--muted); }
+  footer { background: var(--parchment); padding: 64px 0; }
+  footer .container { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; flex-wrap: wrap; }
+  footer .copy { font-size: 12px; color: var(--ink-muted-48); line-height: 1.0; }
   footer .links { display: flex; gap: 24px; }
-  footer .links a { font-size: 13px; color: var(--body); }
+  footer .links a { font-size: 17px; color: var(--ink); line-height: 2.41; }
+  footer .links a:hover { color: var(--blue); }
 
   /* ---------- Responsive ---------- */
-  @media (max-width: 1023px) {
-    .hero .container { grid-template-columns: 1fr; gap: 40px; }
-    .grid { grid-template-columns: repeat(2, 1fr); }
-    .kernels { grid-template-columns: 1fr; }
-  }
-  @media (max-width: 767px) {
-    h1 { font-size: 36px; }
-    .sec-head h2 { font-size: 32px; }
-    .grid { grid-template-columns: 1fr; }
-    .dl-grid { grid-template-columns: 1fr; }
+  @media (max-width: 833px) {
     .nav-links { display: none; }
-    section { padding: 48px 0; }
-    .container { padding: 0 16px; }
+    .grid, .kernels { grid-template-columns: repeat(2, 1fr); }
+    .dl-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 34px; }
+    .sec-head h2 { font-size: 32px; }
+    .grid, .kernels { grid-template-columns: 1fr; }
+    section.tile-light, section.tile-parchment, section.tile-dark { padding: 48px 0; }
+    .hero { padding: 48px 0; }
+  }
+  @media (max-width: 419px) {
+    .hero h1 { font-size: 28px; }
+    .container, .container-wide { padding: 0 16px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    * { transition: none !important; animation: none !important; }
+    * { transition: none !important; }
   }
 </style>
 </head>
 <body>
 
-<nav>
-  <div class="container">
-    <div class="brand">webtv<span class="dot">.</span>tv</div>
+<nav class="global-nav" aria-label="主导航">
+  <div class="container-wide">
+    <div class="brand">webtv</div>
     <div class="nav-links">
       <a href="#features">特性</a>
       <a href="#kernels">内核</a>
@@ -250,14 +277,12 @@
 
 <header class="hero" id="top">
   <div class="container">
-    <div>
-      <span class="badge">v5.6.0 · targetSdk 37 · released</span>
-      <h1>影视播放器<br><span class="hl">壳子</span>，把内容交给你</h1>
-      <p class="lead">WebHomeTV 是基于 FongMi / CatVod 生态增强维护的 Android 影音播放器壳子。自带源、站点、接口全由你掌控，壳子只负责把它播放得流畅、管理得省心。</p>
-      <div class="hero-actions">
-        <a class="btn btn-primary" href="#download">下载 APK</a>
-        <a class="btn btn-secondary" href="#features">查看特性</a>
-      </div>
+    <span class="sub">v5.6.0 · targetSdk 37 · 已发布</span>
+    <h1>影视播放器壳子，把内容交给你。</h1>
+    <p class="lead">基于 FongMi / CatVod 生态增强维护。源、站点、接口全由你掌控，壳子负责播放得流畅、管理得省心。</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#download">下载 APK</a>
+      <a class="btn btn-secondary" href="#features">查看特性</a>
     </div>
     <div class="terminal" role="img" aria-label="终端命令行示例">
       <div class="terminal-bar">
@@ -266,37 +291,37 @@
       </div>
       <div class="terminal-body">
         <div><span class="prompt">$</span> <span class="cmd">adb install mobile-arm64_v8a.apk</span></div>
-        <div><span class="out">Success</span></div>
+        <div><span class="out">✔ Success</span></div>
         <div><span class="prompt">$</span> <span class="cmd">导入你的 tv 配置 URL</span></div>
         <div><span class="out">✔ 配置校验通过 · 152 个站点 · 直播已就绪</span></div>
         <div><span class="prompt">$</span> <span class="cmd">开始播放</span></div>
-        <div><span class="out">EXO → READY · <span class="muted">#multi-kernel</span></span></div>
+        <div><span class="out">✔ EXO → READY <span class="muted">· #multi-kernel</span></span></div>
       </div>
     </div>
   </div>
 </header>
 
-<section id="features">
+<section class="tile-light" id="features">
   <div class="container">
     <div class="sec-head">
       <h2>不止是播放器</h2>
-      <p>围绕「让你更容易把自己的配置用起来」设计，管理、同步、播放一条线。</p>
+      <p class="sec-desc">围绕「让你更容易把自己的配置用起来」设计。</p>
     </div>
     <div class="grid">
       <div class="card">
         <div class="ico">🗂️</div>
         <h3>配置导入增强</h3>
-        <p>导入前预检，失败不覆盖当前配置。支持 URL、文件、assets 三种来源，导入即用。</p>
+        <p>导入前预检，失败不覆盖当前配置。支持 URL、文件、assets 三种来源。</p>
       </div>
       <div class="card">
         <div class="ico">🔄</div>
         <h3>一键同步</h3>
-        <p>局域网同步配置、历史、收藏、WebHome、设置、登录态，跨设备迁移网盘登录态。</p>
+        <p>局域网同步配置、历史、收藏、WebHome、登录态，跨设备迁移网盘登录态。</p>
       </div>
       <div class="card">
         <div class="ico">▶️</div>
         <h3>播放连续性</h3>
-        <p>换源、换集、解析播放后保持进度与倍速一致，续播体验不中断。</p>
+        <p>换源、换集、解析播放后保持进度与倍速一致，续播不中断。</p>
       </div>
       <div class="card">
         <div class="ico">🌐</div>
@@ -317,35 +342,35 @@
   </div>
 </section>
 
-<section id="kernels">
+<section class="tile-dark" id="kernels">
   <div class="container">
     <div class="sec-head">
       <h2>三种内核，一个壳子</h2>
-      <p>针对不同片源和设备场景，选择最合适的解码方式。</p>
+      <p class="sec-desc">针对不同片源和设备场景，选择最合适的解码方式。</p>
     </div>
     <div class="kernels">
       <div class="kernel">
-        <div class="k-name primary">EXO</div>
+        <div class="k-name blue">EXO</div>
         <p>Media3 官方播放器，格式兼容性最好，默认内核。</p>
         <span class="tag">默认</span>
       </div>
       <div class="kernel">
-        <div class="k-name secondary">IJK</div>
+        <div class="k-name">IJK</div>
         <p>软硬解自适应，适合老设备与特殊编码片源。</p>
       </div>
       <div class="kernel">
-        <div class="k-name accent">MPV</div>
+        <div class="k-name">MPV</div>
         <p>更强的音视频滤镜与颜色控制，进阶玩家之选。</p>
       </div>
     </div>
   </div>
 </section>
 
-<section id="config">
+<section class="tile-light" id="config">
   <div class="container">
     <div class="sec-head">
       <h2>配置即一切</h2>
-      <p>站点、接口、直播、壁纸、WebHome —— 全在一个 JSON 里。</p>
+      <p class="sec-desc">站点、接口、直播、壁纸、WebHome —— 全在一个 JSON 里。</p>
     </div>
     <div class="code-block" role="img" aria-label="tv 配置 JSON 示例">
 <span class="cmt">// tv api.json — 你自己掌控的来源</span>
@@ -359,11 +384,11 @@
   </div>
 </section>
 
-<section id="download">
+<section class="tile-parchment" id="download">
   <div class="container">
     <div class="sec-head">
       <h2>下载</h2>
-      <p>最新版本 <strong style="color:var(--primary)">v5.6.0</strong> · 不确定 CPU 架构时优先选择 universal 通用包。</p>
+      <p class="sec-desc">最新版本 <strong style="color:var(--blue)">v5.6.0</strong> · 不确定 CPU 架构时优先选择 universal 通用包。</p>
     </div>
     <div class="dl-grid">
       <div class="dl-row">
@@ -409,15 +434,15 @@
         <a class="dl-btn" href="https://github.com/motao123/webtv/releases/latest/download/leanback-armeabi_v7a.apk">下载</a>
       </div>
     </div>
-    <p style="margin-top:24px;font-size:14px;color:var(--muted)">更多版本与更新说明见 <a href="https://github.com/motao123/webtv/releases">GitHub Releases</a></p>
+    <p style="margin-top:24px;font-size:14px;color:var(--ink-muted-48)">更多版本与更新说明见 <a href="https://github.com/motao123/webtv/releases">GitHub Releases</a></p>
   </div>
 </section>
 
-<section id="security">
+<section class="tile-light" id="security">
   <div class="container">
     <div class="sec-head">
       <h2>安全加固</h2>
-      <p>v5.6.0 依据代码审计结果完成高危项修复。</p>
+      <p class="sec-desc">v5.6.0 依据代码审计结果完成高危项修复。</p>
     </div>
     <div class="grid">
       <div class="card">
@@ -436,9 +461,9 @@
   </div>
 </section>
 
-<section class="cta">
-  <div class="container">
-    <h2>把内容交给壳子，把播放交给 webtv</h2>
+<section class="tile-dark cta">
+  <div class="container" style="text-align:center">
+    <h2>把内容交给壳子，把播放交给 webtv。</h2>
     <p>多内核 · WebHome · 局域网同步 · 安全加固 —— 一切都为你的源而生。</p>
     <div class="hero-actions" style="justify-content:center">
       <a class="btn btn-primary" href="#download">下载 APK</a>
@@ -449,7 +474,7 @@
 
 <footer>
   <div class="container">
-    <div class="copy">© 2026 WebHomeTV · 本仓库只提供技术实现，不内置影视内容</div>
+    <div class="copy">© 2026 WebHomeTV<br>本仓库只提供技术实现，不内置影视内容</div>
     <div class="links">
       <a href="https://github.com/motao123/webtv">GitHub</a>
       <a href="https://github.com/motao123/webtv/releases">Releases</a>

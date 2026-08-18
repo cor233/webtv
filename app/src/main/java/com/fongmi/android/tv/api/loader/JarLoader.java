@@ -59,7 +59,7 @@ public class JarLoader {
         if (!Path.exists(file) || !file.setReadOnly()) return;
         File optDir = new File(App.get().getCodeCacheDir(), "dexopt" + File.separator + key);
         if (!optDir.exists()) optDir.mkdirs();
-        DexClassLoader loader = new DexClassLoader(file.getAbsolutePath(), optDir.getAbsolutePath(), null, App.get().getClassLoader());
+        DexClassLoader loader = new CspDexClassLoader(file.getAbsolutePath(), optDir.getAbsolutePath(), null, App.get().getClassLoader());
         invokeInit(loader);
         invokeProxy(key, loader);
         loaders.put(key, loader);

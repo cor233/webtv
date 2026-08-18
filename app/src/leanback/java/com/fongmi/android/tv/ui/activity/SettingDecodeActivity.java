@@ -12,7 +12,6 @@ import com.fongmi.android.tv.databinding.ActivitySettingDecodeBinding;
 import com.fongmi.android.tv.setting.DecodeSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
-import com.fongmi.android.tv.utils.ResUtil;
 
 public class SettingDecodeActivity extends BaseActivity {
 
@@ -33,8 +32,9 @@ public class SettingDecodeActivity extends BaseActivity {
 
     @Override
     protected void initView(Bundle savedInstanceState) {
-        (PlayerSetting.getPlayer() == PlayerSetting.EXO ? mBinding.tunnel : mBinding.audioPassThrough).requestFocus();
         setVisible();
+        if (PlayerSetting.getPlayer() == PlayerSetting.EXO) mBinding.tunnel.requestFocus();
+        else if (PlayerSetting.getPlayer() == PlayerSetting.MPV) mBinding.audioPassThrough.requestFocus();
         refresh();
     }
 
@@ -44,16 +44,18 @@ public class SettingDecodeActivity extends BaseActivity {
         mBinding.tunnel.setOnClickListener(this::setTunnel);
         mBinding.audioPrefer.setOnClickListener(this::setAudioPrefer);
         mBinding.videoPrefer.setOnClickListener(this::setVideoPrefer);
-        mBinding.dolbyVisionOutput.setOnClickListener(this::setDolbyVisionOutput);
         mBinding.audioPassThrough.setOnClickListener(this::setAudioPassThrough);
     }
 
     private void setVisible() {
         boolean exo = PlayerSetting.getPlayer() == PlayerSetting.EXO;
+        boolean mpv = PlayerSetting.getPlayer() == PlayerSetting.MPV;
         mBinding.aac.setVisibility(exo ? View.VISIBLE : View.GONE);
         mBinding.tunnel.setVisibility(exo ? View.VISIBLE : View.GONE);
         mBinding.audioPrefer.setVisibility(exo ? View.VISIBLE : View.GONE);
         mBinding.videoPrefer.setVisibility(exo ? View.VISIBLE : View.GONE);
+        mBinding.audioPassThrough.setVisibility(mpv ? View.VISIBLE : View.GONE);
+        mBinding.dolbyVisionOutput.setVisibility(View.GONE);
     }
 
     private void refresh() {
@@ -61,7 +63,6 @@ public class SettingDecodeActivity extends BaseActivity {
         mBinding.tunnelText.setText(getSwitch(DecodeSetting.isTunnel()));
         mBinding.audioPreferText.setText(getSwitch(DecodeSetting.isAudioPrefer()));
         mBinding.videoPreferText.setText(getSwitch(DecodeSetting.isVideoPrefer()));
-        mBinding.dolbyVisionOutputText.setText(ResUtil.getStringArray(R.array.select_dolby_vision_output)[DecodeSetting.getDolbyVisionOutputPolicy()]);
         mBinding.audioPassThroughText.setText(getSwitch(DecodeSetting.isAudioPassThrough()));
     }
 
@@ -84,12 +85,6 @@ public class SettingDecodeActivity extends BaseActivity {
     private void setVideoPrefer(View view) {
         DecodeSetting.putVideoPrefer(!DecodeSetting.isVideoPrefer());
         mBinding.videoPreferText.setText(getSwitch(DecodeSetting.isVideoPrefer()));
-    }
-
-    private void setDolbyVisionOutput(View view) {
-        int mode = (DecodeSetting.getDolbyVisionOutputPolicy() + 1) % (2 + 1);
-        DecodeSetting.putDolbyVisionOutputPolicy(mode);
-        mBinding.dolbyVisionOutputText.setText(ResUtil.getStringArray(R.array.select_dolby_vision_output)[mode]);
     }
 
     private void setAAC(View view) {

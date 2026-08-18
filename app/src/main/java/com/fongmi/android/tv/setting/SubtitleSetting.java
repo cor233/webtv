@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.view.accessibility.CaptioningManager;
 
 import androidx.annotation.Nullable;
+import androidx.media3.common.Format;
 import androidx.media3.ui.CaptionStyleCompat;
 import androidx.media3.ui.SubtitleView;
 
@@ -207,6 +208,28 @@ public class SubtitleSetting {
 
     public static void putSecondaryTrackId(int trackId) {
         Prefers.put("subtitle_secondary_track", clampSecondaryTrackId(trackId));
+        if (trackId < 0) clearSecondaryTrackIdentity();
+    }
+
+    public static void putSecondaryTrack(@Nullable Format format) {
+        if (format == null) return;
+        Prefers.put("subtitle_secondary_language", format.language == null ? "" : format.language);
+        Prefers.put("subtitle_secondary_label", format.label == null ? "" : format.label);
+    }
+
+    public static boolean matchesSecondaryTrack(@Nullable Format format) {
+        if (format == null) return false;
+        String language = Prefers.getString("subtitle_secondary_language", "");
+        String label = Prefers.getString("subtitle_secondary_label", "");
+        if (language.isEmpty() && label.isEmpty()) return false;
+        boolean languageMatches = language.isEmpty() || language.equalsIgnoreCase(format.language == null ? "" : format.language);
+        boolean labelMatches = label.isEmpty() || label.equalsIgnoreCase(format.label == null ? "" : format.label);
+        return languageMatches && labelMatches;
+    }
+
+    private static void clearSecondaryTrackIdentity() {
+        Prefers.put("subtitle_secondary_language", "");
+        Prefers.put("subtitle_secondary_label", "");
     }
 
     public static float getSecondaryPosition() {

@@ -153,7 +153,7 @@ public class Backup {
     }
 
     private static boolean isAppPref(String key) {
-        return APP_PREFS.contains(key) || key.startsWith("danmaku_");
+        return APP_PREFS.contains(key) || key.startsWith("danmaku_") || key.startsWith("subtitle_") || key.startsWith("decode_") || key.startsWith("kernel_") || key.startsWith("perf_exo_") || key.startsWith("perf_mpv_") || key.startsWith("perf_ijk_") || key.startsWith("perf_kernel_");
     }
 
     public List<Site> getSite() {

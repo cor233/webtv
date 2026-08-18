@@ -5,6 +5,8 @@ import android.os.SystemClock;
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
+import androidx.media3.common.C;
+import androidx.media3.common.Format;
 import androidx.media3.common.MediaChapter;
 import androidx.media3.common.MediaEdition;
 import androidx.media3.common.MediaItem;
@@ -347,12 +349,13 @@ public class PlayerManager implements ParseCallback {
 
     public void setDanmakuController(DanmakuController controller) {
         danmakuController = controller;
+        if (danmakuController == null) return;
         danmakuController.setOkHttpClient(OkHttp.player());
         danmakuController.setConfig(DanmakuSetting.getConfig());
     }
 
     public void setDanmakuConfig(DanmakuConfig config) {
-        danmakuController.setConfig(config);
+        if (danmakuController != null && config != null) danmakuController.setConfig(config);
     }
 
     public void setDanmakuEnabled(boolean enabled) {
@@ -383,7 +386,7 @@ public class PlayerManager implements ParseCallback {
     }
 
     public void sendDanmaku(String text) {
-        danmakuController.sendNow(text);
+        if (danmakuController != null) danmakuController.sendNow(text);
     }
 
     public String setSpeed(float speed) {
@@ -713,6 +716,8 @@ public class PlayerManager implements ParseCallback {
         public void onTracksChanged(@NonNull Tracks tracks) {
             if (tracks.isEmpty() || initTrack) return;
             setTrack(Track.find(getKey()));
+            restoreSecondarySubtitle(tracks);
+            setSubtitleSettingStyle();
             callback.onTracksChanged();
             initTrack = true;
         }
@@ -745,6 +750,33 @@ public class PlayerManager implements ParseCallback {
             }
         }
     };
+
+    private void restoreSecondarySubtitle(Tracks tracks) {
+        if (!supportsSecondarySubtitle()) return;
+        int preference = SubtitleSetting.getSecondaryTrackId();
+        if (preference == SubtitleSetting.SECONDARY_SUBTITLE_OFF) {
+            setSecondarySubtitleTrack(Track.disabled(C.TRACK_TYPE_TEXT, ""));
+            return;
+        }
+        Format candidate = null;
+        for (Tracks.Group group : tracks.getGroups()) {
+            if (group.getType() != C.TRACK_TYPE_TEXT) continue;
+            for (int i = 0; i < group.length; i++) {
+                Format format = group.getTrackFormat(i);
+                if (group.isTrackSelected(i)) continue;
+                if (candidate == null) candidate = format;
+                if (SubtitleSetting.matchesSecondaryTrack(format)) candidate = format;
+                if (SubtitleSetting.matchesSecondaryTrack(format)) break;
+            }
+            if (candidate != null && SubtitleSetting.matchesSecondaryTrack(candidate)) break;
+        }
+        if (candidate == null) return;
+        boolean exactIdentity = SubtitleSetting.matchesSecondaryTrack(candidate);
+        if (preference >= 0 && !exactIdentity) return;
+        String name = TextUtils.isEmpty(candidate.label) ? PlayerHelper.describeFormat(candidate) : candidate.label;
+        setSecondarySubtitleTrack(new Track(C.TRACK_TYPE_TEXT, name, PlayerHelper.describeFormat(candidate)).playerId(candidate.id));
+        SubtitleSetting.putSecondaryTrack(candidate);
+    }
 
     private PlaybackRoute.Resolution getEffectivePlaybackRoute() {
         PlaybackRoute.Resolution route = engine == null ? null : engine.getEffectivePlaybackRoute();

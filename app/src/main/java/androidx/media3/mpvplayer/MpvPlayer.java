@@ -44,6 +44,7 @@ import com.fongmi.android.tv.player.lut.MpvLutShader;
 import com.fongmi.android.tv.player.mpv.MpvNetworkRecoveryPolicy;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.MpvPerformanceSetting;
+import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.github.catvod.crawler.SpiderDebug;
 import com.google.common.collect.ImmutableList;
 import com.google.common.net.HttpHeaders;
@@ -3107,6 +3108,8 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
         CaptionStyle style = captionStyle();
         safeSetPropertyDouble("sub-scale", subtitleScale());
         safeSetPropertyDouble("sub-pos", subtitlePosition());
+        safeSetPropertyDouble("secondary-sub-pos", SubtitleSetting.getSecondaryPosition());
+        safeSetPropertyString("sub-ass-override", SubtitleSetting.isStyleForced() ? "force" : "yes");
         safeSetPropertyString("sub-font", style.font);
         safeSetPropertyString("sub-bold", style.bold ? "yes" : "no");
         safeSetPropertyString("sub-italic", style.italic ? "yes" : "no");
@@ -3130,7 +3133,8 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
     }
 
     private CaptionStyle captionStyle() {
-        if (!PlayerSetting.isCaption()) return defaultCaptionStyle();
+        if (SubtitleSetting.isCustomStyle()) return customCaptionStyle();
+        if (!SubtitleSetting.isSystemStyle()) return defaultCaptionStyle();
         try {
             CaptioningManager manager = (CaptioningManager) context.getSystemService(Context.CAPTIONING_SERVICE);
             CaptioningManager.CaptionStyle style = manager == null ? null : manager.getUserStyle();
@@ -3157,6 +3161,16 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
     private CaptionStyle captionStyle(String font, boolean bold, boolean italic, int foreground, int edge, int background, int shadow, double borderSize, double shadowOffset) {
         boolean hasBackground = Color.alpha(background) > 0;
         return new CaptionStyle(font, bold, italic, foreground, edge, hasBackground ? background : shadow, hasBackground ? "background-box" : "outline-and-shadow", borderSize, hasBackground ? 2.0 : shadowOffset);
+    }
+
+    private CaptionStyle customCaptionStyle() {
+        int edgeType = SubtitleSetting.getEdgeType();
+        double borderSize = edgeType == CaptioningManager.CaptionStyle.EDGE_TYPE_OUTLINE ? SubtitleSetting.getEdgeWidth() : 0.0;
+        double shadowOffset = edgeType == CaptioningManager.CaptionStyle.EDGE_TYPE_DROP_SHADOW ? SubtitleSetting.getShadow() : 0.0;
+        int edge = edgeType == CaptioningManager.CaptionStyle.EDGE_TYPE_NONE ? Color.TRANSPARENT : SubtitleSetting.getEdgeColor();
+        int background = SubtitleSetting.getBackgroundColor();
+        int shadow = shadowOffset > 0 ? edge : Color.TRANSPARENT;
+        return captionStyle("sans-serif", false, false, SubtitleSetting.getTextColor(), edge, background, shadow, borderSize, shadowOffset);
     }
 
     private CaptionStyle defaultCaptionStyle() {

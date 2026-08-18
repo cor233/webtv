@@ -102,19 +102,19 @@ public class DanmakuSetting {
     }
 
     public static int getStyleMode() {
-        return Prefers.getInt("danmaku_style_mode", DanmakuConfig.STYLE_STROKE);
+        return Math.clamp(Prefers.getInt("danmaku_style_mode", DanmakuConfig.STYLE_STROKE), DanmakuConfig.STYLE_NONE, DanmakuConfig.STYLE_PROJECTION);
     }
 
     public static void putStyleMode(int value) {
-        Prefers.put("danmaku_style_mode", value);
+        Prefers.put("danmaku_style_mode", Math.clamp(value, DanmakuConfig.STYLE_NONE, DanmakuConfig.STYLE_PROJECTION));
     }
 
     public static int getColorMode() {
-        return Prefers.getInt("danmaku_color_mode", DanmakuConfig.COLOR_MODE_DEFAULT);
+        return Math.clamp(Prefers.getInt("danmaku_color_mode", DanmakuConfig.COLOR_MODE_DEFAULT), DanmakuConfig.COLOR_MODE_DEFAULT, DanmakuConfig.COLOR_MODE_GRADIENT);
     }
 
     public static void putColorMode(int value) {
-        Prefers.put("danmaku_color_mode", value);
+        Prefers.put("danmaku_color_mode", Math.clamp(value, DanmakuConfig.COLOR_MODE_DEFAULT, DanmakuConfig.COLOR_MODE_GRADIENT));
     }
 
     public static float getShadowTransparency() {

@@ -179,6 +179,7 @@ final class SubtitleSettingPanel {
                 if (parseTrackId(format) != id) continue;
                 String name = new DefaultTrackNameProvider(binding.getRoot().getResources()).getTrackName(format);
                 player.setSecondarySubtitleTrack(new Track(C.TRACK_TYPE_TEXT, name, PlayerHelper.describeFormat(format)).playerId(format.id));
+                SubtitleSetting.putSecondaryTrack(format);
                 return;
             }
         }
@@ -372,7 +373,19 @@ final class SubtitleSettingPanel {
         int trackId = SubtitleSetting.getSecondaryTrackId();
         if (trackId < 0) return trackId;
         for (SecondaryTrack track : tracks) if (track.id() == trackId) return trackId;
-        return SubtitleSetting.SECONDARY_SUBTITLE_AUTO;
+        int matched = findSecondaryTrackByIdentity();
+        return matched >= 0 ? matched : SubtitleSetting.SECONDARY_SUBTITLE_AUTO;
+    }
+
+    private int findSecondaryTrackByIdentity() {
+        for (Tracks.Group group : player.getCurrentTracks().getGroups()) {
+            if (group.getType() != C.TRACK_TYPE_TEXT) continue;
+            for (int i = 0; i < group.length; i++) {
+                Format format = group.getTrackFormat(i);
+                if (SubtitleSetting.matchesSecondaryTrack(format)) return parseTrackId(format);
+            }
+        }
+        return C.INDEX_UNSET;
     }
 
     private int chipForSecondaryMode(int trackId) {
@@ -414,8 +427,12 @@ final class SubtitleSettingPanel {
     }
 
     private int parseTrackId(Format format) {
+        if (format == null || TextUtils.isEmpty(format.id)) return C.INDEX_UNSET;
+        String id = format.id;
+        int separator = id.lastIndexOf(':');
+        if (separator >= 0 && separator + 1 < id.length()) id = id.substring(separator + 1);
         try {
-            return format.id == null ? C.INDEX_UNSET : Integer.parseInt(format.id);
+            return Integer.parseInt(id);
         } catch (NumberFormatException e) {
             return C.INDEX_UNSET;
         }

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.accessibility.CaptioningManager;
 
 import androidx.annotation.NonNull;
@@ -18,13 +19,17 @@ import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.LoadControl;
+import androidx.media3.exoplayer.Renderer;
 import androidx.media3.exoplayer.RenderersFactory;
+import androidx.media3.exoplayer.audio.AudioRendererEventListener;
 import androidx.media3.exoplayer.audio.AudioSink;
 import androidx.media3.exoplayer.audio.DefaultAudioSink;
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import androidx.media3.exoplayer.trackselection.TrackSelector;
 import androidx.media3.exoplayer.util.EventLogger;
+import androidx.media3.exoplayer.video.VideoRendererEventListener;
 import androidx.media3.ui.CaptionStyleCompat;
 import androidx.media3.ui.PlayerView;
 
@@ -46,6 +51,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.FfmpegAudioRenderer;
+import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.FfmpegVideoRenderer;
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory;
 
 public class ExoUtil {
@@ -130,7 +137,29 @@ public class ExoUtil {
                 if (audioProcessor != null) builder.setAudioProcessors(new AudioProcessor[]{audioProcessor});
                 return builder.build();
             }
+            @Override
+            protected void buildAudioRenderers(Context context, int extensionRendererMode, MediaCodecSelector mediaCodecSelector, boolean enableDecoderFallback, AudioSink audioSink, Handler eventHandler, AudioRendererEventListener eventListener, ArrayList<Renderer> out) {
+                super.buildAudioRenderers(context, extensionRendererMode, mediaCodecSelector, enableDecoderFallback, audioSink, eventHandler, eventListener, out);
+                preferRenderer(out, FfmpegAudioRenderer.class, PlayerSetting.isAudioPrefer(PlayerSetting.EXO));
+            }
+
+            @Override
+            protected void buildVideoRenderers(Context context, int extensionRendererMode, MediaCodecSelector mediaCodecSelector, boolean enableDecoderFallback, Handler eventHandler, VideoRendererEventListener eventListener, long allowedVideoJoiningTimeMs, ArrayList<Renderer> out) {
+                super.buildVideoRenderers(context, extensionRendererMode, mediaCodecSelector, enableDecoderFallback, eventHandler, eventListener, allowedVideoJoiningTimeMs, out);
+                preferRenderer(out, FfmpegVideoRenderer.class, PlayerSetting.isVideoPrefer(PlayerSetting.EXO));
+            }
         }.setEnableDecoderFallback(true).setExtensionRendererMode(renderMode);
+    }
+
+    private static void preferRenderer(ArrayList<Renderer> renderers, Class<? extends Renderer> type, boolean prefer) {
+        if (!prefer) return;
+        for (int i = 0; i < renderers.size(); i++) {
+            Renderer renderer = renderers.get(i);
+            if (!type.isInstance(renderer)) continue;
+            renderers.remove(i);
+            renderers.add(0, renderer);
+            return;
+        }
     }
 
     private static MediaSource.Factory buildMediaSourceFactory() {

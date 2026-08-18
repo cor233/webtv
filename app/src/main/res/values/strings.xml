@@ -956,4 +956,10 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
         <item>Hashed device id. Use only for trusted services.</item>
     </string-array>
 
+    <string name="player_mpv_config">MPV configuration</string>
+    <string name="mpv_config_download_failed">Unable to download MPV config</string>
+    <string name="mpv_config_utf8_required">MPV config must be valid UTF-8</string>
+    <string name="mpv_config_script_warning">Lua/JavaScript files are trusted code. Only import scripts you trust. Remote scripts are saved disabled by default.</string>
+    <string name="mpv_config_mobile_edit_hint">Use the mobile app to edit config text. TV supports profile selection and import.</string>
+    <string name="mpv_config_restart_hint">Changes apply to newly created MPV instances. Reopen playback to apply them.</string>
 </resources>

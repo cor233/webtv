@@ -914,4 +914,10 @@ WebHomeTV 是播放器壳子，不内置内容源，请使用合法配置。</st
         <item>设备标识哈希，只建议可信服务使用。</item>
     </string-array>
 
+    <string name="player_mpv_config">MPV 配置管理</string>
+    <string name="mpv_config_download_failed">无法下载 MPV 配置</string>
+    <string name="mpv_config_utf8_required">MPV 配置必须是有效的 UTF-8 文本</string>
+    <string name="mpv_config_script_warning">Lua/JavaScript 文件属于受信任代码。请仅导入可信脚本；远程脚本默认以禁用状态保存。</string>
+    <string name="mpv_config_mobile_edit_hint">请使用移动端编辑配置文本；TV 端支持配置档选择与导入。</string>
+    <string name="mpv_config_restart_hint">更改仅对新建 MPV 实例生效，请重新进入播放。</string>
 </resources>

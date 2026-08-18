@@ -15,11 +15,13 @@ import com.fongmi.android.tv.databinding.FragmentSettingPlayerBinding;
 import com.fongmi.android.tv.impl.BufferListener;
 import com.fongmi.android.tv.impl.SpeedListener;
 import com.fongmi.android.tv.impl.UaListener;
+import com.fongmi.android.tv.player.mpv.MpvConfigStore;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.base.BaseFragment;
 import com.fongmi.android.tv.ui.dialog.BufferDialog;
+import com.fongmi.android.tv.ui.dialog.MpvConfigDialog;
 import com.fongmi.android.tv.ui.dialog.PreloadDialog;
 import com.fongmi.android.tv.ui.dialog.SpeedDialog;
 import com.fongmi.android.tv.ui.dialog.UaDialog;
@@ -69,6 +71,7 @@ public class SettingPlayerFragment extends BaseFragment implements UaListener, B
         mBinding.captionText.setText((caption = ResUtil.getStringArray(R.array.select_caption))[PlayerSetting.isCaption() ? 1 : 0]);
         mBinding.backgroundText.setText((background = ResUtil.getStringArray(R.array.select_background))[PlayerSetting.getBackground()]);
         mBinding.kernelText.setText((kernel = ResUtil.getStringArray(R.array.select_player_kernel))[PlayerSetting.getPlayer()]);
+        mBinding.mpvConfigText.setText(MpvConfigStore.summary());
         mBinding.preloadText.setText(getSwitch(PreloadSetting.isPreload()));
         mBinding.preloadThreadsText.setText(String.valueOf(PreloadSetting.getPreloadThreads()));
         mBinding.preloadSizeText.setText(PreloadSetting.getPreloadSizeMb() + " MB");
@@ -79,6 +82,7 @@ public class SettingPlayerFragment extends BaseFragment implements UaListener, B
     @Override
     protected void initEvent() {
         mBinding.osd.setOnClickListener(this::onOsd);
+        mBinding.mpvConfig.setOnClickListener(view -> MpvConfigDialog.show(this, () -> mBinding.mpvConfigText.setText(MpvConfigStore.summary())));
         mBinding.kernel.setOnClickListener(this::onKernel);
         mBinding.ua.setOnClickListener(this::onUa);
         mBinding.aac.setOnClickListener(this::setAAC);

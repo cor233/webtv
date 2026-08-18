@@ -1,10 +1,12 @@
 package com.fongmi.android.tv.player.mpv;
 
 import android.text.TextUtils;
+import android.util.AtomicFile;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.UrlSafety;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Prefers;
@@ -13,9 +15,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,9 +30,12 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
-import java.util.Locale;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 public final class MpvConfigStore {
 
@@ -75,7 +85,7 @@ public final class MpvConfigStore {
     }
 
     public static boolean hasGpuVideoProcessing() {
-        File[] scripts = scriptsDir().listFiles(file -> file.isFile() && isScriptName(file.getName()));
+        File[] scripts = scriptsDir().listFiles(file -> file.isFile() && isEnabledScriptName(file.getName()));
         if (scripts != null && scripts.length > 0) return true;
         try {
             return containsGpuVideoProcessing(readText(configFile()));
@@ -214,7 +224,7 @@ public final class MpvConfigStore {
         validateContent(text);
         String displayName = TextUtils.isEmpty(name) ? fileName(url) : name;
         if (TARGET_SCRIPTS.equals(target)) {
-            writeTextChecked(scriptFile(url, displayName), text);
+            writeTextChecked(uniqueDisabledScriptFile(displayName), text);
         } else {
             writeTargetChecked(target, text);
             recordAppliedProfile(target, TYPE_URL, url, displayName, text);
@@ -311,7 +321,7 @@ public final class MpvConfigStore {
         validateContent(content);
         String displayName = TextUtils.isEmpty(name) ? fileName(source) : name.trim();
         if (TARGET_SCRIPTS.equals(target)) {
-            File file = uniqueScriptFile(displayName);
+            File file = TYPE_URL.equals(type) ? uniqueDisabledScriptFile(displayName) : uniqueScriptFile(displayName);
             writeTextChecked(file, content);
             return file.getName();
         }
@@ -569,8 +579,30 @@ public final class MpvConfigStore {
         return file;
     }
 
+    private static File uniqueDisabledScriptFile(String name) {
+        String safe = safeScriptName(name) + ".disabled";
+        File file = new File(scriptsDir(), safe);
+        if (!file.exists()) return file;
+        int extension = safe.toLowerCase(Locale.ROOT).endsWith(".js.disabled") ? safe.length() - 12 : safe.length() - 13;
+        String base = safe.substring(0, Math.max(1, extension));
+        String suffix = safe.substring(Math.max(1, extension));
+        for (int i = 2; i < 1000; i++) {
+            file = new File(scriptsDir(), base + " (" + i + ")" + suffix);
+            if (!file.exists()) return file;
+        }
+        return new File(scriptsDir(), base + "-" + System.currentTimeMillis() + suffix);
+    }
+
     private static boolean isScriptName(String name) {
-        return name != null && (name.toLowerCase().endsWith(".lua") || name.toLowerCase().endsWith(".js"));
+        if (name == null) return false;
+        String lower = name.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".lua") || lower.endsWith(".js") || lower.endsWith(".lua.disabled") || lower.endsWith(".js.disabled");
+    }
+
+    private static boolean isEnabledScriptName(String name) {
+        if (name == null) return false;
+        String lower = name.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".lua") || lower.endsWith(".js");
     }
 
     private static String readSource(String type, String source) throws IOException {
@@ -580,9 +612,48 @@ public final class MpvConfigStore {
     }
 
     private static String readUrl(String url) throws IOException {
-        String text = OkHttp.string(url, 15000);
-        if (TextUtils.isEmpty(text)) throw new IOException(App.get().getString(R.string.mpv_config_download_empty));
-        return text;
+        if (!UrlSafety.isSafeHttpUrl(url)) throw new IOException(App.get().getString(R.string.mpv_config_url_invalid));
+        Request request;
+        try {
+            request = new Request.Builder().url(url).get().build();
+        } catch (IllegalArgumentException e) {
+            throw new IOException(App.get().getString(R.string.mpv_config_url_invalid));
+        }
+        try (Response response = OkHttp.noRedirect(15000).newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException(App.get().getString(R.string.mpv_config_download_failed));
+            ResponseBody body = response.body();
+            if (body == null) throw new IOException(App.get().getString(R.string.mpv_config_download_empty));
+            long length = body.contentLength();
+            if (length > MAX_PROFILE_BYTES) throw new IOException(App.get().getString(R.string.mpv_config_too_large));
+            byte[] bytes = readLimited(body.byteStream());
+            String text = decodeUtf8(bytes);
+            if (TextUtils.isEmpty(text)) throw new IOException(App.get().getString(R.string.mpv_config_download_empty));
+            return text;
+        }
+    }
+
+    private static byte[] readLimited(InputStream input) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int total = 0;
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            total += read;
+            if (total > MAX_PROFILE_BYTES) throw new IOException(App.get().getString(R.string.mpv_config_too_large));
+            output.write(buffer, 0, read);
+        }
+        return output.toByteArray();
+    }
+
+    private static String decodeUtf8(byte[] bytes) throws IOException {
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes)).toString();
+        } catch (CharacterCodingException e) {
+            throw new IOException(App.get().getString(R.string.mpv_config_utf8_required));
+        }
     }
 
     private static String readLocal(String path) throws IOException {
@@ -628,7 +699,9 @@ public final class MpvConfigStore {
     }
 
     private static String readText(File file) throws IOException {
-        return new String(Path.readToByte(file), StandardCharsets.UTF_8);
+        byte[] bytes = Path.readToByte(file);
+        if (bytes.length > MAX_PROFILE_BYTES) throw new IOException(App.get().getString(R.string.mpv_config_too_large));
+        return decodeUtf8(bytes);
     }
 
     private static void writeText(String text) {
@@ -652,10 +725,15 @@ public final class MpvConfigStore {
     private static void writeTextChecked(File file, String text) throws IOException {
         File parent = file.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) throw writeFailed();
-        try (FileOutputStream output = new FileOutputStream(file)) {
+        AtomicFile atomic = new AtomicFile(file);
+        FileOutputStream output = null;
+        try {
+            output = atomic.startWrite();
             output.write((text == null ? "" : text).getBytes(StandardCharsets.UTF_8));
             output.flush();
+            atomic.finishWrite(output);
         } catch (IOException e) {
+            if (output != null) atomic.failWrite(output);
             throw writeFailed();
         }
     }
@@ -913,7 +991,7 @@ public final class MpvConfigStore {
         if (!dir.exists()) dir.mkdirs();
     }
 
-    private static String defaultConfig() {
+    static String defaultConfig() {
         return "# WebHTV MPV default config\n"
                 + "# Loaded by libmpv from files/mpv/mpv.conf. Keep Android-only output options in app code.\n"
                 + "\n"

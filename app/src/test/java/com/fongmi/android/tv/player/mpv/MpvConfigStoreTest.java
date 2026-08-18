@@ -2,6 +2,7 @@ package com.fongmi.android.tv.player.mpv;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +18,44 @@ public class MpvConfigStoreTest {
 
         assertTrue(config.contains("sub-ass-override=yes\n"));
         assertTrue(config.contains("sub-font-provider=none\n"));
+    }
+
+    @Test
+    public void parserAllowsNormalOptionsAndBindings() throws Exception {
+        MpvConfigStore.validateContent(MpvConfigStore.TARGET_MPV_CONF, "profile=fast\nsub-ass=yes\n");
+        MpvConfigStore.validateContent(MpvConfigStore.TARGET_INPUT_CONF, "SPACE cycle pause\n");
+        assertFalse(MpvConfigStore.isDangerousDirective("profile"));
+        assertFalse(MpvConfigStore.isDangerousInputCommand("SPACE cycle pause"));
+    }
+
+    @Test
+    public void parserRejectsScriptIncludeAndIpcDirectives() {
+        assertDangerous("include=remote.conf");
+        assertDangerous("script=/sdcard/evil.lua");
+        assertDangerous("scripts=/sdcard/scripts");
+        assertDangerous("script-opts=evil=yes");
+        assertDangerous("input-ipc-server=/data/local/tmp/mpv.sock");
+        assertDangerous("load-scripts=yes");
+        assertDangerousInput("CTRL+x run rm -rf /sdcard");
+        assertDangerousInput("F1 script-binding evil/action");
+    }
+
+    private void assertDangerousInput(String line) {
+        try {
+            MpvConfigStore.validateContent(MpvConfigStore.TARGET_INPUT_CONF, line);
+            throw new AssertionError("Expected rejection: " + line);
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage().contains("Unsafe MPV"));
+        }
+    }
+
+    private void assertDangerous(String line) {
+        try {
+            MpvConfigStore.validateContent(MpvConfigStore.TARGET_MPV_CONF, line);
+            throw new AssertionError("Expected rejection: " + line);
+        } catch (IOException expected) {
+            assertTrue(expected.getMessage().contains("Unsafe MPV directive"));
+        }
     }
 
     @Test

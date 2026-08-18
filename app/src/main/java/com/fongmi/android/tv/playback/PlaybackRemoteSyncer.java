@@ -6,6 +6,7 @@ import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.utils.Task;
+import com.fongmi.android.tv.utils.UrlSafety;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
 
@@ -82,6 +83,7 @@ public final class PlaybackRemoteSyncer {
     }
 
     private static String fetch(RemoteSyncConfig config, String configKey) throws Exception {
+        if (!UrlSafety.isSafeHttpUrl(config.url)) throw new IllegalArgumentException("远端同步 URL 不安全");
         Request.Builder builder = new Request.Builder().url(config.url).get();
         builder.header("Accept", "application/json");
         PlaybackHttpHeaders.header(builder, "X-WebHTV-Config-Key", configKey);
@@ -89,7 +91,7 @@ public final class PlaybackRemoteSyncer {
         PlaybackHttpHeaders.header(builder, "X-WebHTV-Since", config.cursor(configKey));
         if (config.maxItems > 0) builder.header("X-WebHTV-Limit", String.valueOf(config.maxItems));
         if (!TextUtils.isEmpty(config.token)) builder.header("X-WebHTV-Token", config.token);
-        try (Response response = OkHttp.client(TIMEOUT_MS).newCall(builder.build()).execute()) {
+        try (Response response = OkHttp.noRedirect(TIMEOUT_MS).newCall(builder.build()).execute()) {
             if (!response.isSuccessful()) throw new IllegalStateException("HTTP " + response.code());
             return response.body() == null ? "" : response.body().string();
         }

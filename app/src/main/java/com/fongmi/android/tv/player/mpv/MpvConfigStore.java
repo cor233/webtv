@@ -121,14 +121,17 @@ public final class MpvConfigStore {
     public static void ensureReady() {
         File file = configFile();
         if (!file.isFile() || file.length() == 0) {
-            writeText(defaultConfig());
-            putDefault(TARGET_MPV_CONF);
+            try {
+                writeTextChecked(file, defaultConfig());
+                putDefault(TARGET_MPV_CONF);
+            } catch (IOException ignored) {
+            }
             return;
         }
         if (TYPE_DEFAULT.equals(Prefers.getString(key(KEY_TYPE, TARGET_MPV_CONF), TYPE_DEFAULT))) {
             try {
                 String expected = defaultConfig();
-                if (!TextUtils.equals(readText(file), expected)) writeText(expected);
+                if (!TextUtils.equals(readText(file), expected)) writeTextChecked(file, expected);
             } catch (IOException ignored) {
             }
         }
@@ -174,22 +177,17 @@ public final class MpvConfigStore {
         return ResUtil.getString(R.string.mpv_config_untitled);
     }
 
-    public static void applyDefault() {
+    public static void applyDefault() throws IOException {
         applyDefault(TARGET_MPV_CONF);
     }
 
-    public static synchronized void applyDefault(String target) {
+    public static synchronized void applyDefault(String target) throws IOException {
         if (TARGET_SCRIPTS.equals(target)) {
             clearScripts();
             putDefault(target);
             return;
         }
-        if (TARGET_INPUT_CONF.equals(target)) {
-            File file = targetFile(target);
-            if (file.isFile()) file.delete();
-        } else {
-            writeText(defaultConfig());
-        }
+        writeTargetChecked(target, defaultContent(target));
         putDefault(target);
         Prefers.put(selectedKey(target), "default");
     }
@@ -200,10 +198,10 @@ public final class MpvConfigStore {
 
     public static synchronized void applyFile(String target, String path, String name) throws IOException {
         String text = readLocal(path);
-        validateContent(text);
+        validateContent(target, text);
         String displayName = TextUtils.isEmpty(name) ? fileName(path) : name;
         if (TARGET_SCRIPTS.equals(target)) {
-            writeTextChecked(scriptFile(path, displayName), text);
+            writeTextChecked(uniqueDisabledScriptFile(displayName), text);
         } else {
             writeTargetChecked(target, text);
             recordAppliedProfile(target, TYPE_FILE, path, displayName, text);
@@ -219,9 +217,9 @@ public final class MpvConfigStore {
     }
 
     public static synchronized void applyUrl(String target, String url, String name) throws IOException {
-        if (!isHttpUrl(url)) throw new IOException(App.get().getString(R.string.mpv_config_url_invalid));
+        if (!isHttpsUrl(url)) throw new IOException(App.get().getString(R.string.mpv_config_url_invalid));
         String text = readUrl(url);
-        validateContent(text);
+        validateContent(target, text);
         String displayName = TextUtils.isEmpty(name) ? fileName(url) : name;
         if (TARGET_SCRIPTS.equals(target)) {
             writeTextChecked(uniqueDisabledScriptFile(displayName), text);
@@ -236,7 +234,8 @@ public final class MpvConfigStore {
     }
 
     public static void applySource(String target, String source, String name) throws IOException {
-        if (isHttpUrl(source)) applyUrl(target, source, name);
+        if (isHttpsUrl(source)) applyUrl(target, source, name);
+        else if (isHttpUrl(source)) throw new IOException(App.get().getString(R.string.mpv_config_url_invalid));
         else applyFile(target, source, name);
     }
 
@@ -285,13 +284,13 @@ public final class MpvConfigStore {
             return readText(snapshot);
         }
         String content = readSource(profile.type, profile.source);
-        validateContent(content);
+        validateContent(target, content);
         writeTextChecked(snapshot, content);
         return content;
     }
 
     public static synchronized String saveTextProfile(String target, String id, String name, String content) throws IOException {
-        validateContent(content);
+        validateContent(target, content);
         if (TextUtils.isEmpty(content) && !TARGET_INPUT_CONF.equals(target)) throw new IOException(App.get().getString(R.string.mpv_config_empty));
         String displayName = TextUtils.isEmpty(name) ? ResUtil.getString(R.string.mpv_config_untitled) : name.trim();
         if (TARGET_SCRIPTS.equals(target)) return saveScript(id, displayName, content);
@@ -316,12 +315,13 @@ public final class MpvConfigStore {
     }
 
     public static synchronized String importProfile(String target, String source, String name) throws IOException {
-        String type = isHttpUrl(source) ? TYPE_URL : TYPE_FILE;
+        String type = isHttpsUrl(source) ? TYPE_URL : TYPE_FILE;
+        if (isHttpUrl(source) && !TYPE_URL.equals(type)) throw new IOException(App.get().getString(R.string.mpv_config_url_invalid));
         String content = readSource(type, source);
-        validateContent(content);
+        validateContent(target, content);
         String displayName = TextUtils.isEmpty(name) ? fileName(source) : name.trim();
         if (TARGET_SCRIPTS.equals(target)) {
-            File file = TYPE_URL.equals(type) ? uniqueDisabledScriptFile(displayName) : uniqueScriptFile(displayName);
+            File file = uniqueDisabledScriptFile(displayName);
             writeTextChecked(file, content);
             return file.getName();
         }
@@ -384,7 +384,7 @@ public final class MpvConfigStore {
         if (TARGET_SCRIPTS.equals(target)) {
             File source = safeScriptFile(id);
             if (!source.isFile()) throw missingProfile();
-            String fileName = safeScriptName(displayName);
+            String fileName = disabledScriptName(displayName);
             File output = new File(scriptsDir(), fileName);
             if (source.equals(output)) return source.getName();
             if (output.exists()) throw new IOException(App.get().getString(R.string.mpv_config_script_exists));
@@ -480,7 +480,13 @@ public final class MpvConfigStore {
             }
             if (!TextUtils.isEmpty(profile.content)) {
                 File snapshot = profileSnapshot(target, profile.id);
-                if (!snapshot.isFile()) writeText(snapshot, profile.content);
+                if (!snapshot.isFile()) {
+                    try {
+                        writeTextChecked(snapshot, profile.content);
+                    } catch (IOException e) {
+                        continue;
+                    }
+                }
                 profile.content = null;
                 changed = true;
             }
@@ -521,9 +527,9 @@ public final class MpvConfigStore {
     }
 
     private static String saveScript(String id, String name, String content) throws IOException {
-        String fileName = safeScriptName(name);
+        String fileName = disabledScriptName(name);
         File previous = TextUtils.isEmpty(id) ? null : safeScriptFile(id);
-        File output = previous == null || !safeScriptName(id).equals(fileName) ? new File(scriptsDir(), fileName) : previous;
+        File output = previous == null || !TextUtils.equals(previous.getName(), fileName) ? new File(scriptsDir(), fileName) : previous;
         if (previous != null && !previous.equals(output) && output.exists()) throw new IOException(App.get().getString(R.string.mpv_config_script_exists));
         writeTextChecked(output, content);
         if (previous != null && !previous.equals(output) && previous.exists() && !previous.delete()) throw writeFailed();
@@ -579,8 +585,13 @@ public final class MpvConfigStore {
         return file;
     }
 
+    private static String disabledScriptName(String name) {
+        String safe = safeScriptName(name);
+        return safe.toLowerCase(Locale.ROOT).endsWith(".disabled") ? safe : safe + ".disabled";
+    }
+
     private static File uniqueDisabledScriptFile(String name) {
-        String safe = safeScriptName(name) + ".disabled";
+        String safe = disabledScriptName(name);
         File file = new File(scriptsDir(), safe);
         if (!file.exists()) return file;
         int extension = safe.toLowerCase(Locale.ROOT).endsWith(".js.disabled") ? safe.length() - 12 : safe.length() - 13;
@@ -672,16 +683,52 @@ public final class MpvConfigStore {
 
     private static void writeTargetChecked(String target, String content) throws IOException {
         File file = targetFile(target);
-        if (TARGET_INPUT_CONF.equals(target) && TextUtils.isEmpty(content)) {
-            if (file.exists() && !file.delete()) throw writeFailed();
-        } else {
-            writeTextChecked(file, content);
+        writeTextChecked(file, content);
+    }
+
+    static void validateContent(String target, String content) throws IOException {
+        int size = (content == null ? "" : content).getBytes(StandardCharsets.UTF_8).length;
+        if (size > MAX_PROFILE_BYTES) throw new IOException(App.get().getString(R.string.mpv_config_too_large));
+        if (!TARGET_MPV_CONF.equals(target) && !TARGET_INPUT_CONF.equals(target)) return;
+        for (String raw : (content == null ? "" : content).split("\\r?\\n")) {
+            String line = raw.trim();
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            int comment = line.indexOf('#');
+            if (comment >= 0) line = line.substring(0, comment).trim();
+            String lower = line.toLowerCase(Locale.ROOT);
+            int separator = lower.indexOf('=');
+            int whitespace = firstWhitespace(lower);
+            int end = separator < 0 ? whitespace : whitespace < 0 ? separator : Math.min(separator, whitespace);
+            String option = (end < 0 ? lower : lower.substring(0, end)).trim();
+            while (option.startsWith("--")) option = option.substring(2);
+            if (isDangerousDirective(option)) throw new IOException("Unsafe MPV directive: " + option);
+            if (TARGET_INPUT_CONF.equals(target) && isDangerousInputCommand(lower)) throw new IOException("Unsafe MPV input command");
         }
     }
 
-    private static void validateContent(String content) throws IOException {
-        int size = (content == null ? "" : content).getBytes(StandardCharsets.UTF_8).length;
-        if (size > MAX_PROFILE_BYTES) throw new IOException(App.get().getString(R.string.mpv_config_too_large));
+    private static int firstWhitespace(String value) {
+        for (int i = 0; i < value.length(); i++) if (Character.isWhitespace(value.charAt(i))) return i;
+        return -1;
+    }
+
+    static boolean isDangerousInputCommand(String line) {
+        if (line == null) return false;
+        String[] tokens = line.trim().split("\\s+");
+        if (tokens.length < 2) return false;
+        String command = tokens[1].replaceFirst("^[-]+", "");
+        return command.equals("run") || command.equals("subprocess") || command.equals("script-binding")
+                || command.equals("script-message") || command.equals("script-message-to")
+                || command.equals("loadfile") || command.equals("load-script") || command.equals("include");
+    }
+
+    static boolean isDangerousDirective(String option) {
+        if (option == null) return false;
+        String value = option.trim().toLowerCase(Locale.ROOT);
+        return value.equals("include") || value.equals("script") || value.equals("scripts")
+                || value.equals("script-opts") || value.equals("script-opt")
+                || value.equals("load-scripts") || value.equals("input-ipc-server")
+                || value.equals("input-ipc-client") || value.equals("input-command")
+                || value.equals("on-all-workspaces") || value.startsWith("script-");
     }
 
     private static IOException missingProfile() {
@@ -702,24 +749,6 @@ public final class MpvConfigStore {
         byte[] bytes = Path.readToByte(file);
         if (bytes.length > MAX_PROFILE_BYTES) throw new IOException(App.get().getString(R.string.mpv_config_too_large));
         return decodeUtf8(bytes);
-    }
-
-    private static void writeText(String text) {
-        writeText(configFile(), text);
-    }
-
-    private static void writeText(File file, String text) {
-        writeBytes(file, (text == null ? "" : text).getBytes(StandardCharsets.UTF_8));
-    }
-
-    private static void writeBytes(File file, byte[] data) {
-        File parent = file.getParentFile();
-        if (parent != null && !parent.exists()) parent.mkdirs();
-        try (FileOutputStream output = new FileOutputStream(file)) {
-            output.write(data);
-            output.flush();
-        } catch (IOException ignored) {
-        }
     }
 
     private static void writeTextChecked(File file, String text) throws IOException {
@@ -754,8 +783,8 @@ public final class MpvConfigStore {
         return value.regionMatches(true, 0, "http://", 0, 7) || value.regionMatches(true, 0, "https://", 0, 8);
     }
 
-    private static File scriptFile(String source, String name) {
-        return new File(scriptsDir(), safeScriptName(TextUtils.isEmpty(name) ? fileName(source) : name));
+    private static boolean isHttpsUrl(String value) {
+        return !TextUtils.isEmpty(value) && value.regionMatches(true, 0, "https://", 0, 8);
     }
 
     private static List<ConfigProfile> readProfiles(String target) {

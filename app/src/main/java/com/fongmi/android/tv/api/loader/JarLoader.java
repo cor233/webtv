@@ -21,6 +21,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import dalvik.system.DexClassLoader;
 
@@ -59,10 +61,23 @@ public class JarLoader {
         if (!Path.exists(file) || !file.setReadOnly()) return;
         File optDir = new File(App.get().getCodeCacheDir(), "dexopt" + File.separator + key);
         if (!optDir.exists()) optDir.mkdirs();
-        DexClassLoader loader = new CspDexClassLoader(file.getAbsolutePath(), optDir.getAbsolutePath(), null, App.get().getClassLoader());
+        boolean containsProtobuf = containsProtobuf(file);
+        DexClassLoader loader = new CspDexClassLoader(file.getAbsolutePath(), optDir.getAbsolutePath(), null, App.get().getClassLoader(), containsProtobuf);
         invokeInit(loader);
         invokeProxy(key, loader);
         loaders.put(key, loader);
+    }
+
+    static boolean containsProtobuf(File file) {
+        if (file == null || !file.isFile()) return false;
+        try (ZipFile zip = new ZipFile(file)) {
+            for (java.util.Enumeration<? extends ZipEntry> entries = zip.entries(); entries.hasMoreElements(); ) {
+                String name = entries.nextElement().getName();
+                if (name != null && name.startsWith("com/google/protobuf/") && name.endsWith(".class")) return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
     }
 
     private void invokeInit(DexClassLoader loader) {

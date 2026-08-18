@@ -23,6 +23,7 @@ public class BackupPlaybackSyncPreferenceTest {
         assertTrue(Backup.include("viewing_record_sync_local_write", settings));
         assertTrue(Backup.include("playback_remote_sync_config", settings));
         assertTrue(Backup.include("playback_webhook_config", settings));
+        assertFalse(Backup.include("playback_webhook_privacy_accepted", settings));
         assertFalse(Backup.include("playback_remote_sync_config", spider));
     }
 
@@ -35,7 +36,7 @@ public class BackupPlaybackSyncPreferenceTest {
         JsonObject config = configs.get(0).getAsJsonObject();
 
         assertEquals("sync", config.get("name").getAsString());
-        assertTrue(config.get("enabled").getAsBoolean());
+        assertFalse(config.get("enabled").getAsBoolean());
         assertFalse(config.has("token"));
         assertFalse(config.has("secret"));
         assertFalse(config.has("headers"));

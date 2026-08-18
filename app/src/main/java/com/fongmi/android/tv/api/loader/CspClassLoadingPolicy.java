@@ -7,7 +7,11 @@ final class CspClassLoadingPolicy {
     private CspClassLoadingPolicy() {
     }
 
-    static boolean isChildFirst(String name) {
+    static boolean isProtobuf(String name) {
         return name != null && name.startsWith(PROTOBUF_PREFIX);
+    }
+
+    static boolean isChildFirst(String name, boolean jarContainsProtobuf) {
+        return jarContainsProtobuf && isProtobuf(name);
     }
 }

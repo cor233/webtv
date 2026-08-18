@@ -35,6 +35,7 @@ import com.fongmi.android.tv.utils.Formatters;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Task;
+import com.fongmi.android.tv.utils.UrlSafety;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textview.MaterialTextView;
@@ -262,7 +263,7 @@ public class PlaybackRemoteSyncDialog extends BaseAlertDialog {
         config.enabled = editEnabled;
         config.name = text(binding.name);
         config.url = text(binding.url);
-        if (TextUtils.isEmpty(config.url) || !config.url.startsWith("http")) {
+        if (!UrlSafety.isSafeHttpUrl(config.url)) {
             binding.urlLayout.setError(getString(R.string.playback_webhook_url_invalid));
             Notify.show(R.string.playback_webhook_url_invalid);
             return;

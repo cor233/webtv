@@ -281,8 +281,9 @@ public class MpvConfigDialog extends BaseAlertDialog implements MpvConfigProfile
     }
 
     private void confirmDelete(MpvConfigStore.ConfigProfile profile) {
-        ChoiceDialog.showConfirm(this, R.string.mpv_config_delete_title, getString(R.string.mpv_config_delete_message, profile.name), R.string.mpv_config_delete, () -> runAsync(() -> MpvConfigStore.deleteProfile(target, profile.id), ignored -> {
-            reload();
+        String selectedTarget = target;
+        ChoiceDialog.showConfirm(this, R.string.mpv_config_delete_title, getString(R.string.mpv_config_delete_message, profile.name), R.string.mpv_config_delete, () -> runAsync(() -> MpvConfigStore.deleteProfile(selectedTarget, profile.id), ignored -> {
+            if (TextUtils.equals(target, selectedTarget)) reload();
             notifyChanged();
         }));
     }
@@ -310,7 +311,7 @@ public class MpvConfigDialog extends BaseAlertDialog implements MpvConfigProfile
         else if (MpvConfigStore.TARGET_INPUT_CONF.equals(target)) template = "# WebHTV input.conf\n\n";
         else template = "# WebHTV mpv.conf\n\n";
         String displayName = TextUtils.isEmpty(name) ? getString(R.string.mpv_config_untitled) : name;
-        showEditor(null, displayName, template, true);
+        showEditor(target, null, displayName, template, true);
     }
 
     @Override
@@ -328,14 +329,15 @@ public class MpvConfigDialog extends BaseAlertDialog implements MpvConfigProfile
     }
 
     private void openEditor(MpvConfigStore.ConfigProfile profile) {
+        String selectedTarget = target;
         Notify.progress(requireContext());
         Task.execute(() -> {
             try {
-                String content = MpvConfigStore.profileContent(target, profile.id);
+                String content = MpvConfigStore.profileContent(selectedTarget, profile.id);
                 App.post(() -> {
                     Notify.dismiss();
                     String name = profile.isDefault() ? getString(R.string.mpv_config_default_copy) : profile.name;
-                    showEditor(profile.id, name, content, profile.isDefault());
+                    showEditor(selectedTarget, profile.id, name, content, profile.isDefault());
                 });
             } catch (Throwable e) {
                 App.post(() -> {
@@ -346,16 +348,16 @@ public class MpvConfigDialog extends BaseAlertDialog implements MpvConfigProfile
         });
     }
 
-    private void showEditor(String id, String name, String content, boolean creating) {
+    private void showEditor(String selectedTarget, String id, String name, String content, boolean creating) {
         if (Util.isLeanback()) {
             Notify.show(R.string.mpv_config_mobile_edit_hint);
             return;
         }
         MpvConfigEditorDialog.show(getChildFragmentManager(), name, content, creating, text -> {
             try {
-                String savedId = MpvConfigStore.saveTextProfile(target, id, name, text);
-                if (creating && !MpvConfigStore.TARGET_SCRIPTS.equals(target)) MpvConfigStore.selectProfile(target, savedId);
-                reload();
+                String savedId = MpvConfigStore.saveTextProfile(selectedTarget, id, name, text);
+                if (creating && !MpvConfigStore.TARGET_SCRIPTS.equals(selectedTarget)) MpvConfigStore.selectProfile(selectedTarget, savedId);
+                if (TextUtils.equals(target, selectedTarget)) reload();
                 Notify.show(R.string.mpv_config_profile_saved);
                 notifyChanged();
                 return true;

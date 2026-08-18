@@ -83,8 +83,10 @@ public class App extends Application implements Application.ActivityLifecycleCal
 
     @Override
     protected void attachBaseContext(Context base) {
-        super.attachBaseContext(base);
         Init.set(base);
+        Context localized = Setting.wrapLanguage(base);
+        super.attachBaseContext(localized);
+        Init.set(localized);
     }
 
     @Override

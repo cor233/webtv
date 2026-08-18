@@ -11,6 +11,7 @@ import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.impl.Callback;
+import com.fongmi.android.tv.setting.Setting;
 import com.github.catvod.utils.Prefers;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -30,7 +31,7 @@ public class Backup {
 
     private static final String PLAYBACK_REMOTE_SYNC_CONFIG = "playback_remote_sync_config";
     private static final String PLAYBACK_WEBHOOK_CONFIG = "playback_webhook_config";
-    private static final Set<String> APP_PREFS = Set.of("doh", "ua", "wall", "wall_type", "reset", "site_mode", "sync_mode", "sync_paths", "sync_device", "incognito", "family_filter_enabled", "family_filter_keywords", "family_filter_pass", "drive_check", "drive_check_cache", "web_home_fullscreen", "playback_artwork_wall", "csp_warmup", "csp_warmup_mode", "csp_warmup_sites", "shell_proxy", "shell_proxy_rules", "shell_proxy_url", "shell_proxy_hosts", "viewing_record_sync_enabled", "viewing_record_sync_local_write", PLAYBACK_REMOTE_SYNC_CONFIG, PLAYBACK_WEBHOOK_CONFIG, "playback_webhook_privacy_accepted", "update", "adblock", "zhuyin", "language", "ui_scale", "theme_color", "wall_color", "crash", "player", "mpv_render", "render", "size", "scale", "buffer", "background", "speed", "caption", "tunnel", "audio_prefer", "video_prefer", "prefer_aac", "subtitle_text_size", "subtitle_position", "boot_live", "across", "change", "invert", "scale_live");
+    private static final Set<String> APP_PREFS = Set.of("doh", "ua", "wall", "wall_type", "reset", "site_mode", "sync_mode", "sync_paths", "sync_device", "incognito", "family_filter_enabled", "family_filter_keywords", "family_filter_pass", "drive_check", "drive_check_cache", "web_home_fullscreen", "playback_artwork_wall", "csp_warmup", "csp_warmup_mode", "csp_warmup_sites", "shell_proxy", "shell_proxy_rules", "shell_proxy_url", "shell_proxy_hosts", "viewing_record_sync_enabled", "viewing_record_sync_local_write", PLAYBACK_REMOTE_SYNC_CONFIG, PLAYBACK_WEBHOOK_CONFIG, "update", "adblock", "zhuyin", "language", "ui_scale", "theme_color", "wall_color", "crash", "player", "mpv_render", "render", "size", "scale", "buffer", "background", "speed", "caption", "tunnel", "audio_prefer", "video_prefer", "prefer_aac", "subtitle_text_size", "subtitle_position", "boot_live", "across", "change", "invert", "scale_live");
 
     @SerializedName("site")
     private List<Site> site;
@@ -87,6 +88,9 @@ public class Backup {
         AppDatabase.get().getConfigDao().insertOrUpdate(getConfig());
         AppDatabase.get().getHistoryDao().insertOrUpdate(getHistory());
         for (Map.Entry<String, ?> entry : getPrefers().entrySet()) Prefers.put(entry.getKey(), entry.getValue());
+        Prefers.remove("playback_webhook_privacy_accepted");
+        Setting.applyLanguage();
+        RefreshEvent.language();
     }
 
     public void restore(SyncOptions options, boolean force) {
@@ -112,6 +116,11 @@ public class Backup {
             AppDatabase.get().getHistoryDao().insertOrUpdate(getHistory());
         }
         for (Map.Entry<String, ?> entry : filter(getPrefers(), options).entrySet()) Prefers.put(entry.getKey(), entry.getValue());
+        Prefers.remove("playback_webhook_privacy_accepted");
+        if (options.isSettings()) {
+            Setting.applyLanguage();
+            RefreshEvent.language();
+        }
         if (options.isSpider()) BaseLoader.get().clear();
         if (options.isConfig() || options.isSpider()) reloadConfig();
         if (options.isKeep()) RefreshEvent.keep();
@@ -167,10 +176,11 @@ public class Backup {
         }
         if (!element.isJsonObject()) return;
         JsonObject object = element.getAsJsonObject();
-        object.remove("token");
-        object.remove("secret");
-        object.remove("headers");
-        object.remove("header");
+        boolean credentialRemoved = object.remove("token") != null;
+        credentialRemoved |= object.remove("secret") != null;
+        credentialRemoved |= object.remove("headers") != null;
+        credentialRemoved |= object.remove("header") != null;
+        if (credentialRemoved) object.addProperty("enabled", false);
         for (Map.Entry<String, JsonElement> entry : object.entrySet()) redactSecrets(entry.getValue());
     }
 

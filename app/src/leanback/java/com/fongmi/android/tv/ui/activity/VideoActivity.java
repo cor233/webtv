@@ -283,6 +283,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     protected void onServiceConnected() {
         SpiderDebug.log("video-flow", "service ready sinceLaunch=%dms key=%s id=%s", getLaunchCost(System.currentTimeMillis()), getKey(), getId());
         player().setDanmakuController(mBinding.exo.getDanmakuController());
+        player().setDanmakuEnabled(DanmakuSetting.isShow());
         if (!detailRequested) checkId();
         if (mPendingDetail != null) {
             Result result = mPendingDetail;
@@ -369,6 +370,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         mBinding.control.action.change2.setOnClickListener(view -> onChange());
         mBinding.control.action.fullscreen.setOnClickListener(view -> onFullscreen());
         mBinding.control.action.danmaku.setOnClickListener(view -> onDanmaku());
+        mBinding.control.action.danmaku.setOnLongClickListener(view -> onDanmakuShow());
         mBinding.control.action.opening.setOnClickListener(view -> onOpening());
         mBinding.control.action.speed.setOnLongClickListener(view -> onSpeedLong());
         mBinding.control.action.reset.setOnLongClickListener(view -> onResetToggle());
@@ -606,6 +608,8 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         if (DanmakuApi.canSearch()) DanmakuApi.search(mHistory.getVodName(), getEpisode().getName(), danmaku -> {
             if (DanmakuSetting.isSpiderFirst() && !result.getDanmaku().isEmpty()) player().addDanmaku(danmaku);
             else player().setDanmaku(danmaku);
+            player().setDanmakuEnabled(DanmakuSetting.isShow());
+            mBinding.control.action.danmaku.setSelected(DanmakuSetting.isShow());
         });
     }
 
@@ -1054,6 +1058,15 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     private void onDanmaku() {
         DanmakuDialog.create().player(player()).show(this);
         hideControl();
+    }
+
+    private boolean onDanmakuShow() {
+        if (!player().haveDanmaku()) return false;
+        DanmakuSetting.putShow(!DanmakuSetting.isShow());
+        player().setDanmakuEnabled(DanmakuSetting.isShow());
+        mBinding.control.action.danmaku.setSelected(DanmakuSetting.isShow());
+        Notify.show(DanmakuSetting.isShow() ? R.string.danmaku_on : R.string.danmaku_off);
+        return true;
     }
 
     private void onToggle() {

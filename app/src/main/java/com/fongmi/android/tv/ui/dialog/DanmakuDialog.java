@@ -21,6 +21,7 @@ import com.fongmi.android.tv.setting.DanmakuSetting;
 import com.fongmi.android.tv.ui.adapter.DanmakuAdapter;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
 import com.fongmi.android.tv.utils.FileChooser;
+import com.fongmi.android.tv.R;
 
 public final class DanmakuDialog extends BaseBottomSheetDialog implements DanmakuAdapter.OnClickListener {
 
@@ -60,6 +61,7 @@ public final class DanmakuDialog extends BaseBottomSheetDialog implements Danmak
         binding.recycler.post(() -> binding.recycler.scrollToPosition(adapter.getSelected()));
         binding.recycler.setVisibility(adapter.getItemCount() == 0 ? View.GONE : View.VISIBLE);
         binding.search.setVisibility(player.getMetadata() == null || DanmakuSetting.getEffectiveApiUrl().isEmpty() ? View.GONE : View.VISIBLE);
+        updateShowIcon();
     }
 
     @Override
@@ -67,6 +69,17 @@ public final class DanmakuDialog extends BaseBottomSheetDialog implements Danmak
         binding.search.setOnClickListener(this::onSearch);
         binding.choose.setOnClickListener(this::onChoose);
         binding.setting.setOnClickListener(this::onSetting);
+        binding.show.setOnClickListener(this::onShow);
+    }
+
+    private void onShow(View view) {
+        DanmakuSetting.putShow(!DanmakuSetting.isShow());
+        player.setDanmakuEnabled(DanmakuSetting.isShow());
+        updateShowIcon();
+    }
+
+    private void updateShowIcon() {
+        binding.show.setImageResource(DanmakuSetting.isShow() ? R.drawable.ic_control_danmaku_on : R.drawable.ic_control_danmaku_off);
     }
 
     private void onSearch(View view) {

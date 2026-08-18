@@ -53,6 +53,7 @@
 | Native SDK | 网页可通过 `window.fm` 调用受信任范围内的 App 原生播放、搜索、请求、缓存等能力 |
 | 内嵌 VOD 播放 | WebHome 网页可把剧集数据直接交给播放器（`player.playVodInline`），无需站点接口即可开播 |
 | 本地管理页 | 局域网访问 App 管理页面，支持同步、文件、调试等能力 |
+| 弹幕开关 | 电视端可一键关闭/开启弹幕显示（控制栏长按弹幕键或弹幕对话框开关） |
 | 安全加固 | 本地 HTTP 写操作强制 token、SSRF 拦截、CORS 白名单、路径遍历/XXE/DoS 防护 |
 | 发布与数据保护 | Release 签名缺失会中止构建，数据库异常恢复前保留失败库副本 |
 | Android 兼容性 | 跟进官方 FongMi api37，目标 SDK 更新到 37 |
@@ -62,7 +63,7 @@
 
 ## 下载安装
 
-最新版本：**v5.6.0**
+最新版本：**v5.6.1**
 
 项目主页（GitHub Pages）：https://motao123.github.io/webtv/
 

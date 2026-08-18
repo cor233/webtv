@@ -723,4 +723,74 @@ WebHomeTV 是播放器壳子，不内置内容源，请使用合法配置。</st
 <string name="error_play_stage_output">音视频输出失败，请重新进入播放或切换解码方式</string>
 <string name="error_play_stage_drm">DRM 鉴权或受保护媒体处理失败，请更换线路或播放器</string>
 <string name="error_play_stage_unknown">播放失败，请重试或切换播放器</string>
+
+
+    <!-- Player chapter, subtitle and decode settings -->
+    <string name="play_chapter">章节</string>
+        <string name="subtitle_setting">字幕设置</string>
+        <string name="subtitle_search_api_title">Assrt</string>
+        <string name="subtitle_search_token_hint">Token</string>
+        <string name="subtitle_reset">重置</string>
+        <string name="subtitle_tab_appearance">外观</string>
+        <string name="subtitle_tab_adjust">调整</string>
+        <string name="subtitle_tab_advanced">进阶</string>
+        <string name="subtitle_offset">字幕偏移</string>
+        <string name="subtitle_size">大小</string>
+        <string name="subtitle_position">位置</string>
+        <string name="subtitle_style_source">样式来源</string>
+        <string name="subtitle_style_original">原始</string>
+        <string name="subtitle_style_system">系统</string>
+        <string name="subtitle_style_custom">自定义</string>
+        <string name="subtitle_system_setting">系统字幕设置</string>
+        <string name="subtitle_text_color">文字颜色</string>
+        <string name="subtitle_text_opacity">文字透明度</string>
+        <string name="subtitle_edge_style">边框样式</string>
+        <string name="subtitle_edge_none">无</string>
+        <string name="subtitle_edge_outline">描边</string>
+        <string name="subtitle_edge_shadow">阴影</string>
+        <string name="subtitle_edge_color">边框颜色</string>
+        <string name="subtitle_edge_opacity">边框透明度</string>
+        <string name="subtitle_edge_width">边框粗细</string>
+        <string name="subtitle_shadow_strength">阴影强度</string>
+        <string name="subtitle_background">背景</string>
+        <string name="subtitle_background_opacity">背景透明度</string>
+        <string name="subtitle_secondary_track">双字幕</string>
+        <string name="subtitle_secondary_off">关闭</string>
+        <string name="subtitle_secondary_auto">自动</string>
+        <string name="subtitle_secondary_select">指定</string>
+        <string name="subtitle_secondary_track_select">副字幕</string>
+        <string name="subtitle_secondary_position">副字幕位置</string>
+        <string name="subtitle_color_white">白色</string>
+        <string name="subtitle_color_yellow">黄色</string>
+        <string name="subtitle_color_cyan">青色</string>
+        <string name="subtitle_color_green">绿色</string>
+        <string name="subtitle_color_orange">橙色</string>
+        <string name="subtitle_color_pink">粉色</string>
+        <string name="subtitle_color_red">红色</string>
+        <string name="subtitle_color_blue">蓝色</string>
+        <string name="subtitle_color_black">黑色</string>
+        <string name="subtitle_color_gray">灰色</string>
+        <string name="subtitle_color_transparent">透明</string>
+        <string name="subtitle_background_dim">半透明黑色</string>
+
+
+        <string name="player_audio_pass_through">音频直通</string>
+        <string name="player_dolby_vision_output">杜比视界</string>
+        <string name="player_decode_setting">解码设置</string>
+        <string name="dialog_select_chapter">选择章节</string>
+        <string-array name="select_dolby_vision_output">
+        <item>自动</item>
+        <item>开</item>
+        <item>关</item>
+    </string-array>
+
+
+    <string name="live_epg_select">自定义 EPG 源</string>
+    <string name="live_epg_default">跟随直播源</string>
+    <string name="live_epg_apply">应用</string>
+    <string name="live_epg_hint">输入 XML/GZ 或 {name}/{date} 模板地址</string>
+    <string name="compact_episode_on">已开启集数标题紧凑显示</string>
+    <string name="compact_episode_off">已关闭集数标题紧凑显示</string>
+    <string name="player_osd">播放器 OSD</string>
+    <string name="setting_tab_offset">偏移</string>
 </resources>

@@ -116,6 +116,14 @@
             tools:visibility="visible" />
 
         <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/chapter"
+            style="@style/Control"
+            android:layout_marginEnd="12dp"
+            android:text="@string/play_chapter"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/title"
             style="@style/Control"
             android:layout_marginEnd="12dp"

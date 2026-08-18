@@ -7,6 +7,7 @@ import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.widget.EditText;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -50,11 +51,13 @@ import com.fongmi.android.tv.player.PlayerHelper;
 import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.player.Source;
 import com.fongmi.android.tv.service.PlaybackService;
+import com.fongmi.android.tv.setting.LiveEpgSetting;
 import com.fongmi.android.tv.setting.LiveSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.ui.adapter.ChannelAdapter;
 import com.fongmi.android.tv.ui.adapter.EpgDataAdapter;
 import com.fongmi.android.tv.ui.adapter.GroupAdapter;
+import com.fongmi.android.tv.ui.custom.PlayerOsdController;
 import com.fongmi.android.tv.ui.custom.CustomKeyDown;
 import com.fongmi.android.tv.ui.custom.CustomSeekView;
 import com.fongmi.android.tv.ui.dialog.CastDialog;
@@ -75,6 +78,8 @@ import com.fongmi.android.tv.utils.Util;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -82,6 +87,7 @@ import java.util.List;
 public class LiveActivity extends PlaybackActivity implements CustomKeyDown.Listener, TrackDialog.Listener, Biometric.Callback, PassListener, ConfigListener, LiveListener, GroupAdapter.OnClickListener, ChannelAdapter.OnClickListener, EpgDataAdapter.OnClickListener, CastDialog.Listener, InfoDialog.Listener {
 
     private ActivityLiveBinding mBinding;
+    private PlayerOsdController mOsd;
     private ChannelAdapter mChannelAdapter;
     private EpgDataAdapter mEpgDataAdapter;
     private Observer<Result> mObserveUrl;
@@ -174,6 +180,10 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         mR3 = this::hideInfo;
         mPiP = new PiP();
         setRecyclerView();
+        mOsd = new PlayerOsdController(mBinding.osd.getRoot(), mBinding.osd.osdTopLeft, mBinding.osd.osdTopRight, mBinding.osd.osdBottomLeft, mBinding.osd.osdBottomRight, mBinding.osd.osdMiniProgress, new PlayerOsdController.Source() {
+            @Override public PlayerManager getPlayer() { return service() == null ? null : player(); }
+            @Override public String getTitle() { return mChannel == null ? "" : mChannel.getName(); }
+        });
         setVideoView();
         setViewModel();
     }
@@ -193,6 +203,7 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         mBinding.control.action.audio.setOnClickListener(this::onTrack);
         mBinding.control.action.video.setOnClickListener(this::onTrack);
         mBinding.control.action.home.setOnClickListener(view -> onHome());
+        mBinding.control.action.home.setOnLongClickListener(view -> onLiveEpg());
         mBinding.control.action.line.setOnClickListener(view -> onLine());
         mBinding.control.action.scale.setOnClickListener(view -> onScale());
         mBinding.control.action.speed.setOnClickListener(view -> onSpeed());
@@ -271,6 +282,7 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
 
     private void getLive() {
         mBinding.control.action.home.setText(LiveConfig.isOnly() ? getString(R.string.live_refresh) : getHome().getName());
+        LiveEpgSetting.apply(getHome());
         mViewModel.parse(getHome());
         showProgress();
     }
@@ -377,6 +389,28 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         if (LiveConfig.isOnly()) setLive(getHome());
         else LiveDialog.show(this);
         hideControl();
+    }
+
+
+    private boolean onLiveEpg() {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setHint(R.string.live_epg_hint);
+        input.setText(LiveEpgSetting.getUrl());
+        input.setSelection(input.length());
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.live_epg_select)
+                .setView(input)
+                .setNeutralButton(R.string.live_epg_default, (dialog, which) -> applyLiveEpg(""))
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.live_epg_apply, (dialog, which) -> applyLiveEpg(input.getText().toString()))
+                .show();
+        return true;
+    }
+
+    private void applyLiveEpg(String url) {
+        LiveEpgSetting.putUrl(url);
+        getLive();
     }
 
     private void onLine() {
@@ -509,6 +543,7 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
     }
 
     private void showControl() {
+        if (mOsd != null) mOsd.setControlsVisible(true);
         if (service() == null || isInPictureInPictureMode()) return;
         mBinding.control.info.setVisibility(player().isEmpty() ? View.GONE : View.VISIBLE);
         mBinding.control.cast.setVisibility(player().isEmpty() ? View.GONE : View.VISIBLE);
@@ -523,6 +558,7 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
     }
 
     private void hideControl() {
+        if (mOsd != null) mOsd.setControlsVisible(false);
         mBinding.control.getRoot().setVisibility(View.GONE);
         App.removeCallbacks(mR1);
     }
@@ -1125,6 +1161,7 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
     @Override
     protected void onStart() {
         super.onStart();
+        if (mOsd != null) mOsd.start();
         setAudioOnly(false);
         setStop(false);
     }
@@ -1132,6 +1169,7 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
     @Override
     protected void onStop() {
         super.onStop();
+        if (mOsd != null) mOsd.stop();
         if (!isAudioOnly()) setStop(true);
     }
 
@@ -1151,6 +1189,7 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
 
     @Override
     protected void onDestroy() {
+        if (mOsd != null) mOsd.release();
         Source.get().exit();
         App.removeCallbacks(mR1, mR2, mR3);
         super.onDestroy();

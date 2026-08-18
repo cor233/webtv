@@ -34,6 +34,7 @@ public class SiteViewModel extends ViewModel {
 
     private final MutableLiveData<Result> result;
     private final MutableLiveData<Result> player;
+    private final MutableLiveData<Result> preload;
     private final MutableLiveData<Result> search;
     private final MutableLiveData<Result> action;
 
@@ -45,6 +46,7 @@ public class SiteViewModel extends ViewModel {
     public SiteViewModel() {
         result = new MutableLiveData<>();
         player = new MutableLiveData<>();
+        preload = new MutableLiveData<>();
         search = new MutableLiveData<>();
         action = new MutableLiveData<>();
         searchEpoch = new AtomicInteger(0);
@@ -62,6 +64,10 @@ public class SiteViewModel extends ViewModel {
         return player;
     }
 
+    public LiveData<Result> getPreload() {
+        return preload;
+    }
+
     public LiveData<Result> getSearch() {
         return search;
     }
@@ -74,6 +80,7 @@ public class SiteViewModel extends ViewModel {
         search.setValue(null);
         result.setValue(null);
         player.setValue(null);
+        preload.setValue(null);
         action.setValue(null);
         return this;
     }
@@ -96,6 +103,10 @@ public class SiteViewModel extends ViewModel {
 
     public void playerContent(String key, String flag, String id) {
         execute(TaskType.PLAYER, player, () -> SiteApi.playerContent(key, flag, id));
+    }
+
+    public void preloadContent(String key, String flag, String id) {
+        execute(TaskType.PRELOAD, preload, () -> SiteApi.playerContent(key, flag, id));
     }
 
     public void searchContent(Site site, String keyword, boolean quick, String page) {
@@ -170,5 +181,5 @@ public class SiteViewModel extends ViewModel {
         futures.values().forEach(future -> future.cancel(true));
     }
 
-    private enum TaskType {RESULT, PLAYER, ACTION}
+    private enum TaskType {RESULT, PLAYER, PRELOAD, ACTION}
 }

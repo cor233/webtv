@@ -5,9 +5,10 @@ import android.os.SystemClock;
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
+import androidx.media3.common.MediaChapter;
+import androidx.media3.common.MediaEdition;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
-import androidx.media3.common.MediaEdition;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.Tracks;
@@ -31,10 +32,12 @@ import com.fongmi.android.tv.player.engine.PlayerEngine;
 import com.fongmi.android.tv.player.exo.ExoNetworkGuardBufferPolicy;
 import com.fongmi.android.tv.player.exo.ExoNetworkGuardController;
 import com.fongmi.android.tv.player.exo.ExoNetworkGuardEligibility;
+import com.fongmi.android.tv.player.exo.ExoNextEpisodePreloader;
 import com.fongmi.android.tv.player.exo.ForwardBufferTrend;
 import com.fongmi.android.tv.setting.DanmakuSetting;
 import com.fongmi.android.tv.setting.ExoPerformanceSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
+import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.fongmi.android.tv.setting.VideoSetting;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
@@ -52,6 +55,7 @@ public class PlayerManager implements ParseCallback {
 
     private final Runnable runnable;
     private final Callback callback;
+    private final ExoNextEpisodePreloader nextEpisodePreloader = new ExoNextEpisodePreloader();
     private DanmakuController danmakuController;
     private PlayerEngine engine;
     private VideoSize videoSize;
@@ -92,6 +96,7 @@ public class PlayerManager implements ParseCallback {
         if (player != null) player.removeListener(listener);
         clearVideoEffect();
         clearAudioEffect();
+        nextEpisodePreloader.release();
         if (engine != null) engine.release();
         engine = null;
         player = null;
@@ -103,6 +108,10 @@ public class PlayerManager implements ParseCallback {
 
     public Tracks getCurrentTracks() {
         return engine.getCurrentTracks();
+    }
+
+    public List<MediaChapter> getCurrentMediaChapters() {
+        return player.getCurrentMediaChapters();
     }
 
     public List<MediaEdition> getCurrentMediaEditions() {
@@ -177,6 +186,10 @@ public class PlayerManager implements ParseCallback {
         return engine.haveTitle();
     }
 
+    public boolean haveChapter() {
+        return !getCurrentMediaChapters().isEmpty();
+    }
+
     public boolean haveDanmaku() {
         return getDanmakus() != null && getDanmakus().stream().anyMatch(Danmaku::isSelected);
     }
@@ -234,6 +247,10 @@ public class PlayerManager implements ParseCallback {
     public void setFormat(String format) {
         if (spec != null) spec.setFormat(format);
         setMediaItem();
+    }
+
+    public void selectChapter(MediaChapter chapter) {
+        if (chapter != null) player.selectChapter(chapter);
     }
 
     public void setTitle(MediaEdition edition) {
@@ -341,6 +358,28 @@ public class PlayerManager implements ParseCallback {
     public void setDanmakuEnabled(boolean enabled) {
         if (danmakuController == null) return;
         danmakuController.setEnabled(enabled);
+    }
+
+    public boolean preloadNext(Result result, String key, MediaMetadata metadata) {
+        if (playerType != PlayerSetting.EXO || result == null || result.shouldUseParse()) return false;
+        return nextEpisodePreloader.preload(PlaySpec.from(result, key, metadata), playerType);
+    }
+
+    public void clearNextPreload() {
+        nextEpisodePreloader.release();
+    }
+
+    public boolean supportsSecondarySubtitle() {
+        return engine != null && engine.supportsSecondarySubtitle();
+    }
+
+    public void setSecondarySubtitleTrack(Track track) {
+        if (engine != null) engine.setSecondarySubtitleTrack(track);
+    }
+
+    public void setSubtitleSettingStyle() {
+        if (engine == null) return;
+        engine.setSubtitleStyle(SubtitleSetting.getScale(App.get()), SubtitleSetting.getPosition());
     }
 
     public void sendDanmaku(String text) {
@@ -676,6 +715,11 @@ public class PlayerManager implements ParseCallback {
             setTrack(Track.find(getKey()));
             callback.onTracksChanged();
             initTrack = true;
+        }
+
+        @Override
+        public void onMediaChaptersChanged(@NonNull List<MediaChapter> chapters) {
+            callback.onTitlesChanged();
         }
 
         @Override

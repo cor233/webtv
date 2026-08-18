@@ -767,4 +767,72 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
 <string name="error_play_stage_output">Audio/video output failed. Reopen playback or try another decode mode.</string>
 <string name="error_play_stage_drm">DRM authorization or protected-media handling failed. Choose another line or player.</string>
 <string name="error_play_stage_unknown">Playback failed. Retry or switch player.</string>
+
+
+    <!-- Player chapter, subtitle and decode settings -->
+    <string name="play_chapter">Chapter</string>
+        <string name="subtitle_setting">Subtitle settings</string>
+        <string name="subtitle_reset">Reset</string>
+        <string name="subtitle_tab_appearance">Appearance</string>
+        <string name="subtitle_tab_adjust">Adjust</string>
+        <string name="subtitle_tab_advanced">Advanced</string>
+        <string name="subtitle_offset">Subtitle offset</string>
+        <string name="subtitle_size">Size</string>
+        <string name="subtitle_position">Position</string>
+        <string name="subtitle_style_source">Style source</string>
+        <string name="subtitle_style_original">Original</string>
+        <string name="subtitle_style_system">System</string>
+        <string name="subtitle_style_custom">Custom</string>
+        <string name="subtitle_system_setting">System caption settings</string>
+        <string name="subtitle_text_color">Text color</string>
+        <string name="subtitle_text_opacity">Text transparency</string>
+        <string name="subtitle_edge_style">Edge style</string>
+        <string name="subtitle_edge_none">None</string>
+        <string name="subtitle_edge_outline">Outline</string>
+        <string name="subtitle_edge_shadow">Shadow</string>
+        <string name="subtitle_edge_color">Edge color</string>
+        <string name="subtitle_edge_opacity">Edge transparency</string>
+        <string name="subtitle_edge_width">Edge width</string>
+        <string name="subtitle_shadow_strength">Shadow strength</string>
+        <string name="subtitle_background">Background</string>
+        <string name="subtitle_background_opacity">Background transparency</string>
+        <string name="subtitle_secondary_track">Secondary subtitles</string>
+        <string name="subtitle_secondary_off">Off</string>
+        <string name="subtitle_secondary_auto">Auto</string>
+        <string name="subtitle_secondary_select">Select</string>
+        <string name="subtitle_secondary_track_select">Secondary subtitle</string>
+        <string name="subtitle_secondary_position">Secondary position</string>
+        <string name="subtitle_color_white">White</string>
+        <string name="subtitle_color_yellow">Yellow</string>
+        <string name="subtitle_color_cyan">Cyan</string>
+        <string name="subtitle_color_green">Green</string>
+        <string name="subtitle_color_orange">Orange</string>
+        <string name="subtitle_color_pink">Pink</string>
+        <string name="subtitle_color_red">Red</string>
+        <string name="subtitle_color_blue">Blue</string>
+        <string name="subtitle_color_black">Black</string>
+        <string name="subtitle_color_gray">Gray</string>
+        <string name="subtitle_color_transparent">Transparent</string>
+        <string name="subtitle_background_dim">Dim black</string>
+
+
+        <string name="player_audio_pass_through">Audio passthrough</string>
+        <string name="player_dolby_vision_output">Dolby Vision</string>
+        <string name="player_decode_setting">Decode setting</string>
+        <string name="dialog_select_chapter">Select chapter</string>
+        <string-array name="select_dolby_vision_output">
+        <item>Auto</item>
+        <item>On</item>
+        <item>Off</item>
+    </string-array>
+
+
+    <string name="live_epg_select">Custom EPG source</string>
+    <string name="live_epg_default">Follow live source</string>
+    <string name="live_epg_apply">Apply</string>
+    <string name="live_epg_hint">XML/GZ URL or {name}/{date} template</string>
+    <string name="compact_episode_on">Compact episode titles enabled</string>
+    <string name="compact_episode_off">Compact episode titles disabled</string>
+    <string name="player_osd">Player OSD</string>
+    <string name="setting_tab_offset">Offset</string>
 </resources>

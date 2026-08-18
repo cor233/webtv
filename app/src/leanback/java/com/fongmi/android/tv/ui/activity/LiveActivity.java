@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.widget.EditText;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -48,11 +49,13 @@ import com.fongmi.android.tv.player.PlayerHelper;
 import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.player.Source;
 import com.fongmi.android.tv.service.PlaybackService;
+import com.fongmi.android.tv.setting.LiveEpgSetting;
 import com.fongmi.android.tv.setting.LiveSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.ui.adapter.ChannelAdapter;
 import com.fongmi.android.tv.ui.adapter.EpgDataAdapter;
 import com.fongmi.android.tv.ui.adapter.GroupAdapter;
+import com.fongmi.android.tv.ui.custom.PlayerOsdController;
 import com.fongmi.android.tv.ui.custom.CustomKeyDownLive;
 import com.fongmi.android.tv.ui.custom.CustomLiveListView;
 import com.fongmi.android.tv.ui.custom.CustomSeekView;
@@ -70,6 +73,8 @@ import com.fongmi.android.tv.utils.Traffic;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -77,6 +82,7 @@ import java.util.List;
 public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnClickListener, ChannelAdapter.OnClickListener, EpgDataAdapter.OnClickListener, CustomKeyDownLive.Listener, CustomLiveListView.Callback, TrackDialog.Listener, PassListener, ConfigListener, LiveListener {
 
     private ActivityLiveBinding mBinding;
+    private PlayerOsdController mOsd;
     private ChannelAdapter mChannelAdapter;
     private EpgDataAdapter mEpgDataAdapter;
     private GroupAdapter mGroupAdapter;
@@ -166,6 +172,10 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mR3 = this::hideInfo;
         mR4 = this::hideUI;
         setRecyclerView();
+        mOsd = new PlayerOsdController(mBinding.osd.getRoot(), mBinding.osd.osdTopLeft, mBinding.osd.osdTopRight, mBinding.osd.osdBottomLeft, mBinding.osd.osdBottomRight, mBinding.osd.osdMiniProgress, new PlayerOsdController.Source() {
+            @Override public PlayerManager getPlayer() { return service() == null ? null : player(); }
+            @Override public String getTitle() { return mChannel == null ? "" : mChannel.getName(); }
+        });
         setVideoView();
         setViewModel();
     }
@@ -184,6 +194,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mBinding.control.action.text.setUpListener(this::onSubtitleClick);
         mBinding.control.action.text.setDownListener(this::onSubtitleClick);
         mBinding.control.action.home.setOnClickListener(view -> onHome());
+        mBinding.control.action.home.setOnLongClickListener(view -> onLiveEpg());
         mBinding.control.action.line.setOnClickListener(view -> onLine());
         mBinding.control.action.scale.setOnClickListener(view -> onScale());
         mBinding.control.action.speed.setOnClickListener(view -> onSpeed());
@@ -267,6 +278,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     private void getLive() {
         mBinding.control.action.home.setText(LiveConfig.isOnly() ? getString(R.string.live_refresh) : getHome().getName());
+        LiveEpgSetting.apply(getHome());
         mViewModel.parse(getHome());
         showProgress();
     }
@@ -367,6 +379,28 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         if (LiveConfig.isOnly()) setLive(getHome());
         else LiveDialog.create().show(this);
         hideControl();
+    }
+
+
+    private boolean onLiveEpg() {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setHint(R.string.live_epg_hint);
+        input.setText(LiveEpgSetting.getUrl());
+        input.setSelection(input.length());
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.live_epg_select)
+                .setView(input)
+                .setNeutralButton(R.string.live_epg_default, (dialog, which) -> applyLiveEpg(""))
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.live_epg_apply, (dialog, which) -> applyLiveEpg(input.getText().toString()))
+                .show();
+        return true;
+    }
+
+    private void applyLiveEpg(String url) {
+        LiveEpgSetting.putUrl(url);
+        getLive();
     }
 
     private void onLine() {
@@ -561,6 +595,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void showControl(View view) {
+        if (mOsd != null) mOsd.setControlsVisible(true);
         mBinding.control.getRoot().setVisibility(View.VISIBLE);
         mBinding.widget.top.setVisibility(View.VISIBLE);
         App.post(view::requestFocus, 25);
@@ -569,6 +604,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void hideControl() {
+        if (mOsd != null) mOsd.setControlsVisible(false);
         mBinding.control.getRoot().setVisibility(View.GONE);
         mBinding.widget.top.setVisibility(View.GONE);
         App.removeCallbacks(mR1);
@@ -1036,12 +1072,14 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     @Override
     protected void onStart() {
         super.onStart();
+        if (mOsd != null) mOsd.start();
         mClock.stop().start();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        if (mOsd != null) mOsd.stop();
         if (PlayerSetting.isBackgroundOff()) mClock.stop();
     }
 
@@ -1061,6 +1099,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     protected void onDestroy() {
+        if (mOsd != null) mOsd.release();
         mClock.release();
         Source.get().exit();
         App.removeCallbacks(mR0, mR1, mR2, mR3, mR4);

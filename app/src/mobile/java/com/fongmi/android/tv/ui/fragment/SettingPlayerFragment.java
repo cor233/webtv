@@ -55,6 +55,7 @@ public class SettingPlayerFragment extends BaseFragment implements UaListener, B
     protected void initView() {
         format = new DecimalFormat("0.#");
         mBinding.uaText.setText(Setting.getUa());
+        mBinding.osdText.setText(getOsdSummary());
         mBinding.aacText.setText(getSwitch(PlayerSetting.isPreferAAC()));
         mBinding.tunnelText.setText(getSwitch(PlayerSetting.isTunnel()));
         mBinding.adblockText.setText(getSwitch(Setting.isAdblock()));
@@ -77,6 +78,7 @@ public class SettingPlayerFragment extends BaseFragment implements UaListener, B
 
     @Override
     protected void initEvent() {
+        mBinding.osd.setOnClickListener(this::onOsd);
         mBinding.kernel.setOnClickListener(this::onKernel);
         mBinding.ua.setOnClickListener(this::onUa);
         mBinding.aac.setOnClickListener(this::setAAC);
@@ -95,6 +97,29 @@ public class SettingPlayerFragment extends BaseFragment implements UaListener, B
         mBinding.background.setOnClickListener(this::onBackground);
         mBinding.audioDecode.setOnClickListener(this::setAudioDecode);
         mBinding.videoDecode.setOnClickListener(this::setVideoDecode);
+        mBinding.decodeSetting.setOnClickListener(view -> ((com.fongmi.android.tv.ui.activity.HomeActivity) requireActivity()).change(5));
+    }
+
+    private void onOsd(View view) {
+        String[] items = {getString(R.string.player_osd) + " - Title", "Resolution", "Clock", "Progress", "Traffic", "Mini progress"};
+        boolean[] checked = {PlayerSetting.isOsdTitle(), PlayerSetting.isOsdResolution(), PlayerSetting.isOsdTime(), PlayerSetting.isOsdProgress(), PlayerSetting.isOsdTraffic(), PlayerSetting.isOsdMini()};
+        new MaterialAlertDialogBuilder(requireActivity())
+                .setTitle(R.string.player_osd)
+                .setMultiChoiceItems(items, checked, (dialog, which, value) -> checked[which] = value)
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.dialog_positive, (dialog, which) -> {
+                    PlayerSetting.putOsdTitle(checked[0]);
+                    PlayerSetting.putOsdResolution(checked[1]);
+                    PlayerSetting.putOsdTime(checked[2]);
+                    PlayerSetting.putOsdProgress(checked[3]);
+                    PlayerSetting.putOsdTraffic(checked[4]);
+                    PlayerSetting.putOsdMini(checked[5]);
+                    mBinding.osdText.setText(getOsdSummary());
+                }).show();
+    }
+
+    private String getOsdSummary() {
+        return getSwitch(PlayerSetting.isOsdEnabled());
     }
 
     private void onKernel(View view) {

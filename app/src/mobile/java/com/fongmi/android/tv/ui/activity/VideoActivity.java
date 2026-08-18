@@ -77,6 +77,7 @@ import com.fongmi.android.tv.ui.adapter.ParseAdapter;
 import com.fongmi.android.tv.ui.adapter.QualityAdapter;
 import com.fongmi.android.tv.ui.adapter.QuickAdapter;
 import com.fongmi.android.tv.ui.base.ViewType;
+import com.fongmi.android.tv.ui.custom.PlayerOsdController;
 import com.fongmi.android.tv.ui.custom.CustomKeyDown;
 import com.fongmi.android.tv.ui.custom.CustomMovement;
 import com.fongmi.android.tv.ui.custom.CustomSeekView;
@@ -90,7 +91,8 @@ import com.fongmi.android.tv.ui.dialog.InfoDialog;
 import com.fongmi.android.tv.ui.dialog.PlayerEngineDialog;
 import com.fongmi.android.tv.ui.dialog.ReceiveDialog;
 import com.fongmi.android.tv.ui.dialog.SpeedSettingDialog;
-import com.fongmi.android.tv.ui.dialog.SubtitleDialog;
+import com.fongmi.android.tv.ui.dialog.ChapterDialog;
+import com.fongmi.android.tv.ui.dialog.SubtitleSettingDialog;
 import com.fongmi.android.tv.ui.dialog.TitleDialog;
 import com.fongmi.android.tv.ui.dialog.TrackDialog;
 import com.fongmi.android.tv.utils.Clock;
@@ -118,6 +120,7 @@ import java.util.Objects;
 public class VideoActivity extends PlaybackActivity implements Clock.Callback, CustomKeyDown.Listener, TrackDialog.Listener, ControlDialog.Listener, FlagAdapter.OnClickListener, EpisodeAdapter.OnClickListener, QualityAdapter.OnClickListener, QuickAdapter.OnClickListener, ParseAdapter.OnClickListener, CastDialog.Listener, InfoDialog.Listener {
 
     private ActivityVideoBinding mBinding;
+    private PlayerOsdController mOsd;
     private ViewGroup.LayoutParams mFrameParams;
     private Observer<Result> mObserveDetail;
     private Observer<Result> mObservePlayer;
@@ -323,6 +326,10 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mPiP = new PiP();
         checkDanmakuImg();
         setRecyclerView();
+        mOsd = new PlayerOsdController(mBinding.osd.getRoot(), mBinding.osd.osdTopLeft, mBinding.osd.osdTopRight, mBinding.osd.osdBottomLeft, mBinding.osd.osdBottomRight, mBinding.osd.osdMiniProgress, new PlayerOsdController.Source() {
+            @Override public PlayerManager getPlayer() { return service() == null ? null : player(); }
+            @Override public String getTitle() { return mBinding.name.getText().toString(); }
+        });
         setVideoView();
         setViewModel();
         if (hasInitialPreview()) showInitialPreview();
@@ -362,6 +369,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.action.speed.setOnClickListener(view -> SpeedSettingDialog.show(this, player()));
         mBinding.control.action.reset.setOnClickListener(view -> onReset());
         mBinding.control.action.title.setOnClickListener(view -> onTitle());
+        mBinding.control.action.chapter.setOnClickListener(view -> onChapter());
         mBinding.control.action.player.setOnClickListener(view -> PlayerEngineDialog.show(this, player()));
         mBinding.control.action.player.setOnLongClickListener(view -> onPlayerKernel());
         mBinding.control.action.decode.setOnClickListener(view -> onDecode());
@@ -399,6 +407,12 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.episode.setItemAnimator(null);
         mBinding.episode.addItemDecoration(new SpaceItemDecoration(8));
         mBinding.episode.setAdapter(mEpisodeAdapter = new EpisodeAdapter(this, ViewType.HORI));
+        mBinding.episode.setOnLongClickListener(view -> {
+            Setting.putCompactEpisodeTitle(!Setting.isCompactEpisodeTitle());
+            mEpisodeAdapter.refreshDisplayNames();
+            Notify.show(Setting.isCompactEpisodeTitle() ? R.string.compact_episode_on : R.string.compact_episode_off);
+            return true;
+        });
         mBinding.quality.setHasFixedSize(true);
         mBinding.quality.setItemAnimator(null);
         mBinding.quality.addItemDecoration(new SpaceItemDecoration(8));
@@ -448,6 +462,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mViewModel = new ViewModelProvider(this).get(SiteViewModel.class);
         mViewModel.getResult().observe(this, mObserveDetail);
         mViewModel.getPlayer().observe(this, mObservePlayer);
+        mViewModel.getPreload().observe(this, this::setPreload);
         mViewModel.getSearch().observe(this, mObserveSearch);
     }
 
@@ -604,6 +619,21 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             if (DanmakuSetting.isSpiderFirst() && !result.getDanmaku().isEmpty()) player().addDanmaku(danmaku);
             else player().setDanmaku(danmaku);
         });
+        preloadNextEpisode();
+    }
+
+    private void preloadNextEpisode() {
+        Episode next = mEpisodeAdapter.getNext();
+        if (next == null || next.isSelected()) {
+            player().clearNextPreload();
+            return;
+        }
+        mViewModel.preloadContent(getKey(), getFlag().getFlag(), next.getUrl());
+    }
+
+    private void setPreload(Result result) {
+        if (result == null || result.shouldUseParse()) return;
+        player().preloadNext(result, getHistoryKey(), buildMetadata());
     }
 
     private void recordDetailHealth(Result result, long cost) {
@@ -811,6 +841,11 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     private void onTitle() {
         TitleDialog.create().player(player()).show(this);
+        hideControl();
+    }
+
+    private void onChapter() {
+        ChapterDialog.create().player(player()).show(this);
         hideControl();
     }
 
@@ -1052,6 +1087,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void showControl() {
+        if (mOsd != null) mOsd.setControlsVisible(true);
         if (service() == null || isInPictureInPictureMode()) return;
         mBinding.control.danmaku.setVisibility(isLock() || !player().haveDanmaku() ? View.GONE : View.VISIBLE);
         mBinding.control.setting.setVisibility(mHistory == null || isFullscreen() ? View.GONE : View.VISIBLE);
@@ -1073,6 +1109,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void hideControl() {
+        if (mOsd != null) mOsd.setControlsVisible(false);
         mBinding.control.getRoot().setVisibility(View.GONE);
         App.removeCallbacks(mR1);
     }
@@ -1371,7 +1408,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     @Override
     public void onSubtitleClick() {
-        SubtitleDialog.create().view(mBinding.exo.getSubtitleView()).show(this);
+        SubtitleSettingDialog.create().view(mBinding.exo.getSubtitleView()).player(player()).show(this);
         hideControl();
     }
 
@@ -1448,6 +1485,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     private void setTitleVisible() {
         mBinding.control.action.title.setVisibility(player().haveTitle() ? View.VISIBLE : View.GONE);
+        mBinding.control.action.chapter.setVisibility(player().haveChapter() ? View.VISIBLE : View.GONE);
     }
 
     private void setSizeText() {
@@ -1774,6 +1812,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     @Override
     protected void onStart() {
         super.onStart();
+        if (mOsd != null) mOsd.start();
         mClock.stop().start();
         setAudioOnly(false);
         setStop(false);
@@ -1782,6 +1821,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     @Override
     protected void onStop() {
         super.onStop();
+        if (mOsd != null) mOsd.stop();
         PlaybackEventCollector.get().onStop(player());
         if (PlayerSetting.isBackgroundOff()) mClock.stop();
         if (!isAudioOnly()) setStop(true);
@@ -1802,6 +1842,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     @Override
     protected void onDestroy() {
+        if (mOsd != null) mOsd.release();
         mClock.release();
         saveHistory(true);
         Timer.get().reset();

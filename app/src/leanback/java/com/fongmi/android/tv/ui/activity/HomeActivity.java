@@ -73,6 +73,7 @@ import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.fongmi.android.tv.web.HomeWebController;
 import com.github.catvod.crawler.SpiderDebug;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.github.catvod.net.OkHttp;
 import com.google.common.collect.Lists;
 
@@ -695,9 +696,22 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         } else if (mBinding.recycler.getSelectedPosition() != 0) {
             mBinding.recycler.scrollToPosition(0);
         } else {
-            if (PlaybackService.isRunning()) moveTaskToBack(true);
-            else super.onBackInvoked();
+            showExitConfirmation();
         }
+    }
+
+    private void showExitConfirmation() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.exit_confirm_title)
+                .setMessage(R.string.exit_confirm_message)
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.exit_confirm_positive, (dialog, which) -> confirmExit())
+                .show();
+    }
+
+    private void confirmExit() {
+        if (PlaybackService.isRunning()) moveTaskToBack(true);
+        else super.onBackInvoked();
     }
 
     @Override

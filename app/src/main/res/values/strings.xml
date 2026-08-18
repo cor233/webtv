@@ -2,6 +2,9 @@
 
     <!-- App -->
     <string name="app_name">TV</string>
+    <string name="exit_confirm_title">Exit app?</string>
+    <string name="exit_confirm_message">The current page will close. Background playback will continue if it is running.</string>
+    <string name="exit_confirm_positive">Exit</string>
 
     <!-- Live -->
     <string name="live_pass">Pass</string>
@@ -755,4 +758,13 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
 <string name="error_play_mpv_invalid_data">MPV found invalid media data. Choose another line or switch player manually.</string>
 <string name="error_play_mpv_decode_failed">MPV failed to decode this media. Try switching soft/hard decode or choose another line.</string>
 <string name="error_play_mpv_video_output">MPV failed to initialize video output. Try switching decode mode or reopen playback.</string>
+<string name="error_play_stage_app_local">The app playback service could not be reached. Reopen playback or restart the app.</string>
+<string name="error_play_stage_external_local">The local proxy port could not be reached. Restart the proxy or choose another line.</string>
+<string name="error_play_stage_external_supply">An external or unknown local proxy could not provide a continuous data stream. The app cannot inspect its CDN, authorization, or cache state. Check the proxy or choose another line.</string>
+<string name="error_play_stage_network">Network reading failed. Check the network and request headers, or choose another line.</string>
+<string name="error_play_stage_media">Media parsing failed or no playable audio/video track was found. Choose another line or player.</string>
+<string name="error_play_stage_decoder">Audio/video decoding failed. Try another decode mode or player.</string>
+<string name="error_play_stage_output">Audio/video output failed. Reopen playback or try another decode mode.</string>
+<string name="error_play_stage_drm">DRM authorization or protected-media handling failed. Choose another line or player.</string>
+<string name="error_play_stage_unknown">Playback failed. Retry or switch player.</string>
 </resources>

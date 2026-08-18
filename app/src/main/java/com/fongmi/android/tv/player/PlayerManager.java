@@ -685,19 +685,43 @@ public class PlayerManager implements ParseCallback {
 
         @Override
         public void onPlayerError(@NonNull PlaybackException e) {
+            PlaybackErrorClassifier.Failure failure = PlaybackErrorClassifier.classify(e, getEffectivePlaybackRoute());
             PlayerEngine.ErrorAction action = engine.handleError(e);
-            SpiderDebug.log("player", "error code=%d message=%s action=%s retry=%d spec=%s cause=%s", e.errorCode, e.getMessage(), action, retry, debugSpec(), causeChain(e));
+            SpiderDebug.log("player", "error %s action=%s retry=%d spec=%s cause=%s", failure.logSummary(), action, retry, debugSpec(), causeChain(e));
             if (action == PlayerEngine.ErrorAction.RECOVERED) {
                 if (spec != null) setDanmakus(spec.getDanmakus());
                 return;
             }
             if (action == PlayerEngine.ErrorAction.FATAL) {
-                callback.onError(engine.getErrorMessage(e));
+                callback.onError(getPlaybackErrorMessage(failure));
             } else if (++retry > 1) {
-                callback.onError(engine.getErrorMessage(e));
+                callback.onError(getPlaybackErrorMessage(failure));
             } else {
                 toggleDecode();
             }
         }
     };
+
+    private PlaybackRoute.Resolution getEffectivePlaybackRoute() {
+        PlaybackRoute.Resolution route = engine == null ? null : engine.getEffectivePlaybackRoute();
+        if (route != null && route.route() != PlaybackRoute.OTHER) return route;
+        return spec == null ? PlaybackRoute.resolve(null) : spec.getPlaybackRoute();
+    }
+
+    private String getPlaybackErrorMessage(PlaybackErrorClassifier.Failure failure) {
+        return switch (failure.stage()) {
+            case LOCAL_ENDPOINT -> switch (failure.route().owner()) {
+                case APP_MAIN_SERVER, APP_HLS_PROXY -> ResUtil.getString(R.string.error_play_stage_app_local);
+                default -> ResUtil.getString(R.string.error_play_stage_external_local);
+            };
+            case NETWORK_IO -> PlaybackRouteCapabilities.resolve(failure.route()).externalUpstreamOpaque()
+                    ? ResUtil.getString(R.string.error_play_stage_external_supply)
+                    : ResUtil.getString(R.string.error_play_stage_network);
+            case MEDIA_PARSING -> ResUtil.getString(R.string.error_play_stage_media);
+            case DECODER -> ResUtil.getString(R.string.error_play_stage_decoder);
+            case OUTPUT -> ResUtil.getString(R.string.error_play_stage_output);
+            case DRM -> ResUtil.getString(R.string.error_play_stage_drm);
+            case UNKNOWN -> ResUtil.getString(R.string.error_play_stage_unknown);
+        };
+    }
 }

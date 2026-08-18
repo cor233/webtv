@@ -47,6 +47,7 @@ import com.fongmi.android.tv.utils.PermissionUtil;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.net.OkHttp;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.navigation.NavigationBarView;
 
 import org.greenrobot.eventbus.Subscribe;
@@ -269,9 +270,22 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
         } else if (mManager.isVisible(1)) {
             change(0);
         } else if (mManager.canBack(0)) {
-            if (PlaybackService.isRunning()) moveTaskToBack(true);
-            else super.onBackInvoked();
+            showExitConfirmation();
         }
+    }
+
+    private void showExitConfirmation() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.exit_confirm_title)
+                .setMessage(R.string.exit_confirm_message)
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.exit_confirm_positive, (dialog, which) -> confirmExit())
+                .show();
+    }
+
+    private void confirmExit() {
+        if (PlaybackService.isRunning()) moveTaskToBack(true);
+        else super.onBackInvoked();
     }
 
     @Override

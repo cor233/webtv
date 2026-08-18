@@ -28,17 +28,21 @@ public class DanmakuApi {
     }
 
     public static Call newCall(String name, String episode) {
-        OkHttp.cancel(TAG);
+        return newCall(name, episode, TAG);
+    }
+
+    public static Call newCall(String name, String episode, String tag) {
+        OkHttp.cancel(tag);
         name = Trans.t2s(name);
         episode = Trans.t2s(episode);
         String url = DanmakuSetting.getEffectiveApiUrl();
         if (url.contains("{name}") || url.contains("{episode}")) {
-            return OkHttp.newCall(url.replace("{name}", name).replace("{episode}", episode), TAG);
+            return OkHttp.newCall(url.replace("{name}", name).replace("{episode}", episode), tag);
         } else {
             ArrayMap<String, String> params = new ArrayMap<>();
             params.put("name", name);
             params.put("episode", episode);
-            return OkHttp.newCall(url, OkHttp.toBody(params), TAG);
+            return OkHttp.newCall(url, OkHttp.toBody(params), tag);
         }
     }
 
@@ -57,8 +61,12 @@ public class DanmakuApi {
         });
     }
 
+    public static void cancel(String tag) {
+        OkHttp.cancel(tag);
+    }
+
     public static void cancel() {
         GENERATIONS.invalidate();
-        OkHttp.cancel(TAG);
+        cancel(TAG);
     }
 }

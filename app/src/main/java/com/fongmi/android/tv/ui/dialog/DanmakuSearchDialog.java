@@ -11,11 +11,13 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
+import androidx.lifecycle.Lifecycle;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.DanmakuApi;
+import com.fongmi.android.tv.api.DanmakuSearchRequestOwner;
 import com.fongmi.android.tv.bean.Danmaku;
 import com.fongmi.android.tv.databinding.DialogDanmakuSearchBinding;
 import com.fongmi.android.tv.player.PlayerManager;
@@ -33,9 +35,10 @@ import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
 
-public final class DanmakuSearchDialog extends BaseBottomSheetDialog implements DanmakuAdapter.OnClickListener, Callback {
+public final class DanmakuSearchDialog extends BaseBottomSheetDialog implements DanmakuAdapter.OnClickListener {
 
     private final DanmakuAdapter adapter;
+    private final DanmakuSearchRequestOwner requests;
     private DialogDanmakuSearchBinding binding;
     private PlayerManager player;
 
@@ -45,6 +48,7 @@ public final class DanmakuSearchDialog extends BaseBottomSheetDialog implements 
 
     public DanmakuSearchDialog() {
         this.adapter = new DanmakuAdapter(this);
+        this.requests = new DanmakuSearchRequestOwner();
     }
 
     public DanmakuSearchDialog player(PlayerManager player) {
@@ -109,7 +113,36 @@ public final class DanmakuSearchDialog extends BaseBottomSheetDialog implements 
         showProgress();
         adapter.clear();
         Util.hideKeyboard(binding.keyword);
-        DanmakuApi.newCall(binding.keyword.getText().toString().trim(), player.getMetadata().artist.toString().trim()).enqueue(this);
+        DanmakuSearchRequestOwner.Token token = requests.begin();
+        DanmakuApi.newCall(binding.keyword.getText().toString().trim(), player.getMetadata().artist.toString().trim(), requests.tag()).enqueue(new Callback() {
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
+                handleResponse(token, response);
+            }
+
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                post(token, () -> onError(e));
+            }
+        });
+    }
+
+    private void handleResponse(DanmakuSearchRequestOwner.Token token, Response response) {
+        try {
+            List<Danmaku> items = Danmaku.arrayFrom(response.body().string());
+            if (items.isEmpty()) throw new Exception(ResUtil.getString(R.string.error_empty));
+            post(token, () -> onSuccess(items));
+        } catch (Exception e) {
+            post(token, () -> onError(e));
+        }
+    }
+
+    private void post(DanmakuSearchRequestOwner.Token token, Runnable action) {
+        App.post(() -> {
+            if (binding == null || !requests.isCurrent(token)) return;
+            if (!getViewLifecycleOwner().getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) return;
+            action.run();
+        });
     }
 
     private void onSuccess(List<Danmaku> items) {
@@ -124,24 +157,10 @@ public final class DanmakuSearchDialog extends BaseBottomSheetDialog implements 
     }
 
     @Override
-    public void onResponse(@NonNull Call call, @NonNull Response response) {
-        try {
-            List<Danmaku> items = Danmaku.arrayFrom(response.body().string());
-            if (items.isEmpty()) throw new Exception(ResUtil.getString(R.string.error_empty));
-            else App.post(() -> onSuccess(items));
-        } catch (Exception e) {
-            App.post(() -> onError(e));
-        }
-    }
-
-    @Override
-    public void onFailure(@NonNull Call call, @NonNull IOException e) {
-        App.post(() -> onError(e));
-    }
-
-    @Override
     public void onDestroyView() {
+        requests.invalidate();
+        DanmakuApi.cancel(requests.tag());
+        binding = null;
         super.onDestroyView();
-        DanmakuApi.cancel();
     }
 }

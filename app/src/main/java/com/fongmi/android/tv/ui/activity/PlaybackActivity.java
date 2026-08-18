@@ -309,7 +309,9 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
 
         @Override
         public void onPlayerRebuild(Player player) {
-            if (isOwner()) setRender();
+            if (!isOwner()) return;
+            setRender();
+            player().setDanmakuController(getExoView().getDanmakuController());
         }
     };
 

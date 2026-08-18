@@ -55,7 +55,7 @@ public class SettingDanmakuActivity extends BaseActivity implements DanmakuListe
     }
 
     private void setDanmakuLoad(View view) {
-        DanmakuSetting.putLoad(!DanmakuSetting.isLoad());
+        DanmakuSetting.putEnabled(!DanmakuSetting.isLoad());
         mBinding.danmakuLoadText.setText(getSwitch(DanmakuSetting.isLoad()));
         updateApiVisibility();
     }

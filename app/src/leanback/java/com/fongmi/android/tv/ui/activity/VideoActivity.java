@@ -291,7 +291,8 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     protected void onServiceConnected() {
         SpiderDebug.log("video-flow", "service ready sinceLaunch=%dms key=%s id=%s", getLaunchCost(System.currentTimeMillis()), getKey(), getId());
         player().setDanmakuController(mBinding.exo.getDanmakuController());
-        player().setDanmakuEnabled(DanmakuSetting.isShow());
+        player().applyDanmakuState();
+        mBinding.control.action.danmaku.setSelected(DanmakuSetting.isEnabled());
         if (!detailRequested) checkId();
         if (mPendingDetail != null) {
             Result result = mPendingDetail;
@@ -621,13 +622,20 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         if (result.hasPosition()) mHistory.setPosition(result.getPosition());
         mBinding.control.parse.setVisibility(isUseParse() ? View.VISIBLE : View.GONE);
         startPlayer(getHistoryKey(), result, isUseParse(), getSite().getTimeout(), buildMetadata());
-        if (DanmakuApi.canSearch()) DanmakuApi.search(mHistory.getVodName(), getEpisode().getName(), danmaku -> {
+        String danmakuContext = getDanmakuContext();
+        if (DanmakuApi.canSearch()) DanmakuApi.search(mHistory.getVodName(), getEpisode().getName(), danmakuContext, this::getDanmakuContext, danmaku -> {
             if (DanmakuSetting.isSpiderFirst() && !result.getDanmaku().isEmpty()) player().addDanmaku(danmaku);
             else player().setDanmaku(danmaku);
-            player().setDanmakuEnabled(DanmakuSetting.isShow());
-            mBinding.control.action.danmaku.setSelected(DanmakuSetting.isShow());
+            player().applyDanmakuState();
+            mBinding.control.action.danmaku.setSelected(DanmakuSetting.isEnabled());
         });
+        else DanmakuApi.cancel();
         preloadNextEpisode();
+    }
+
+    private String getDanmakuContext() {
+        if (mHistory == null || getEpisode() == null) return "";
+        return getKey() + "\n" + getId() + "\n" + getFlag().getFlag() + "\n" + getEpisode().getUrl();
     }
 
     private void preloadNextEpisode() {
@@ -1115,11 +1123,10 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     }
 
     private boolean onDanmakuShow() {
-        if (!player().haveDanmaku()) return false;
         DanmakuSetting.putShow(!DanmakuSetting.isShow());
-        player().setDanmakuEnabled(DanmakuSetting.isShow());
-        mBinding.control.action.danmaku.setSelected(DanmakuSetting.isShow());
-        Notify.show(DanmakuSetting.isShow() ? R.string.danmaku_on : R.string.danmaku_off);
+        player().applyDanmakuState();
+        mBinding.control.action.danmaku.setSelected(DanmakuSetting.isEnabled());
+        Notify.show(DanmakuSetting.isEnabled() ? R.string.danmaku_on : R.string.danmaku_off);
         return true;
     }
 

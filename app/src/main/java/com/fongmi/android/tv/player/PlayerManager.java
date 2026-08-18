@@ -37,6 +37,7 @@ import com.fongmi.android.tv.player.exo.ExoNetworkGuardEligibility;
 import com.fongmi.android.tv.player.exo.ExoNextEpisodePreloader;
 import com.fongmi.android.tv.player.exo.ForwardBufferTrend;
 import com.fongmi.android.tv.setting.DanmakuSetting;
+import com.fongmi.android.tv.setting.DanmakuState;
 import com.fongmi.android.tv.setting.ExoPerformanceSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.SubtitleSetting;
@@ -99,6 +100,7 @@ public class PlayerManager implements ParseCallback {
         clearVideoEffect();
         clearAudioEffect();
         nextEpisodePreloader.release();
+        setDanmakuController(null);
         if (engine != null) engine.release();
         engine = null;
         player = null;
@@ -348,19 +350,47 @@ public class PlayerManager implements ParseCallback {
     }
 
     public void setDanmakuController(DanmakuController controller) {
+        if (danmakuController == controller) {
+            applyDanmakuState();
+            return;
+        }
+        if (danmakuController != null) {
+            danmakuController.clearItems();
+            danmakuController.setEnabled(false);
+        }
         danmakuController = controller;
         if (danmakuController == null) return;
         danmakuController.setOkHttpClient(OkHttp.player());
-        danmakuController.setConfig(DanmakuSetting.getConfig());
+        applyDanmakuState();
+        restoreDanmakuSource();
     }
 
     public void setDanmakuConfig(DanmakuConfig config) {
-        if (danmakuController != null && config != null) danmakuController.setConfig(config);
+        if (danmakuController == null || config == null) return;
+        danmakuController.setConfig(config);
+        danmakuController.setEnabled(DanmakuSetting.isEnabled());
+    }
+
+    public void applyDanmakuState() {
+        if (danmakuController == null) return;
+        danmakuController.setConfig(DanmakuSetting.getConfig());
+        danmakuController.setEnabled(DanmakuSetting.isEnabled());
     }
 
     public void setDanmakuEnabled(boolean enabled) {
-        if (danmakuController == null) return;
-        danmakuController.setEnabled(enabled);
+        if (danmakuController != null) danmakuController.setEnabled(DanmakuState.isEnabled(DanmakuSetting.isLoad(), enabled));
+    }
+
+    private void restoreDanmakuSource() {
+        Danmaku selected = getSelectedDanmaku();
+        if (selected == null) danmakuController.clearItems();
+        else danmakuController.setDataSource(Uri.parse(selected.getRealUrl()));
+    }
+
+    private Danmaku getSelectedDanmaku() {
+        List<Danmaku> items = getDanmakus();
+        if (items == null) return null;
+        return items.stream().filter(Danmaku::isSelected).findFirst().orElse(null);
     }
 
     public boolean preloadNext(Result result, String key, MediaMetadata metadata) {
@@ -564,6 +594,7 @@ public class PlayerManager implements ParseCallback {
 
     public void clear() {
         spec = null;
+        if (danmakuController != null) danmakuController.clearItems();
     }
 
     public void resetTrack() {
@@ -620,14 +651,20 @@ public class PlayerManager implements ParseCallback {
     }
 
     private void setDanmakus(List<Danmaku> items) {
-        setDanmaku(items == null || items.isEmpty() ? Danmaku.empty() : items.get(0));
+        if (items == null || items.isEmpty()) {
+            setDanmaku(Danmaku.empty());
+            return;
+        }
+        Danmaku selected = items.stream().filter(Danmaku::isSelected).findFirst().orElse(items.get(0));
+        setDanmaku(selected);
     }
 
     public void setDanmaku(Danmaku item) {
-        if (danmakuController == null) return;
         if (spec != null) spec.setDanmaku(item);
+        if (danmakuController == null) return;
         if (item.isEmpty()) danmakuController.clearItems();
         else danmakuController.setDataSource(Uri.parse(item.getRealUrl()));
+        applyDanmakuState();
     }
 
     public void addDanmaku(Danmaku item) {

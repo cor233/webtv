@@ -74,12 +74,12 @@ public final class DanmakuDialog extends BaseBottomSheetDialog implements Danmak
 
     private void onShow(View view) {
         DanmakuSetting.putShow(!DanmakuSetting.isShow());
-        player.setDanmakuEnabled(DanmakuSetting.isShow());
+        player.applyDanmakuState();
         updateShowIcon();
     }
 
     private void updateShowIcon() {
-        binding.show.setImageResource(DanmakuSetting.isShow() ? R.drawable.ic_control_danmaku_on : R.drawable.ic_control_danmaku_off);
+        binding.show.setImageResource(DanmakuSetting.isEnabled() ? R.drawable.ic_control_danmaku_on : R.drawable.ic_control_danmaku_off);
     }
 
     private void onSearch(View view) {

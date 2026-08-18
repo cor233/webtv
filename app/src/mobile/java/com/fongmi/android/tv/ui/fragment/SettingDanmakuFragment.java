@@ -55,7 +55,7 @@ public class SettingDanmakuFragment extends BaseFragment implements DanmakuListe
     }
 
     private void setDanmakuLoad(View view) {
-        DanmakuSetting.putLoad(!DanmakuSetting.isLoad());
+        DanmakuSetting.putEnabled(!DanmakuSetting.isLoad());
         mBinding.danmakuLoadText.setText(getSwitch(DanmakuSetting.isLoad()));
         updateApiVisibility();
     }

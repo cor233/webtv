@@ -291,7 +291,8 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     @Override
     protected void onServiceConnected() {
         player().setDanmakuController(mBinding.exo.getDanmakuController());
-        player().setDanmakuEnabled(DanmakuSetting.isShow());
+        player().applyDanmakuState();
+        checkDanmakuImg();
         checkLand();
         checkId();
     }
@@ -612,11 +613,20 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (result.hasDesc()) setText(mBinding.content, 0, result.getDesc());
         mBinding.control.parse.setVisibility(isUseParse() ? View.VISIBLE : View.GONE);
         startPlayer(getHistoryKey(), result, isUseParse(), getSite().getTimeout(), buildMetadata());
-        if (DanmakuApi.canSearch()) DanmakuApi.search(mHistory.getVodName(), getEpisode().getName(), danmaku -> {
+        String danmakuContext = getDanmakuContext();
+        if (DanmakuApi.canSearch()) DanmakuApi.search(mHistory.getVodName(), getEpisode().getName(), danmakuContext, this::getDanmakuContext, danmaku -> {
             if (DanmakuSetting.isSpiderFirst() && !result.getDanmaku().isEmpty()) player().addDanmaku(danmaku);
             else player().setDanmaku(danmaku);
+            player().applyDanmakuState();
+            checkDanmakuImg();
         });
+        else DanmakuApi.cancel();
         preloadNextEpisode();
+    }
+
+    private String getDanmakuContext() {
+        if (mHistory == null || getEpisode() == null) return "";
+        return getKey() + "\n" + getId() + "\n" + getFlag().getFlag() + "\n" + getEpisode().getUrl();
     }
 
     private void preloadNextEpisode() {
@@ -1094,7 +1104,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void showDanmaku() {
-        player().setDanmakuEnabled(DanmakuSetting.isShow());
+        player().applyDanmakuState();
     }
 
     private void hideDanmaku() {
@@ -1104,7 +1114,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private void showControl() {
         if (mOsd != null) mOsd.setControlsVisible(true);
         if (service() == null || isInPictureInPictureMode()) return;
-        mBinding.control.danmaku.setVisibility(isLock() || !player().haveDanmaku() ? View.GONE : View.VISIBLE);
+        mBinding.control.danmaku.setVisibility(isLock() ? View.GONE : View.VISIBLE);
         mBinding.control.setting.setVisibility(mHistory == null || isFullscreen() ? View.GONE : View.VISIBLE);
         mBinding.control.right.rotate.setVisibility(isFullscreen() && !isLock() ? View.VISIBLE : View.GONE);
         mBinding.control.fullscreen.setVisibility(isLock() ? View.GONE : View.VISIBLE);
@@ -1259,7 +1269,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void checkDanmakuImg() {
-        mBinding.control.danmaku.setImageResource(DanmakuSetting.isShow() ? R.drawable.ic_control_danmaku_on : R.drawable.ic_control_danmaku_off);
+        mBinding.control.danmaku.setImageResource(DanmakuSetting.isEnabled() ? R.drawable.ic_control_danmaku_on : R.drawable.ic_control_danmaku_off);
     }
 
     private void createKeep() {

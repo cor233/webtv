@@ -13,6 +13,7 @@ import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Trans;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import okhttp3.Call;
 import okhttp3.Response;
@@ -20,6 +21,7 @@ import okhttp3.Response;
 public class DanmakuApi {
 
     private static final String TAG = DanmakuApi.class.getSimpleName();
+    private static final DanmakuSearchGeneration GENERATIONS = new DanmakuSearchGeneration();
 
     public static boolean canSearch() {
         return DanmakuSetting.isLoad() && DanmakuSetting.isAuto() && !TextUtils.isEmpty(DanmakuSetting.getEffectiveApiUrl());
@@ -40,12 +42,15 @@ public class DanmakuApi {
         }
     }
 
-    public static void search(String name, String episode, Consumer<Danmaku> found) {
+    public static void search(String name, String episode, String context, Supplier<String> currentContext, Consumer<Danmaku> found) {
+        DanmakuSearchGeneration.Token token = GENERATIONS.begin(context);
         newCall(name, episode).enqueue(new Callback() {
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) {
                 try {
-                    Danmaku.arrayFrom(response.body().string()).stream().findFirst().ifPresent(item -> App.post(() -> found.accept(item)));
+                    Danmaku.arrayFrom(response.body().string()).stream().findFirst().ifPresent(item -> App.post(() -> {
+                        if (GENERATIONS.isCurrent(token, currentContext.get())) found.accept(item);
+                    }));
                 } catch (Exception ignored) {
                 }
             }
@@ -53,6 +58,7 @@ public class DanmakuApi {
     }
 
     public static void cancel() {
+        GENERATIONS.invalidate();
         OkHttp.cancel(TAG);
     }
 }

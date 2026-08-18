@@ -42,7 +42,16 @@ public class DanmakuSetting {
 
     public static void putLoad(boolean danmakuLoad) {
         Prefers.put("danmaku_load", danmakuLoad);
-        if (danmakuLoad) putShow(true);
+    }
+
+    public static void putEnabled(boolean enabled) {
+        DanmakuState.Switches switches = DanmakuState.setMaster(enabled);
+        putLoad(switches.load());
+        putShow(switches.show());
+    }
+
+    public static boolean isEnabled() {
+        return DanmakuState.isEnabled(isLoad(), isShow());
     }
 
     public static boolean isAuto() {

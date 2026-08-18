@@ -16,9 +16,11 @@ import com.fongmi.android.tv.impl.BufferListener;
 import com.fongmi.android.tv.impl.SpeedListener;
 import com.fongmi.android.tv.impl.UaListener;
 import com.fongmi.android.tv.setting.PlayerSetting;
+import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.base.BaseFragment;
 import com.fongmi.android.tv.ui.dialog.BufferDialog;
+import com.fongmi.android.tv.ui.dialog.PreloadDialog;
 import com.fongmi.android.tv.ui.dialog.SpeedDialog;
 import com.fongmi.android.tv.ui.dialog.UaDialog;
 import com.fongmi.android.tv.utils.ResUtil;
@@ -66,6 +68,11 @@ public class SettingPlayerFragment extends BaseFragment implements UaListener, B
         mBinding.captionText.setText((caption = ResUtil.getStringArray(R.array.select_caption))[PlayerSetting.isCaption() ? 1 : 0]);
         mBinding.backgroundText.setText((background = ResUtil.getStringArray(R.array.select_background))[PlayerSetting.getBackground()]);
         mBinding.kernelText.setText((kernel = ResUtil.getStringArray(R.array.select_player_kernel))[PlayerSetting.getPlayer()]);
+        mBinding.preloadText.setText(getSwitch(PreloadSetting.isPreload()));
+        mBinding.preloadThreadsText.setText(String.valueOf(PreloadSetting.getPreloadThreads()));
+        mBinding.preloadSizeText.setText(PreloadSetting.getPreloadSizeMb() + " MB");
+        mBinding.preloadTimeText.setText(String.valueOf(PreloadSetting.getPreloadTimeSeconds()));
+        setPreloadVisible();
     }
 
     @Override
@@ -76,6 +83,10 @@ public class SettingPlayerFragment extends BaseFragment implements UaListener, B
         mBinding.scale.setOnClickListener(this::onScale);
         mBinding.speed.setOnClickListener(this::onSpeed);
         mBinding.buffer.setOnClickListener(this::onBuffer);
+        mBinding.preload.setOnClickListener(this::setPreload);
+        mBinding.preloadThreads.setOnClickListener(view -> PreloadDialog.show(requireActivity(), PreloadDialog.THREADS));
+        mBinding.preloadSize.setOnClickListener(view -> PreloadDialog.show(requireActivity(), PreloadDialog.SIZE));
+        mBinding.preloadTime.setOnClickListener(view -> PreloadDialog.show(requireActivity(), PreloadDialog.TIME));
         mBinding.render.setOnClickListener(this::setRender);
         mBinding.tunnel.setOnClickListener(this::setTunnel);
         mBinding.caption.setOnClickListener(this::setCaption);
@@ -107,6 +118,19 @@ public class SettingPlayerFragment extends BaseFragment implements UaListener, B
     private void setAAC(View view) {
         PlayerSetting.putPreferAAC(!PlayerSetting.isPreferAAC());
         mBinding.aacText.setText(getSwitch(PlayerSetting.isPreferAAC()));
+    }
+
+    private void setPreload(View view) {
+        PreloadSetting.putPreload(!PreloadSetting.isPreload());
+        mBinding.preloadText.setText(getSwitch(PreloadSetting.isPreload()));
+        setPreloadVisible();
+    }
+
+    private void setPreloadVisible() {
+        boolean enabled = PreloadSetting.isPreload();
+        mBinding.preloadThreads.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        mBinding.preloadSize.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        mBinding.preloadTime.setVisibility(enabled ? View.VISIBLE : View.GONE);
     }
 
     private void onScale(View view) {

@@ -13,6 +13,7 @@ import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.databinding.AdapterSiteBinding;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.setting.SiteBlockSetting;
 import com.fongmi.android.tv.setting.SiteHealthStore;
 import com.github.catvod.crawler.SpiderDebug;
 
@@ -61,7 +62,7 @@ public class SiteAdapter extends RecyclerView.Adapter<SiteAdapter.ViewHolder> {
     }
 
     private void addAll() {
-        for (Site site : VodConfig.get().getSites()) if (!site.isHide()) allItems.add(site);
+        allItems.addAll(SiteBlockSetting.filter(VodConfig.get().getSites(), false));
         if (Setting.isSiteHealthDialogSort()) SiteHealthStore.sortSites(allItems);
         mItems.addAll(allItems);
     }

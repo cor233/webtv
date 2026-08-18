@@ -27,6 +27,44 @@ import java.util.List;
 
 public class Setting {
 
+    public static final int WALL_AURORA_GLASS = 10;
+    public static final int WALL_SUNSET_PRISM = 11;
+    public static final int WALL_MINT_GLACIER = 12;
+    public static final int WALL_LIQUID_CHROME = 13;
+    public static final int WALL_NEON_BERRY = 14;
+    public static final int WALL_CHAMPAGNE_MIST = 15;
+    public static final int WALL_GLASS_GRADIENT = 16;
+    public static final int WALL_DEEP_SPACE_GLASS = 17;
+    public static final int WALL_POLAR_LIGHT_GLASS = 18;
+    public static final int WALL_NEON_CYBER = 19;
+    public static final int WALL_WARM_MOON_GLASS = 20;
+    public static final int WALL_CRYSTAL_SKY = 21;
+    public static final int WALL_DREAM_PURPLE = 22;
+    public static final int WALL_SKY_MINT = 23;
+    public static final int WALL_FOREST_MIST = 24;
+    public static final int WALL_DAYLIGHT_MINIMAL = 25;
+    public static final int WALL_DEEP_SEA = 26;
+    public static final int WALL_VIOLET_SMOKE = 27;
+    public static final int WALL_ROSE_VEIL = 28;
+    public static final int WALL_EMERALD_AURORA = 29;
+    public static final int WALL_BLUE_SILK = 30;
+    public static final int WALL_PEACH_DAWN = 31;
+    public static final int WALL_GRAPHITE_SMOKE = 32;
+    public static final int WALL_PASTEL_PRISM = 33;
+    public static final int WALL_MIDNIGHT_MOON = 34;
+    public static final int WALL_CYAN_CRYSTAL = 35;
+    public static final int WALL_LAVENDER_CRYSTAL = 36;
+    public static final int WALL_GREEN = 1;
+
+    private static final int[] DEFAULT_WALLS = {
+            WALL_DREAM_PURPLE, WALL_LAVENDER_CRYSTAL, WALL_PASTEL_PRISM, WALL_ROSE_VEIL, WALL_VIOLET_SMOKE,
+            WALL_NEON_BERRY, WALL_MIDNIGHT_MOON, WALL_NEON_CYBER, WALL_DEEP_SPACE_GLASS, WALL_GRAPHITE_SMOKE,
+            WALL_DAYLIGHT_MINIMAL, WALL_SKY_MINT, WALL_POLAR_LIGHT_GLASS, WALL_GLASS_GRADIENT, WALL_CRYSTAL_SKY,
+            WALL_BLUE_SILK, WALL_CYAN_CRYSTAL, WALL_MINT_GLACIER, WALL_AURORA_GLASS, WALL_DEEP_SEA,
+            WALL_LIQUID_CHROME, WALL_FOREST_MIST, WALL_EMERALD_AURORA, WALL_WARM_MOON_GLASS, WALL_PEACH_DAWN,
+            WALL_CHAMPAGNE_MIST, WALL_SUNSET_PRISM
+    };
+
     private static final Type STRING_LIST = new TypeToken<List<String>>() {}.getType();
 
     public static final int CSP_WARMUP_DISABLED = 0;
@@ -66,11 +104,53 @@ public class Setting {
     }
 
     public static int getWall() {
-        return Prefers.getInt("wall", 1);
+        return Prefers.getInt("wall", WALL_DREAM_PURPLE);
     }
 
     public static void putWall(int wall) {
         Prefers.put("wall", wall);
+    }
+
+    public static int nextDefaultWall() {
+        int wall = getWall();
+        for (int i = 0; i < DEFAULT_WALLS.length; i++) if (DEFAULT_WALLS[i] == wall) return DEFAULT_WALLS[(i + 1) % DEFAULT_WALLS.length];
+        return WALL_DREAM_PURPLE;
+    }
+
+    public static int[] getDefaultWalls() {
+        return DEFAULT_WALLS.clone();
+    }
+
+    public static int getDefaultWallIndex(int wall) {
+        for (int i = 0; i < DEFAULT_WALLS.length; i++) if (DEFAULT_WALLS[i] == wall) return i;
+        return -1;
+    }
+
+    public static boolean isBuiltInWall(int wall) {
+        return getDefaultWallIndex(wall) != -1;
+    }
+
+    public static boolean isBuiltInColorWall(int wall) {
+        return false;
+    }
+
+    public static boolean isBuiltInDesignWall(int wall) {
+        return isBuiltInWall(wall);
+    }
+
+    public static int getBuiltInWallColor(int wall) {
+        if (wall == WALL_EMERALD_AURORA) return 0xFF27B07D;
+        if (wall == WALL_NEON_BERRY || wall == WALL_VIOLET_SMOKE) return 0xFF7C4BE2;
+        if (wall == WALL_ROSE_VEIL || wall == WALL_CHAMPAGNE_MIST) return 0xFFB27FAE;
+        if (wall == WALL_MIDNIGHT_MOON || wall == WALL_NEON_CYBER || wall == WALL_DEEP_SPACE_GLASS) return 0xFF4935B4;
+        if (wall == WALL_CYAN_CRYSTAL || wall == WALL_DEEP_SEA) return 0xFF168BA6;
+        return 0xFF7560CA;
+    }
+
+    public static String getBuiltInWallName(int wall) {
+        String[] names = {"蓝紫流光", "珊瑚暮色", "薄荷星云", "银色潮汐", "莓果极光", "香槟晨雾", "玻璃渐变", "深空玻璃", "极光玻璃", "暗夜霓虹", "暖月玻璃", "冰晶幻彩", "梦幻紫霞", "雾青薄荷", "森林雾绿", "雾蓝极简", "深海月影", "紫雾星旋", "玫瑰薄雾", "翡翠极光", "蓝绸流影", "暖桃晨光", "石墨烟岚", "彩虹幻璃", "午夜月影", "水晶青蓝", "薰衣水晶"};
+        int index = getDefaultWallIndex(wall);
+        return index < 0 ? "梦幻紫霞" : names[index];
     }
 
     public static int getWallType() {

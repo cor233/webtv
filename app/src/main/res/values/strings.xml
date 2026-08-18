@@ -30,6 +30,7 @@
     <string name="play_op">OP</string>
     <string name="play_ed">ED</string>
     <string name="play_exo">EXO</string>
+    <string name="player_engine">Engine</string>
     <string name="play_next">Next</string>
     <string name="play_prev">Prev</string>
     <string name="play_stop">Stop</string>
@@ -37,7 +38,12 @@
     <string name="play_forward">→</string>
     <string name="play_backward">←</string>
     <string name="play_speed">1.00</string>
+    <string name="speed_setting">Speed settings</string>
+    <string name="speed_setting_reset">Reset</string>
+    <string name="speed_setting_current">Playback speed</string>
+    <string name="speed_setting_quick">Quick select</string>
     <string name="play_reset">Reset</string>
+    <string name="play_replay">Replay</string>
     <string name="play_decode">Hard</string>
     <string name="play_timer">Timer</string>
     <string name="play_title">Chapter</string>
@@ -157,6 +163,22 @@
     <string name="setting_player">Player setting</string>
     <string name="setting_danmaku">Danmaku setting</string>
     <string name="setting_enhance">Enhancements</string>
+    <string name="setting_about">About</string>
+    <string name="about_message">Version %1$s (%2$d)
+Build: %3$s / %4$s
+
+WebHomeTV is a player shell. It does not include content sources. Please use lawful configurations.</string>
+    <string name="about_check_update">Check update</string>
+    <string name="site_block">Blocked sites</string>
+    <string name="playback_sync">Viewing record sync</string>
+    <string name="codec_capability_short">Codec caps</string>
+    <string name="codec_capability_title">Hardware codec capabilities</string>
+    <string name="codec_capability_search">Search codec, mime, decoder, resolution, audio...</string>
+    <string name="codec_capability_current">Current</string>
+    <string name="codec_capability_all">All</string>
+    <string name="codec_capability_video">Video</string>
+    <string name="codec_capability_audio">Audio</string>
+    <string name="codec_capability_copy">Copy</string>
     <string name="setting_debug_log">Debug log</string>
     <string name="setting_manage_page">Management page</string>
     <string name="setting_site_health_sort">Site health ranking</string>
@@ -581,6 +603,12 @@
     <string name="lines">lines</string>
 
 <string name="player_kernel">Player engine</string>
+    <string name="player_preload">Preload</string>
+    <string name="player_preload_threads">Preload threads</string>
+    <string name="player_preload_threads_value">%1$d threads</string>
+    <string name="player_preload_size">Preload size</string>
+    <string name="player_preload_time">Preload time</string>
+    <string name="player_preload_time_value">%1$d seconds</string>
 <string name="mpv_config_apply_selected">Apply selected</string>
 <string name="mpv_config_choose_action">Choose a creation method</string>
 <string name="mpv_config_close">Close</string>

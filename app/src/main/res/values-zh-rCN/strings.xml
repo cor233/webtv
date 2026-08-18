@@ -30,6 +30,7 @@
     <string name="play_op">片头</string>
     <string name="play_ed">片尾</string>
     <string name="play_exo">EXO</string>
+    <string name="player_engine">播放内核</string>
     <string name="play_next">下集</string>
     <string name="play_prev">上集</string>
     <string name="play_stop">停止</string>
@@ -37,7 +38,12 @@
     <string name="play_forward">→</string>
     <string name="play_backward">←</string>
     <string name="play_speed">1.00</string>
+    <string name="speed_setting">倍速设置</string>
+    <string name="speed_setting_reset">重置</string>
+    <string name="speed_setting_current">播放速度</string>
+    <string name="speed_setting_quick">快速选择</string>
     <string name="play_reset">刷新</string>
+    <string name="play_replay">重播</string>
     <string name="play_decode">硬解</string>
     <string name="play_timer">定时</string>
     <string name="play_title">章节</string>
@@ -125,6 +131,22 @@
     <string name="setting_player">播放设置</string>
     <string name="setting_danmaku">弹幕设置</string>
     <string name="setting_enhance">增强功能</string>
+    <string name="setting_about">关于</string>
+    <string name="about_message">版本 %1$s (%2$d)
+构建：%3$s / %4$s
+
+WebHomeTV 是播放器壳子，不内置内容源，请使用合法配置。</string>
+    <string name="about_check_update">检查更新</string>
+    <string name="site_block">站点屏蔽</string>
+    <string name="playback_sync">观影记录同步</string>
+    <string name="codec_capability_short">编解码能力</string>
+    <string name="codec_capability_title">硬件编解码能力</string>
+    <string name="codec_capability_search">搜索编码、格式、解码器、分辨率、音频...</string>
+    <string name="codec_capability_current">当前</string>
+    <string name="codec_capability_all">全部</string>
+    <string name="codec_capability_video">视频</string>
+    <string name="codec_capability_audio">音频</string>
+    <string name="codec_capability_copy">复制</string>
     <string name="setting_debug_log">调试日志</string>
     <string name="setting_manage_page">管理页面</string>
     <string name="setting_site_health_sort">站点健康排序</string>
@@ -542,6 +564,12 @@
     <string name="lines">行</string>
 
 <string name="player_kernel">播放器内核</string>
+    <string name="player_preload">预载</string>
+    <string name="player_preload_threads">预载线程</string>
+    <string name="player_preload_threads_value">%1$d 线程</string>
+    <string name="player_preload_size">预载大小</string>
+    <string name="player_preload_time">预载时长</string>
+    <string name="player_preload_time_value">%1$d 秒</string>
 <string name="mpv_config_apply_selected">应用所选</string>
 <string name="mpv_config_choose_action">选择创建方式</string>
 <string name="mpv_config_close">关闭</string>

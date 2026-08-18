@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.playback.ViewingRecordSyncStore;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.databinding.FragmentSettingEnhanceBinding;
 import com.fongmi.android.tv.setting.CustomCspSetting;
@@ -25,6 +26,7 @@ import com.fongmi.android.tv.ui.dialog.ManagePageDialog;
 import com.fongmi.android.tv.ui.dialog.OneKeySyncDialog;
 import com.fongmi.android.tv.ui.dialog.ShellProxyDialog;
 import com.fongmi.android.tv.ui.dialog.SiteHealthDialog;
+import com.fongmi.android.tv.ui.dialog.ViewingRecordSyncDialog;
 import com.fongmi.android.tv.ui.dialog.WebHomeExtensionDialog;
 import com.fongmi.android.tv.utils.FamilyFilter;
 import com.fongmi.android.tv.utils.LoginStateSync;
@@ -65,6 +67,7 @@ public class SettingEnhanceFragment extends BaseFragment {
         mBinding.cspWarmup.setOnClickListener(this::setCspWarmup);
         mBinding.playbackArtworkWall.setOnClickListener(this::setPlaybackArtworkWall);
         mBinding.familyFilter.setOnClickListener(this::setFamilyFilter);
+        mBinding.viewingRecordSync.setOnClickListener(view -> ViewingRecordSyncDialog.show(this, this::setText));
         mBinding.managePage.setOnClickListener(view -> ManagePageDialog.show(this));
         mBinding.shellProxy.setOnClickListener(view -> ShellProxyDialog.show(this, this::setText));
         mBinding.shellProxy.setOnLongClickListener(v -> false);
@@ -84,6 +87,7 @@ public class SettingEnhanceFragment extends BaseFragment {
         mBinding.cspWarmupText.setText(getCspWarmupText());
         mBinding.playbackArtworkWallText.setText(getSwitch(Setting.isPlaybackArtworkWall()));
         mBinding.familyFilterText.setText(Setting.isFamilyFilter() ? getString(R.string.setting_family_filter_summary_on, FamilyFilter.keywords().size()) : getString(R.string.setting_family_filter_summary_off));
+        mBinding.viewingRecordSyncText.setText(ViewingRecordSyncStore.summary(requireContext()));
         mBinding.managePageText.setText(R.string.manage_page_web);
         mBinding.shellProxyText.setText(getSwitch(Setting.isShellProxy()) + " · " + getString(R.string.setting_proxy_rule_count, ProxySetting.count()));
         mBinding.shellProxyConfigText.setText(getString(R.string.setting_proxy_rule_count, ProxySetting.count()));

@@ -14,6 +14,9 @@ import com.fongmi.android.tv.impl.Callback;
 import com.github.catvod.utils.Prefers;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.ToNumberPolicy;
 import com.google.gson.annotations.SerializedName;
 
@@ -25,7 +28,9 @@ import java.util.Set;
 
 public class Backup {
 
-    private static final Set<String> APP_PREFS = Set.of("doh", "ua", "wall", "wall_type", "reset", "site_mode", "sync_mode", "sync_paths", "sync_device", "incognito", "family_filter_enabled", "family_filter_keywords", "family_filter_pass", "drive_check", "drive_check_cache", "web_home_fullscreen", "playback_artwork_wall", "csp_warmup", "csp_warmup_mode", "csp_warmup_sites", "shell_proxy", "shell_proxy_rules", "shell_proxy_url", "shell_proxy_hosts", "update", "adblock", "zhuyin", "theme_color", "wall_color", "crash", "player", "mpv_render", "render", "size", "scale", "buffer", "background", "speed", "caption", "tunnel", "audio_prefer", "video_prefer", "prefer_aac", "subtitle_text_size", "subtitle_position", "boot_live", "across", "change", "invert", "scale_live");
+    private static final String PLAYBACK_REMOTE_SYNC_CONFIG = "playback_remote_sync_config";
+    private static final String PLAYBACK_WEBHOOK_CONFIG = "playback_webhook_config";
+    private static final Set<String> APP_PREFS = Set.of("doh", "ua", "wall", "wall_type", "reset", "site_mode", "sync_mode", "sync_paths", "sync_device", "incognito", "family_filter_enabled", "family_filter_keywords", "family_filter_pass", "drive_check", "drive_check_cache", "web_home_fullscreen", "playback_artwork_wall", "csp_warmup", "csp_warmup_mode", "csp_warmup_sites", "shell_proxy", "shell_proxy_rules", "shell_proxy_url", "shell_proxy_hosts", "viewing_record_sync_enabled", "viewing_record_sync_local_write", PLAYBACK_REMOTE_SYNC_CONFIG, PLAYBACK_WEBHOOK_CONFIG, "playback_webhook_privacy_accepted", "update", "adblock", "zhuyin", "theme_color", "wall_color", "crash", "player", "mpv_render", "render", "size", "scale", "buffer", "background", "speed", "caption", "tunnel", "audio_prefer", "video_prefer", "prefer_aac", "subtitle_text_size", "subtitle_position", "boot_live", "across", "change", "invert", "scale_live");
 
     @SerializedName("site")
     private List<Site> site;
@@ -138,12 +143,38 @@ public class Backup {
     private static Map<String, ?> filter(Map<String, ?> source, SyncOptions options) {
         Map<String, Object> result = new HashMap<>();
         for (Map.Entry<String, ?> entry : source.entrySet()) {
-            if (entry.getValue() != null && include(entry.getKey(), options)) result.put(entry.getKey(), entry.getValue());
+            if (entry.getValue() != null && include(entry.getKey(), options)) result.put(entry.getKey(), redact(entry.getKey(), entry.getValue()));
         }
         return result;
     }
 
-    private static boolean include(String key, SyncOptions options) {
+    static Object redact(String key, Object value) {
+        if (!(value instanceof String) || (!PLAYBACK_REMOTE_SYNC_CONFIG.equals(key) && !PLAYBACK_WEBHOOK_CONFIG.equals(key))) return value;
+        try {
+            JsonElement root = JsonParser.parseString((String) value);
+            redactSecrets(root);
+            return root.toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    private static void redactSecrets(JsonElement element) {
+        if (element == null || element.isJsonNull()) return;
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) redactSecrets(child);
+            return;
+        }
+        if (!element.isJsonObject()) return;
+        JsonObject object = element.getAsJsonObject();
+        object.remove("token");
+        object.remove("secret");
+        object.remove("headers");
+        object.remove("header");
+        for (Map.Entry<String, JsonElement> entry : object.entrySet()) redactSecrets(entry.getValue());
+    }
+
+    static boolean include(String key, SyncOptions options) {
         if (key.startsWith("cache_")) return options.isWebHome() || options.isSpider();
         if (key.startsWith("config_")) return options.isConfig();
         if (key.startsWith("login_state_")) return options.isLoginState();
@@ -201,7 +232,11 @@ public class Backup {
     }
 
     public void setPrefers(Map<String, ?> prefers) {
-        this.prefers = prefers;
+        Map<String, Object> safe = new HashMap<>();
+        if (prefers != null) {
+            for (Map.Entry<String, ?> entry : prefers.entrySet()) safe.put(entry.getKey(), redact(entry.getKey(), entry.getValue()));
+        }
+        this.prefers = safe;
     }
 
     @NonNull

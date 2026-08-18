@@ -94,7 +94,7 @@ public final class PlaybackRemoteSyncStore {
         return result;
     }
 
-    private static RemoteSyncConfig normalize(RemoteSyncConfig config) {
+    static RemoteSyncConfig normalize(RemoteSyncConfig config) {
         if (config == null) config = new RemoteSyncConfig();
         if (config.id == null || config.id.isEmpty()) config.id = UUID.randomUUID().toString();
         if (config.name == null) config.name = "";

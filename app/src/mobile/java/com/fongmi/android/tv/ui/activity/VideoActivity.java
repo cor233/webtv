@@ -409,12 +409,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.episode.setItemAnimator(null);
         mBinding.episode.addItemDecoration(new SpaceItemDecoration(8));
         mBinding.episode.setAdapter(mEpisodeAdapter = new EpisodeAdapter(this, ViewType.HORI));
-        mBinding.episode.setOnLongClickListener(view -> {
-            Setting.putCompactEpisodeTitle(!Setting.isCompactEpisodeTitle());
-            mEpisodeAdapter.refreshDisplayNames();
-            Notify.show(Setting.isCompactEpisodeTitle() ? R.string.compact_episode_on : R.string.compact_episode_off);
-            return true;
-        });
         mBinding.quality.setHasFixedSize(true);
         mBinding.quality.setItemAnimator(null);
         mBinding.quality.addItemDecoration(new SpaceItemDecoration(8));
@@ -686,6 +680,14 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         scrollToPosition(mBinding.episode, mEpisodeAdapter.getPosition());
         if (isFullscreen()) Notify.show(getString(R.string.play_ready, item.getName()));
         onRefresh();
+    }
+
+    @Override
+    public boolean onItemLongClick(Episode item) {
+        Setting.putCompactEpisodeTitle(!Setting.isCompactEpisodeTitle());
+        mEpisodeAdapter.refreshDisplayNames();
+        Notify.show(Setting.isCompactEpisodeTitle() ? R.string.compact_episode_on : R.string.compact_episode_off);
+        return true;
     }
 
     @Override

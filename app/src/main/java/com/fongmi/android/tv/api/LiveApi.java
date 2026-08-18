@@ -19,6 +19,8 @@ import com.github.catvod.net.OkHttp;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Collections;
+import java.util.List;
 
 public class LiveApi {
 
@@ -31,7 +33,16 @@ public class LiveApi {
     }
 
     public static boolean parseXml(@NonNull Live item) {
-        return LiveEpgSetting.getXmlUrls(item).stream().map(url -> startXml(item, url)).reduce(false, Boolean::logicalOr);
+        List<String> urls = LiveEpgSetting.getXmlUrls(item);
+        if (urls.isEmpty()) return true;
+        if (LiveEpgSetting.hasCustomXml()) clearEpg(item);
+        boolean success = false;
+        for (String url : urls) success |= startXml(item, url);
+        return success;
+    }
+
+    private static void clearEpg(Live item) {
+        item.getGroups().stream().flatMap(group -> group.getChannel().stream()).forEach(channel -> channel.setDataList(Collections.emptyList()));
     }
 
     @NonNull

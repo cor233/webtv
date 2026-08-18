@@ -1,6 +1,7 @@
 package com.fongmi.android.tv.ui.custom;
 
 import android.net.TrafficStats;
+import android.os.Process;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.ProgressBar;
@@ -50,7 +51,7 @@ public final class PlayerOsdController {
 
     public void start() {
         started = true;
-        lastBytes = TrafficStats.getTotalRxBytes();
+        lastBytes = getUidRxBytes();
         lastTime = System.currentTimeMillis();
         App.post(updater, 0);
     }
@@ -98,12 +99,17 @@ public final class PlayerOsdController {
 
     private String getSpeed() {
         long now = System.currentTimeMillis();
-        long bytes = TrafficStats.getTotalRxBytes();
+        long bytes = getUidRxBytes();
         long value = Math.max(0, (bytes - lastBytes) * 1000 / Math.max(1, now - lastTime));
         lastBytes = bytes;
         lastTime = now;
         if (value < 1024 * 1024) return value / 1024 + " KB/s";
         return speed.format(value / 1024f / 1024f) + " MB/s";
+    }
+
+    private long getUidRxBytes() {
+        long value = TrafficStats.getUidRxBytes(Process.myUid());
+        return value == TrafficStats.UNSUPPORTED ? 0 : value;
     }
 
     private void set(TextView view, String text, boolean visible) {

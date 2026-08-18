@@ -37,6 +37,10 @@ public class EpisodeAdapter extends RecyclerView.Adapter<BaseEpisodeHolder> {
     public interface OnClickListener {
 
         void onItemClick(Episode item);
+
+        default boolean onItemLongClick(Episode item) {
+            return false;
+        }
     }
 
     public void addAll(List<Episode> items) {

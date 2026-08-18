@@ -105,7 +105,7 @@ public class SettingPlayerActivity extends BaseActivity implements UaListener, B
     }
 
     private void onOsd(View view) {
-        String[] items = {getString(R.string.player_osd) + " - Title", "Resolution", "Clock", "Progress", "Traffic", "Mini progress"};
+        String[] items = ResUtil.getStringArray(R.array.select_player_osd);
         boolean[] checked = {PlayerSetting.isOsdTitle(), PlayerSetting.isOsdResolution(), PlayerSetting.isOsdTime(), PlayerSetting.isOsdProgress(), PlayerSetting.isOsdTraffic(), PlayerSetting.isOsdMini()};
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.player_osd)

@@ -146,11 +146,16 @@ public class EpisodeAdapter extends RecyclerView.Adapter<EpisodeAdapter.ViewHold
         holder.binding.text.setSelected(item.isSelected());
         holder.binding.text.setText(item.getDisplayName());
         holder.binding.getRoot().setOnClickListener(v -> mListener.onItemClick(item));
+        holder.binding.getRoot().setOnLongClickListener(v -> mListener.onItemLongClick(item));
     }
 
     public interface OnClickListener {
 
         void onItemClick(Episode item);
+
+        default boolean onItemLongClick(Episode item) {
+            return false;
+        }
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

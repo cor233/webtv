@@ -403,7 +403,7 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.live_epg_select)
                 .setView(input)
-                .setNeutralButton(R.string.live_epg_default, (dialog, which) -> applyLiveEpg(""))
+                .setNeutralButton(R.string.live_epg_history, (dialog, which) -> showLiveEpgHistory())
                 .setNegativeButton(R.string.dialog_negative, null)
                 .setPositiveButton(R.string.live_epg_apply, (dialog, which) -> applyLiveEpg(input.getText().toString()))
                 .show();
@@ -413,6 +413,34 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
     private void applyLiveEpg(String url) {
         LiveEpgSetting.putUrl(url);
         getLive();
+    }
+
+    private void showLiveEpgHistory() {
+        List<String> history = LiveEpgSetting.getHistory();
+        String[] items = new String[history.size() + 1];
+        items[0] = getString(R.string.live_epg_default);
+        for (int i = 0; i < history.size(); i++) items[i + 1] = history.get(i);
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.live_epg_history)
+                .setItems(items, (dialog, which) -> applyLiveEpg(which == 0 ? "" : history.get(which - 1)))
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.live_epg_manage, (dialog, which) -> manageLiveEpgHistory(history))
+                .show();
+    }
+
+    private void manageLiveEpgHistory(List<String> history) {
+        if (history.isEmpty()) return;
+        boolean[] checked = new boolean[history.size()];
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.live_epg_manage)
+                .setMultiChoiceItems(history.toArray(new String[0]), checked, (dialog, which, value) -> checked[which] = value)
+                .setNeutralButton(R.string.live_epg_clear, (dialog, which) -> LiveEpgSetting.clearHistory())
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.live_epg_delete, (dialog, which) -> {
+                    List<String> selected = new ArrayList<>();
+                    for (int i = 0; i < checked.length; i++) if (checked[i]) selected.add(history.get(i));
+                    LiveEpgSetting.removeHistory(selected);
+                }).show();
     }
 
     private void onLine() {
@@ -712,8 +740,8 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
     }
 
     private void setEpg(boolean success) {
-        if (mChannel != null && success)
-            mViewModel.getEpg(mChannel);
+        if (!success && LiveEpgSetting.hasCustomXml()) Notify.show(R.string.live_epg_load_failed);
+        if (mChannel != null && success) mViewModel.getEpg(mChannel);
     }
 
     private void fetch(EpgData item) {

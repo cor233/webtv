@@ -157,4 +157,5 @@ dependencies {
     annotationProcessor libs.room.compiler
     annotationProcessor libs.glide.compiler
     coreLibraryDesugaring libs.desugar
+    testImplementation 'junit:junit:4.13.2'
 }

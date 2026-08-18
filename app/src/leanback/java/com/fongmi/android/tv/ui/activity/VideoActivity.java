@@ -428,12 +428,6 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         mBinding.episode.setItemAlignmentOffset(0);
         mBinding.episode.setItemAlignmentOffsetPercent(0);
         mBinding.episode.setAdapter(mEpisodeAdapter = new EpisodeAdapter(this));
-        mBinding.episode.setOnLongClickListener(view -> {
-            Setting.putCompactEpisodeTitle(!Setting.isCompactEpisodeTitle());
-            mEpisodeAdapter.refreshDisplayNames();
-            Notify.show(Setting.isCompactEpisodeTitle() ? R.string.compact_episode_on : R.string.compact_episode_off);
-            return true;
-        });
         mEpisodeAdapter.setColumn(episodeColumn);
         mBinding.quality.setHorizontalSpacing(ResUtil.dp2px(8));
         mBinding.quality.setRowHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -718,6 +712,14 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     public void onItemClick(Episode item) {
         if (shouldEnterFullscreen(item)) return;
         selectEpisode(item, true);
+    }
+
+    @Override
+    public boolean onItemLongClick(Episode item) {
+        Setting.putCompactEpisodeTitle(!Setting.isCompactEpisodeTitle());
+        mEpisodeAdapter.refreshDisplayNames();
+        Notify.show(Setting.isCompactEpisodeTitle() ? R.string.compact_episode_on : R.string.compact_episode_off);
+        return true;
     }
 
     private void selectEpisode(Episode item, boolean scrollToEpisode) {

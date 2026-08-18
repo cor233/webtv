@@ -830,9 +830,22 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
     <string name="live_epg_select">Custom EPG source</string>
     <string name="live_epg_default">Follow live source</string>
     <string name="live_epg_apply">Apply</string>
-    <string name="live_epg_hint">XML/GZ URL or {name}/{date} template</string>
+    <string name="live_epg_hint">XML/GZ URLs (comma-separated) or {name}/{date} template</string>
+    <string name="live_epg_history">History</string>
+    <string name="live_epg_manage">Manage</string>
+    <string name="live_epg_delete">Delete selected</string>
+    <string name="live_epg_clear">Clear history</string>
+    <string name="live_epg_load_failed">Custom EPG failed to load</string>
     <string name="compact_episode_on">Compact episode titles enabled</string>
     <string name="compact_episode_off">Compact episode titles disabled</string>
     <string name="player_osd">Player OSD</string>
+    <string-array name="select_player_osd">
+        <item>Title</item>
+        <item>Resolution</item>
+        <item>Clock</item>
+        <item>Progress</item>
+        <item>App network traffic</item>
+        <item>Mini progress</item>
+    </string-array>
     <string name="setting_tab_offset">Offset</string>
 </resources>

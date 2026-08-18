@@ -787,9 +787,22 @@ WebHomeTV 是播放器外殼，不內建內容源，請使用合法設定。</st
     <string name="live_epg_select">自訂 EPG 源</string>
     <string name="live_epg_default">跟隨直播源</string>
     <string name="live_epg_apply">套用</string>
-    <string name="live_epg_hint">輸入 XML/GZ 或 {name}/{date} 模板地址</string>
+    <string name="live_epg_hint">輸入逗號分隔的 XML/GZ 地址或 {name}/{date} 模板</string>
+    <string name="live_epg_history">歷史記錄</string>
+    <string name="live_epg_manage">管理</string>
+    <string name="live_epg_delete">刪除所選</string>
+    <string name="live_epg_clear">清空歷史</string>
+    <string name="live_epg_load_failed">自訂 EPG 載入失敗</string>
     <string name="compact_episode_on">已開啟集數標題精簡顯示</string>
     <string name="compact_episode_off">已關閉集數標題精簡顯示</string>
     <string name="player_osd">播放器 OSD</string>
+    <string-array name="select_player_osd">
+        <item>標題</item>
+        <item>解析度</item>
+        <item>時鐘</item>
+        <item>播放進度</item>
+        <item>應用程式網路流量</item>
+        <item>迷你進度條</item>
+    </string-array>
     <string name="setting_tab_offset">偏移</string>
 </resources>

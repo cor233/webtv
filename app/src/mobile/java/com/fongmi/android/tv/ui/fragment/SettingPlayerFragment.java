@@ -122,6 +122,28 @@ public class SettingPlayerFragment extends BaseFragment implements UaListener, B
         return getSwitch(PlayerSetting.isOsdEnabled());
     }
 
+    private void onOsd(View view) {
+        String[] items = {getString(R.string.player_osd) + " - Title", "Resolution", "Clock", "Progress", "Traffic", "Mini progress"};
+        boolean[] checked = {PlayerSetting.isOsdTitle(), PlayerSetting.isOsdResolution(), PlayerSetting.isOsdTime(), PlayerSetting.isOsdProgress(), PlayerSetting.isOsdTraffic(), PlayerSetting.isOsdMini()};
+        new MaterialAlertDialogBuilder(requireActivity())
+                .setTitle(R.string.player_osd)
+                .setMultiChoiceItems(items, checked, (dialog, which, value) -> checked[which] = value)
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setPositiveButton(R.string.dialog_positive, (dialog, which) -> {
+                    PlayerSetting.putOsdTitle(checked[0]);
+                    PlayerSetting.putOsdResolution(checked[1]);
+                    PlayerSetting.putOsdTime(checked[2]);
+                    PlayerSetting.putOsdProgress(checked[3]);
+                    PlayerSetting.putOsdTraffic(checked[4]);
+                    PlayerSetting.putOsdMini(checked[5]);
+                    mBinding.osdText.setText(getOsdSummary());
+                }).show();
+    }
+
+    private String getOsdSummary() {
+        return getSwitch(PlayerSetting.isOsdEnabled());
+    }
+
     private void onKernel(View view) {
         new MaterialAlertDialogBuilder(requireActivity()).setTitle(R.string.player_kernel).setNegativeButton(R.string.dialog_negative, null).setSingleChoiceItems(kernel, PlayerSetting.getPlayer(), (dialog, which) -> {
             mBinding.kernelText.setText(kernel[which]);

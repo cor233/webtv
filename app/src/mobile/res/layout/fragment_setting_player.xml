@@ -106,6 +106,8 @@
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 
+
+
             <androidx.appcompat.widget.LinearLayoutCompat
                 android:id="@+id/decodeSetting"
                 android:layout_width="match_parent"

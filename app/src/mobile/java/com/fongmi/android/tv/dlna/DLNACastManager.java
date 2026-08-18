@@ -9,6 +9,7 @@ import android.os.IBinder;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.bean.Device;
 import com.fongmi.android.tv.service.DLNACastService;
+import com.fongmi.android.tv.utils.LocalNetworkPermission;
 
 import org.jupnp.android.AndroidUpnpService;
 import org.jupnp.controlpoint.ControlPoint;
@@ -30,6 +31,7 @@ public class DLNACastManager extends DefaultRegistryListener implements ServiceC
 
     private AndroidUpnpService upnpService;
     private DeviceListener deviceListener;
+    private boolean bound;
 
     public static DLNACastManager get() {
         return Loader.INSTANCE;
@@ -59,6 +61,7 @@ public class DLNACastManager extends DefaultRegistryListener implements ServiceC
     @Override
     public void onServiceDisconnected(ComponentName name) {
         upnpService = null;
+        bound = false;
     }
 
     public void setDeviceListener(DeviceListener listener) {
@@ -74,11 +77,21 @@ public class DLNACastManager extends DefaultRegistryListener implements ServiceC
     }
 
     public void init(Context context) {
-        context.bindService(new Intent(context, DLNACastService.class), this, Context.BIND_AUTO_CREATE);
+        if (bound || !LocalNetworkPermission.isGranted(context)) return;
+        try {
+            bound = context.bindService(new Intent(context, DLNACastService.class), this, Context.BIND_AUTO_CREATE);
+        } catch (SecurityException e) {
+            bound = false;
+            upnpService = null;
+        }
     }
 
     public void search() {
-        if (upnpService != null) upnpService.getControlPoint().search(new STAllHeader());
+        if (!LocalNetworkPermission.isGranted(App.get()) || upnpService == null) return;
+        try {
+            upnpService.getControlPoint().search(new STAllHeader());
+        } catch (SecurityException ignored) {
+        }
     }
 
     public List<Device> getRegistered() {
@@ -101,9 +114,14 @@ public class DLNACastManager extends DefaultRegistryListener implements ServiceC
     }
 
     public void release(Context context) {
-        if (upnpService == null) return;
-        upnpService.getRegistry().removeListener(this);
-        context.unbindService(this);
+        if (upnpService != null) upnpService.getRegistry().removeListener(this);
+        if (bound) {
+            try {
+                context.unbindService(this);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        bound = false;
         upnpService = null;
     }
 

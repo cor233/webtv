@@ -462,6 +462,7 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
     <string name="sync_device_tv">TV</string>
     <string name="sync_discovering">Discovering devices...</string>
     <string name="sync_no_device">No device found. Keep both devices on the same LAN with WebHTV open, then refresh.</string>
+    <string name="local_network_permission_denied">Local network access is required to discover, sync with, or cast to devices on your LAN. Allow it in system settings and try again.</string>
     <string name="sync_selected">Selected: %1$s · %2$s</string>
     <string name="sync_start">Start sync</string>
     <string name="sync_cancel">Cancel sync</string>

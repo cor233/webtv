@@ -24,6 +24,7 @@ import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.adapter.SyncDeviceAdapter;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
+import com.fongmi.android.tv.utils.LocalNetworkPermission;
 import com.fongmi.android.tv.utils.NsdDeviceDiscovery;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.FileUtil;
@@ -86,6 +87,12 @@ public class OneKeySyncDialog extends BaseBottomSheetDialog implements SyncDevic
     }
 
     public void show(FragmentActivity activity) {
+        if (!LocalNetworkPermission.isGranted(activity)) {
+            LocalNetworkPermission.request(activity, granted -> {
+                if (granted) show(activity);
+            });
+            return;
+        }
         if (activity.getSupportFragmentManager().isStateSaved()) return;
         for (Fragment f : activity.getSupportFragmentManager().getFragments()) if (f instanceof OneKeySyncDialog) return;
         if (activity.getSupportFragmentManager().findFragmentByTag(TAG) == null) showNow(activity.getSupportFragmentManager(), TAG);
@@ -151,6 +158,13 @@ public class OneKeySyncDialog extends BaseBottomSheetDialog implements SyncDevic
     }
 
     private void scan() {
+        if (!LocalNetworkPermission.isGranted(requireContext())) {
+            LocalNetworkPermission.request(this, granted -> {
+                if (granted) scan();
+                else setScanning(false);
+            });
+            return;
+        }
         focusFirstOnNextDevice = true;
         setScanning(true);
         discovery.start();

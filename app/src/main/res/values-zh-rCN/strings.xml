@@ -440,6 +440,7 @@ WebHomeTV 是播放器壳子，不内置内容源，请使用合法配置。</st
     <string name="sync_device_tv">电视</string>
     <string name="sync_discovering">正在发现设备...</string>
     <string name="sync_no_device">未发现设备，请确认两台设备在同一局域网并已打开 WebHTV，然后刷新。</string>
+    <string name="local_network_permission_denied">发现、同步或投屏到局域网设备需要“本地网络”权限。请在系统设置中允许后重试。</string>
     <string name="sync_selected">已选择：%1$s · %2$s</string>
     <string name="sync_start">开始同步</string>
     <string name="sync_cancel">取消同步</string>

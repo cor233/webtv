@@ -68,6 +68,8 @@ import com.fongmi.android.tv.utils.Clock;
 import com.fongmi.android.tv.utils.FileChooser;
 import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.KeyUtil;
+import com.fongmi.android.tv.utils.LocalNetworkPermission;
+import com.fongmi.android.tv.utils.NsdDeviceDiscovery;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.PermissionUtil;
 import com.fongmi.android.tv.utils.ResUtil;
@@ -147,7 +149,9 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         SpiderDebug.log("startup", "home first frame cost=%sms", System.currentTimeMillis() - App.time());
         App.post(this::initConfig, 80);
         App.post(() -> PermissionUtil.requestFile(this, allGranted -> PermissionUtil.requestNotify(this)), 1800);
-        App.post(() -> DLNARendererService.start(this), 2500);
+        App.post(() -> LocalNetworkPermission.request(this, granted -> {
+            if (granted) DLNARendererService.start(this);
+        }), 2500);
     }
 
     private void runAfterFirstFrame(Runnable runnable) {
@@ -677,6 +681,10 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     protected void onResume() {
         super.onResume();
         mClock.start();
+        if (LocalNetworkPermission.isGranted(this)) {
+            NsdDeviceDiscovery.register();
+            DLNARendererService.start(this);
+        }
         if (mWeb != null) mWeb.onResume();
     }
 

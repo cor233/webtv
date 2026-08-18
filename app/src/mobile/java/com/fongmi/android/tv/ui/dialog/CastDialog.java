@@ -28,6 +28,7 @@ import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.ui.activity.ScanActivity;
 import com.fongmi.android.tv.ui.adapter.DeviceAdapter;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
+import com.fongmi.android.tv.utils.LocalNetworkPermission;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ScanTask;
 import com.github.catvod.net.OkHttp;
@@ -86,6 +87,12 @@ public class CastDialog extends BaseBottomSheetDialog implements DeviceAdapter.O
     }
 
     public void show(FragmentActivity activity) {
+        if (!LocalNetworkPermission.isGranted(activity)) {
+            LocalNetworkPermission.request(activity, granted -> {
+                if (granted) show(activity);
+            });
+            return;
+        }
         for (Fragment f : activity.getSupportFragmentManager().getFragments()) if (f instanceof CastDialog) return;
         show(activity.getSupportFragmentManager(), null);
     }
@@ -133,6 +140,12 @@ public class CastDialog extends BaseBottomSheetDialog implements DeviceAdapter.O
     }
 
     private void onRefresh() {
+        if (!LocalNetworkPermission.isGranted(requireContext())) {
+            LocalNetworkPermission.request(this, granted -> {
+                if (granted) onRefresh();
+            });
+            return;
+        }
         adapter.clear(() -> {
             Device.delete();
             if (fm) scanTask.start();
@@ -178,6 +191,12 @@ public class CastDialog extends BaseBottomSheetDialog implements DeviceAdapter.O
 
     @Override
     public void onItemClick(Device item) {
+        if (!LocalNetworkPermission.isGranted(requireContext())) {
+            LocalNetworkPermission.request(this, granted -> {
+                if (granted) onItemClick(item);
+            });
+            return;
+        }
         if (item.isDLNA()) new DLNACast(video, this::onCasted).cast(item);
         else OkHttp.newCall(client, item.getIp().concat("/action?do=cast"), body.build()).enqueue(this);
     }
@@ -196,7 +215,13 @@ public class CastDialog extends BaseBottomSheetDialog implements DeviceAdapter.O
     }
 
     private final ActivityResultLauncher<Intent> launcher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-        if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) scanTask.start(result.getData().getStringExtra("address"));
+        if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+            String address = result.getData().getStringExtra("address");
+            if (LocalNetworkPermission.canAccess(requireContext(), address)) scanTask.start(address);
+            else LocalNetworkPermission.request(this, granted -> {
+                if (granted) scanTask.start(address);
+            });
+        }
     });
 
     public interface Listener {

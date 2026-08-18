@@ -29,6 +29,7 @@ import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.activity.ScanActivity;
 import com.fongmi.android.tv.ui.adapter.DeviceAdapter;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
+import com.fongmi.android.tv.utils.LocalNetworkPermission;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.ScanTask;
@@ -79,6 +80,12 @@ public class SyncDialog extends BaseBottomSheetDialog implements DeviceAdapter.O
     }
 
     public void show(FragmentActivity activity) {
+        if (!LocalNetworkPermission.isGranted(activity)) {
+            LocalNetworkPermission.request(activity, granted -> {
+                if (granted) show(activity);
+            });
+            return;
+        }
         for (Fragment f : activity.getSupportFragmentManager().getFragments()) if (f instanceof SyncDialog) return;
         show(activity.getSupportFragmentManager(), null);
     }
@@ -139,6 +146,12 @@ public class SyncDialog extends BaseBottomSheetDialog implements DeviceAdapter.O
     }
 
     private void onRefresh() {
+        if (!LocalNetworkPermission.isGranted(requireContext())) {
+            LocalNetworkPermission.request(this, granted -> {
+                if (granted) onRefresh();
+            });
+            return;
+        }
         adapter.clear(() -> {
             Device.delete();
             scanTask.start();
@@ -197,6 +210,12 @@ public class SyncDialog extends BaseBottomSheetDialog implements DeviceAdapter.O
     }
 
     private final ActivityResultLauncher<Intent> launcher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-        if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) scanTask.start(result.getData().getStringExtra("address"));
+        if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+            String address = result.getData().getStringExtra("address");
+            if (LocalNetworkPermission.canAccess(requireContext(), address)) scanTask.start(address);
+            else LocalNetworkPermission.request(this, granted -> {
+                if (granted) scanTask.start(address);
+            });
+        }
     });
 }

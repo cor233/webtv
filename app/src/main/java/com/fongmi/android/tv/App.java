@@ -17,6 +17,7 @@ import com.fongmi.android.tv.playback.PlaybackRemoteSyncer;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.setting.ProxySetting;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.utils.LocalNetworkPermission;
 import com.fongmi.android.tv.utils.NsdDeviceDiscovery;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.EpgReminder;
@@ -105,7 +106,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
         SpiderDebug.log("startup", "background services start cost=%sms", System.currentTimeMillis() - time);
         Server.get().start();
         History.cleanExpired();
-        NsdDeviceDiscovery.register();
+        if (LocalNetworkPermission.isGranted(this)) NsdDeviceDiscovery.register();
         EpgReminder.rebuildFromStorage();
         PlaybackRemoteSyncer.start();
         SpiderDebug.log("startup", "background services ready cost=%sms", System.currentTimeMillis() - time);
@@ -124,6 +125,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
         if (activity != activity()) this.activity = activity;
+        if (LocalNetworkPermission.isGranted(this)) NsdDeviceDiscovery.register();
     }
 
     @Override

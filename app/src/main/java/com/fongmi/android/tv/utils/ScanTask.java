@@ -44,6 +44,10 @@ public class ScanTask {
 
     public void start() {
         if (stopped) return;
+        if (!LocalNetworkPermission.isGranted(App.get())) {
+            finish();
+            return;
+        }
         Server.get().start();
         Task.execute(() -> {
             if (stopped) return;
@@ -58,7 +62,7 @@ public class ScanTask {
     }
 
     public void start(String url) {
-        if (stopped) return;
+        if (stopped || !LocalNetworkPermission.canAccess(App.get(), url)) return;
         Server.get().start();
         Task.execute(() -> { if (!stopped) submit(url, null, null, getLocalUrls(getLocalIps())); });
     }

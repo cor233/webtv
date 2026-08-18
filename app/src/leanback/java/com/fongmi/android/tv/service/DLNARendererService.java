@@ -19,6 +19,7 @@ import com.fongmi.android.tv.dlna.DLNARenderingControlImpl;
 import com.fongmi.android.tv.dlna.DLNAServiceConfiguration;
 import com.fongmi.android.tv.dlna.RenderState;
 import com.fongmi.android.tv.player.PlayerManager;
+import com.fongmi.android.tv.utils.LocalNetworkPermission;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.Util;
 
@@ -56,7 +57,11 @@ public class DLNARendererService extends AndroidUpnpServiceImpl implements Servi
     private boolean bound;
 
     public static void start(Context context) {
-        context.startService(new Intent(context, DLNARendererService.class));
+        if (!LocalNetworkPermission.isGranted(context)) return;
+        try {
+            context.startService(new Intent(context, DLNARendererService.class));
+        } catch (SecurityException ignored) {
+        }
     }
 
     public static void stop(Context context) {

@@ -23,37 +23,52 @@ public class NsdDeviceDiscovery {
     }
 
     public static synchronized void register() {
-        if (registration != null || Proxy.getPort() <= 0) return;
+        if (registration != null || Proxy.getPort() <= 0 || !LocalNetworkPermission.isGranted(App.get())) return;
+        NsdManager manager = getManager();
+        if (manager == null) return;
         NsdServiceInfo service = new NsdServiceInfo();
         service.setServiceName("WebHTV-" + Util.getDeviceName());
         service.setServiceType(SERVICE_TYPE);
         service.setPort(Proxy.getPort());
-        registration = new NsdManager.RegistrationListener() {
+        NsdManager.RegistrationListener pending = new NsdManager.RegistrationListener() {
             @Override
             public void onServiceRegistered(NsdServiceInfo serviceInfo) {
             }
 
             @Override
             public void onRegistrationFailed(NsdServiceInfo serviceInfo, int errorCode) {
-                registration = null;
+                clearRegistration(this);
             }
 
             @Override
             public void onServiceUnregistered(NsdServiceInfo serviceInfo) {
-                registration = null;
+                clearRegistration(this);
             }
 
             @Override
             public void onUnregistrationFailed(NsdServiceInfo serviceInfo, int errorCode) {
+                clearRegistration(this);
             }
         };
-        getManager().registerService(service, NsdManager.PROTOCOL_DNS_SD, registration);
+        registration = pending;
+        try {
+            manager.registerService(service, NsdManager.PROTOCOL_DNS_SD, pending);
+        } catch (SecurityException e) {
+            registration = null;
+        }
+    }
+
+    private static synchronized void clearRegistration(NsdManager.RegistrationListener listener) {
+        if (registration == listener) registration = null;
     }
 
     public void start() {
         stop();
-        acquireLock();
-        discovery = new NsdManager.DiscoveryListener() {
+        if (!LocalNetworkPermission.isGranted(App.get())) return;
+        NsdManager manager = getManager();
+        if (manager == null) return;
+        if (!acquireLock()) return;
+        NsdManager.DiscoveryListener pending = new NsdManager.DiscoveryListener() {
             @Override
             public void onDiscoveryStarted(String serviceType) {
             }
@@ -69,52 +84,80 @@ public class NsdDeviceDiscovery {
 
             @Override
             public void onDiscoveryStopped(String serviceType) {
+                clearDiscovery(this);
             }
 
             @Override
             public void onStartDiscoveryFailed(String serviceType, int errorCode) {
-                stop();
+                clearDiscovery(this);
             }
 
             @Override
             public void onStopDiscoveryFailed(String serviceType, int errorCode) {
+                clearDiscovery(this);
             }
         };
-        getManager().discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discovery);
+        discovery = pending;
+        try {
+            manager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, pending);
+        } catch (SecurityException e) {
+            clearDiscovery(pending);
+        }
     }
 
     public void stop() {
-        if (discovery != null) {
+        NsdManager.DiscoveryListener active = discovery;
+        discovery = null;
+        if (active != null) {
             try {
-                getManager().stopServiceDiscovery(discovery);
+                NsdManager manager = getManager();
+                if (manager != null) manager.stopServiceDiscovery(active);
             } catch (Exception ignored) {
             }
-            discovery = null;
         }
         releaseLock();
     }
 
-    private void resolve(NsdServiceInfo serviceInfo) {
-        getManager().resolveService(serviceInfo, new NsdManager.ResolveListener() {
-            @Override
-            public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
-            }
-
-            @Override
-            public void onServiceResolved(NsdServiceInfo serviceInfo) {
-                if (serviceInfo.getHost() == null || serviceInfo.getPort() <= 0) return;
-                String url = "http://" + serviceInfo.getHost().getHostAddress() + ":" + serviceInfo.getPort();
-                App.post(() -> listener.onServiceFound(url));
-            }
-        });
+    private void clearDiscovery(NsdManager.DiscoveryListener listener) {
+        if (discovery != listener) return;
+        discovery = null;
+        releaseLock();
     }
 
-    private void acquireLock() {
-        WifiManager manager = (WifiManager) App.get().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+    private void resolve(NsdServiceInfo serviceInfo) {
+        if (!LocalNetworkPermission.isGranted(App.get())) return;
+        NsdManager manager = getManager();
         if (manager == null) return;
-        lock = manager.createMulticastLock("webhtv-nsd");
-        lock.setReferenceCounted(false);
-        lock.acquire();
+        try {
+            manager.resolveService(serviceInfo, new NsdManager.ResolveListener() {
+                @Override
+                public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
+                }
+
+                @Override
+                public void onServiceResolved(NsdServiceInfo serviceInfo) {
+                    if (serviceInfo.getHost() == null || serviceInfo.getPort() <= 0) return;
+                    String url = "http://" + serviceInfo.getHost().getHostAddress() + ":" + serviceInfo.getPort();
+                    App.post(() -> listener.onServiceFound(url));
+                }
+            });
+        } catch (SecurityException e) {
+            stop();
+        }
+    }
+
+    private boolean acquireLock() {
+        WifiManager manager = (WifiManager) App.get().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        if (manager == null) return false;
+        try {
+            lock = manager.createMulticastLock("webhtv-nsd");
+            lock.setReferenceCounted(false);
+            lock.acquire();
+            return true;
+        } catch (SecurityException e) {
+            releaseLock();
+            return false;
+        }
     }
 
     private void releaseLock() {

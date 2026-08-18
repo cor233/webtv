@@ -109,6 +109,14 @@ public class SiteViewModel extends ViewModel {
         execute(TaskType.PRELOAD, preload, () -> SiteApi.playerContent(key, flag, id));
     }
 
+    public void cancelPreload() {
+        AtomicInteger taskId = Objects.requireNonNull(taskIds.get(TaskType.PRELOAD));
+        taskId.incrementAndGet();
+        ListenableFuture<?> future = futures.remove(TaskType.PRELOAD);
+        if (future != null) future.cancel(true);
+        preload.setValue(null);
+    }
+
     public void searchContent(Site site, String keyword, boolean quick, String page) {
         long start = System.currentTimeMillis();
         execute(TaskType.RESULT, result, SearchTask.create(site, keyword, quick, page),

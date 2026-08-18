@@ -104,6 +104,8 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
     private Runnable mR3;
     private boolean rotate;
     private int count;
+    private int failedLineStart = -1;
+    private boolean retriedDynamicUrl;
     private PiP mPiP;
 
     public static void start(Context context) {
@@ -632,6 +634,8 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         if (!item.getData(mViewModel.getZoneId()).getList().isEmpty() && item.isSelected() && mChannel != null && mChannel.equals(item) && mChannel.getGroup().equals(mGroup)) {
             showEpg(item);
         } else if (mGroup != null) {
+            failedLineStart = -1;
+            retriedDynamicUrl = false;
             mGroup.setPosition(mChannelAdapter.setSelected(item.group(mGroup)));
             mChannel = item;
             setArtwork();
@@ -818,6 +822,8 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
                 break;
             case Player.STATE_READY:
                 hideProgress();
+                failedLineStart = -1;
+                retriedDynamicUrl = false;
                 checkControl();
                 player().reset();
                 break;
@@ -944,9 +950,24 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
     }
 
     private void startFlow() {
-        if (!LiveSetting.isChange()) return;
-        if (mChannel == null) return;
-        if (!mChannel.isLast()) nextLine(true);
+        if (!LiveSetting.isChange() || mChannel == null || mChannel.getUrls().isEmpty()) return;
+        if (!retriedDynamicUrl) {
+            retriedDynamicUrl = true;
+            if (failedLineStart < 0) failedLineStart = mChannel.getIndex();
+            fetch();
+            return;
+        }
+        int next = (mChannel.getIndex() + 1) % mChannel.getUrls().size();
+        if (next == failedLineStart) {
+            failedLineStart = -1;
+            retriedDynamicUrl = false;
+            Notify.show(R.string.live_load_failed);
+            return;
+        }
+        mChannel.setIndex(next);
+        retriedDynamicUrl = false;
+        showInfo();
+        fetch();
     }
 
     private boolean prevGroup() {
@@ -1001,6 +1022,8 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
 
     private void nextLine(boolean show) {
         if (mChannel == null || mChannel.isOnly()) return;
+        failedLineStart = -1;
+        retriedDynamicUrl = false;
         mChannel.switchLine(true);
         if (show) showInfo();
         else setInfo();

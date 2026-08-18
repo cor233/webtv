@@ -68,6 +68,7 @@ import com.fongmi.android.tv.playback.PlaybackEventCollector;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.setting.DanmakuSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
+import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.setting.SiteBlockSetting;
 import com.fongmi.android.tv.setting.SiteHealthStore;
@@ -135,6 +136,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private CustomKeyDown mKeyDown;
     private List<String> mBroken;
     private History mHistory;
+    private String preloadContext;
     private boolean fullscreen;
     private boolean initAuto;
     private boolean autoMode;
@@ -583,6 +585,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void getPlayer(Flag flag, Episode episode) {
+        invalidatePreload();
         mBinding.control.title.setText(getString(R.string.detail_title, mBinding.name.getText(), episode.getName()));
         playerStartTime = System.currentTimeMillis();
         beginPlayHealth();
@@ -623,17 +626,27 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void preloadNextEpisode() {
+        invalidatePreload();
+        if (player().getPlayerType() != PlayerSetting.EXO || !PreloadSetting.isPreload(PlayerSetting.EXO)) return;
         Episode next = mEpisodeAdapter.getNext();
-        if (next == null || next.isSelected()) {
-            player().clearNextPreload();
-            return;
-        }
+        if (next == null || next.isSelected() || TextUtils.isEmpty(next.getUrl())) return;
+        preloadContext = getKey() + "\n" + getFlag().getFlag() + "\n" + getEpisode().getUrl() + "\n" + next.getUrl();
         mViewModel.preloadContent(getKey(), getFlag().getFlag(), next.getUrl());
     }
 
     private void setPreload(Result result) {
-        if (result == null || result.shouldUseParse()) return;
+        if (preloadContext == null || result == null || result.hasMsg() || result.shouldUseParse() || result.needParse() || TextUtils.isEmpty(result.getRealUrl())) return;
+        Episode next = mEpisodeAdapter.getNext();
+        if (next == null) return;
+        String expected = getKey() + "\n" + getFlag().getFlag() + "\n" + getEpisode().getUrl() + "\n" + next.getUrl();
+        if (!preloadContext.equals(expected)) return;
         player().preloadNext(result, getHistoryKey(), buildMetadata());
+    }
+
+    private void invalidatePreload() {
+        preloadContext = null;
+        if (mViewModel != null) mViewModel.cancelPreload();
+        if (service() != null) player().clearNextPreload();
     }
 
     private void recordDetailHealth(Result result, long cost) {
@@ -1842,6 +1855,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     @Override
     protected void onDestroy() {
+        invalidatePreload();
         if (mOsd != null) mOsd.release();
         mClock.release();
         saveHistory(true);

@@ -13,6 +13,7 @@ import android.widget.RelativeLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.leanback.widget.ArrayObjectAdapter;
 import androidx.leanback.widget.FocusHighlight;
 import androidx.leanback.widget.HorizontalGridView;
@@ -95,6 +96,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private SiteViewModel mViewModel;
     private TypeAdapter mTypeAdapter;
     private HomeWebController mWeb;
+    private AlertDialog exitDialog;
     private WebView mHomeWeb;
     private Result mResult;
     private Result mHomeResult;
@@ -701,12 +703,15 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private void showExitConfirmation() {
-        new MaterialAlertDialogBuilder(this)
+        if (exitDialog != null && exitDialog.isShowing()) return;
+        exitDialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.exit_confirm_title)
                 .setMessage(R.string.exit_confirm_message)
                 .setNegativeButton(R.string.dialog_negative, null)
                 .setPositiveButton(R.string.exit_confirm_positive, (dialog, which) -> confirmExit())
-                .show();
+                .create();
+        exitDialog.setOnDismissListener(dialog -> exitDialog = null);
+        exitDialog.show();
     }
 
     private void confirmExit() {

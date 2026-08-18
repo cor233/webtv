@@ -77,7 +77,8 @@ public class ChapterAdapter extends RecyclerView.Adapter<ChapterAdapter.ViewHold
 
         @Override
         public void onClick(View view) {
-            listener.onItemClick(mItems.get(getLayoutPosition()));
+            int position = getBindingAdapterPosition();
+            if (position != RecyclerView.NO_POSITION) listener.onItemClick(mItems.get(position));
         }
     }
 }

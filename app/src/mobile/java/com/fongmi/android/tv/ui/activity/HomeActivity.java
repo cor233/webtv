@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.RelativeLayout;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.pm.ShortcutInfoCompat;
 import androidx.core.content.pm.ShortcutManagerCompat;
 import androidx.core.graphics.drawable.IconCompat;
@@ -58,6 +59,7 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
 
     private FragmentStateManager mManager;
     private ActivityHomeBinding mBinding;
+    private AlertDialog exitDialog;
     private boolean webHomeFullscreen;
     private int orientation;
 
@@ -277,12 +279,15 @@ public class HomeActivity extends BaseActivity implements NavigationBarView.OnIt
     }
 
     private void showExitConfirmation() {
-        new MaterialAlertDialogBuilder(this)
+        if (exitDialog != null && exitDialog.isShowing()) return;
+        exitDialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.exit_confirm_title)
                 .setMessage(R.string.exit_confirm_message)
                 .setNegativeButton(R.string.dialog_negative, null)
                 .setPositiveButton(R.string.exit_confirm_positive, (dialog, which) -> confirmExit())
-                .show();
+                .create();
+        exitDialog.setOnDismissListener(dialog -> exitDialog = null);
+        exitDialog.show();
     }
 
     private void confirmExit() {

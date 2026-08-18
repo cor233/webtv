@@ -25,6 +25,8 @@ import androidx.media3.extractor.ExtractorsFactory;
 import androidx.media3.extractor.ts.TsExtractor;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.setting.PlayerSetting;
+import com.fongmi.android.tv.setting.PreloadSetting;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
@@ -33,12 +35,12 @@ import java.util.Map;
 
 public class MediaSourceFactory implements MediaSource.Factory {
 
-    private static final long MAX_CACHE_BYTES = 256L * 1024 * 1024;
+    private static long cacheSize;
+    private static SimpleCache cache;
     private final DefaultMediaSourceFactory defaultMediaSourceFactory;
     private HttpDataSource.Factory httpDataSourceFactory;
     private DataSource.Factory dataSourceFactory;
     private ExtractorsFactory extractorsFactory;
-    private static SimpleCache cache;
 
     public MediaSourceFactory() {
         defaultMediaSourceFactory = new DefaultMediaSourceFactory(getDataSourceFactory(), getExtractorsFactory());
@@ -104,8 +106,20 @@ public class MediaSourceFactory implements MediaSource.Factory {
         return httpDataSourceFactory;
     }
 
-    private static SimpleCache getCache() {
-        if (cache == null) cache = new SimpleCache(Path.exo(), new LeastRecentlyUsedCacheEvictor(MAX_CACHE_BYTES), new StandaloneDatabaseProvider(App.get()));
+    private static synchronized SimpleCache getCache() {
+        long requestedSize = PreloadSetting.getPreloadSizeBytes(PlayerSetting.EXO);
+        if (cache != null && cacheSize == requestedSize) return cache;
+        if (cache != null) {
+            try {
+                cache.release();
+            } catch (Exception e) {
+                SpiderDebug.log(e);
+                return cache;
+            }
+            cache = null;
+        }
+        cache = new SimpleCache(Path.exo(), new LeastRecentlyUsedCacheEvictor(requestedSize), new StandaloneDatabaseProvider(App.get()));
+        cacheSize = requestedSize;
         return cache;
     }
 

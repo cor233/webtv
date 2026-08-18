@@ -103,6 +103,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     private Clock mClock;
     private View mFocus2;
     private int count;
+    private int failedLineStart = -1;
+    private boolean retriedDynamicUrl;
 
     public static void start(Context context) {
         context.startActivity(new Intent(context, LiveActivity.class).putExtra("empty", LiveConfig.isEmpty()));
@@ -530,6 +532,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                 break;
             case Player.STATE_READY:
                 hideProgress();
+                failedLineStart = -1;
+                retriedDynamicUrl = false;
                 player().reset();
                 break;
             case Player.STATE_ENDED:
@@ -679,6 +683,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         if (!item.getData(mViewModel.getZoneId()).getList().isEmpty() && item.isSelected() && mChannel != null && mChannel.equals(item) && mChannel.getGroup().equals(mGroup)) {
             showEpg(item);
         } else if (mGroup != null) {
+            failedLineStart = -1;
+            retriedDynamicUrl = false;
             mGroup.setPosition(mBinding.channel.getSelectedPosition());
             setChannel(item.group(mGroup));
             hideUI();
@@ -895,9 +901,24 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void startFlow() {
-        if (!LiveSetting.isChange()) return;
-        if (mChannel == null) return;
-        if (!mChannel.isLast()) nextLine(true);
+        if (!LiveSetting.isChange() || mChannel == null || mChannel.getUrls().isEmpty()) return;
+        if (!retriedDynamicUrl) {
+            retriedDynamicUrl = true;
+            if (failedLineStart < 0) failedLineStart = mChannel.getIndex();
+            fetch();
+            return;
+        }
+        int next = (mChannel.getIndex() + 1) % mChannel.getUrls().size();
+        if (next == failedLineStart) {
+            failedLineStart = -1;
+            retriedDynamicUrl = false;
+            Notify.show(R.string.live_load_failed);
+            return;
+        }
+        mChannel.setIndex(next);
+        retriedDynamicUrl = false;
+        showInfo();
+        fetch();
     }
 
     private void prevChannel() {
@@ -952,6 +973,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     private void prevLine() {
         if (mChannel == null || mChannel.isOnly()) return;
+        failedLineStart = -1;
+        retriedDynamicUrl = false;
         mChannel.switchLine(false);
         showInfo();
         fetch();
@@ -959,6 +982,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     private void nextLine(boolean show) {
         if (mChannel == null || mChannel.isOnly()) return;
+        failedLineStart = -1;
+        retriedDynamicUrl = false;
         mChannel.switchLine(true);
         if (show) showInfo();
         else setInfo();

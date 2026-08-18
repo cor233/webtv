@@ -328,6 +328,8 @@ WebHomeTV 是播放器外殼，不內建內容源，請使用合法設定。</st
     <string name="setting_auto">自動</string>
     <string name="setting_custom">自訂</string>
     <string name="setting_size">圖片尺寸</string>
+    <string name="setting_language">語言</string>
+    <string name="setting_ui_scale">介面大小</string>
     <string name="setting_doh">DoH</string>
     <string name="setting_proxy">Proxy</string>
     <string name="setting_cache">暫存</string>
@@ -648,6 +650,21 @@ WebHomeTV 是播放器外殼，不內建內容源，請使用合法設定。</st
         <item>中</item>
         <item>大</item>
         <item>特大</item>
+    </string-array>
+
+    <string-array name="select_language">
+        <item>英語</item>
+        <item>簡體中文</item>
+        <item>繁體中文</item>
+    </string-array>
+
+    <string-array name="select_ui_scale">
+        <item>跟隨系統</item>
+        <item>標準</item>
+        <item>輕度緊湊</item>
+        <item>緊湊</item>
+        <item>更緊湊</item>
+        <item>更小</item>
     </string-array>
 
     <string-array name="select_scale">

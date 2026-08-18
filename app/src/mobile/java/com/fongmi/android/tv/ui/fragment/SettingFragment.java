@@ -62,6 +62,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
 
     private FragmentSettingBinding mBinding;
     private String[] size;
+    private String[] language;
+    private String[] uiScale;
 
     public static SettingFragment newInstance() {
         return new SettingFragment();
@@ -113,6 +115,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         mBinding.dohText.setText(getDohList()[getDohIndex()]);
         mBinding.incognitoText.setText(getSwitch(Setting.isIncognito()));
         mBinding.sizeText.setText((size = ResUtil.getStringArray(R.array.select_size))[PlayerSetting.getSize()]);
+        mBinding.languageText.setText((language = ResUtil.getStringArray(R.array.select_language))[Setting.getLanguageIndex()]);
+        mBinding.uiScaleText.setText((uiScale = ResUtil.getStringArray(R.array.select_ui_scale))[Setting.getUiScaleIndex()]);
     }
 
     private void setCacheText() {
@@ -131,6 +135,8 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         mBinding.live.setOnClickListener(this::onLive);
         mBinding.wall.setOnClickListener(this::onWall);
         mBinding.size.setOnClickListener(this::setSize);
+        mBinding.language.setOnClickListener(this::setLanguage);
+        mBinding.uiScale.setOnClickListener(this::setUiScale);
         mBinding.cache.setOnClickListener(this::onCache);
         mBinding.backup.setOnClickListener(this::onBackup);
         mBinding.enhance.setOnClickListener(this::onEnhance);
@@ -346,6 +352,24 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
             PlayerSetting.putSize(which);
             RefreshEvent.size();
             dialog.dismiss();
+        }).show();
+    }
+
+    private void setLanguage(View view) {
+        new MaterialAlertDialogBuilder(requireActivity()).setTitle(R.string.setting_language).setNegativeButton(R.string.dialog_negative, null).setSingleChoiceItems(language, Setting.getLanguageIndex(), (dialog, which) -> {
+            if (which == Setting.getLanguageIndex()) return;
+            Setting.putLanguageIndex(which);
+            dialog.dismiss();
+            RefreshEvent.language();
+        }).show();
+    }
+
+    private void setUiScale(View view) {
+        new MaterialAlertDialogBuilder(requireActivity()).setTitle(R.string.setting_ui_scale).setNegativeButton(R.string.dialog_negative, null).setSingleChoiceItems(uiScale, Setting.getUiScaleIndex(), (dialog, which) -> {
+            if (which == Setting.getUiScaleIndex()) return;
+            Setting.putUiScaleIndex(which);
+            dialog.dismiss();
+            requireActivity().recreate();
         }).show();
     }
 

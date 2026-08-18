@@ -2,6 +2,7 @@ package com.fongmi.android.tv.ui.base;
 
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentActivity;
 import androidx.viewbinding.ViewBinding;
 
+import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.custom.CustomWallView;
 import com.fongmi.android.tv.utils.ResUtil;
@@ -29,6 +31,11 @@ import org.greenrobot.eventbus.ThreadMode;
 public abstract class BaseActivity extends AppCompatActivity {
 
     protected abstract ViewBinding getBinding();
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(Setting.wrapDisplay(newBase));
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -119,6 +126,7 @@ public abstract class BaseActivity extends AppCompatActivity {
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onSubscribe(Object o) {
+        if (o instanceof RefreshEvent event && event.getType() == RefreshEvent.Type.LANGUAGE && !isFinishing() && !isDestroyed()) recreate();
     }
 
     protected void onBackInvoked() {

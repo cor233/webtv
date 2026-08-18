@@ -1,12 +1,16 @@
 package com.fongmi.android.tv.setting;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
+import android.os.LocaleList;
 import android.provider.Settings;
+import android.util.DisplayMetrics;
 
 import androidx.core.content.ContextCompat;
 
@@ -17,6 +21,7 @@ import com.fongmi.android.tv.utils.WebViewUtil;
 import com.github.catvod.crawler.DebugLogStore;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.utils.Prefers;
+import com.github.catvod.utils.Trans;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
@@ -24,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 
 public class Setting {
 
@@ -337,6 +343,83 @@ public class Setting {
 
     public static void putIncognito(boolean incognito) {
         Prefers.put("incognito", incognito);
+    }
+
+    public static String getLanguage() {
+        return DisplaySettings.normalizeLanguage(Prefers.getString("language", DisplaySettings.LANGUAGE_ENGLISH));
+    }
+
+    public static void putLanguage(String language) {
+        String value = DisplaySettings.normalizeLanguage(language);
+        Prefers.put("language", value);
+        applyLanguage(value);
+    }
+
+    public static int getLanguageIndex() {
+        return DisplaySettings.languageIndex(getLanguage());
+    }
+
+    public static void putLanguageIndex(int index) {
+        putLanguage(DisplaySettings.languageAt(index));
+    }
+
+    public static void applyLanguage() {
+        applyLanguage(getLanguage());
+    }
+
+    private static void applyLanguage(String language) {
+        if (DisplaySettings.LANGUAGE_SIMPLIFIED.equals(language)) Trans.setTraditional(false);
+        else if (DisplaySettings.LANGUAGE_TRADITIONAL.equals(language)) Trans.setTraditional(true);
+        else Trans.setTraditional(null);
+    }
+
+    public static Context wrapLanguage(Context context) {
+        String language = getLanguage();
+        applyLanguage(language);
+        Locale locale = Locale.forLanguageTag(language);
+        Configuration config = new Configuration(context.getResources().getConfiguration());
+        config.setLocale(locale);
+        config.setLocales(new LocaleList(locale));
+        return context.createConfigurationContext(config);
+    }
+
+    public static int getUiScale() {
+        return DisplaySettings.normalizeUiScale(Prefers.getInt("ui_scale", DisplaySettings.UI_SCALE_FOLLOW_SYSTEM));
+    }
+
+    public static void putUiScale(int scale) {
+        Prefers.put("ui_scale", DisplaySettings.normalizeUiScale(scale));
+    }
+
+    public static int getUiScaleIndex() {
+        return DisplaySettings.uiScaleIndex(getUiScale());
+    }
+
+    public static void putUiScaleIndex(int index) {
+        putUiScale(DisplaySettings.uiScaleAt(index));
+    }
+
+    public static Context wrapDisplay(Context context) {
+        return wrapUiScale(wrapLanguage(context));
+    }
+
+    public static Context wrapUiScale(Context context) {
+        int scale = getUiScale();
+        if (scale == DisplaySettings.UI_SCALE_FOLLOW_SYSTEM) return context;
+        Configuration config = new Configuration(context.getResources().getConfiguration());
+        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+        int stableDensity = DisplayMetrics.DENSITY_DEVICE_STABLE > 0 ? DisplayMetrics.DENSITY_DEVICE_STABLE : metrics.densityDpi;
+        int densityDpi = Math.max(DisplayMetrics.DENSITY_LOW, Math.round(stableDensity * DisplaySettings.uiScaleFactor(scale)));
+        config.densityDpi = densityDpi;
+        config.fontScale = 1.0f;
+        config.screenWidthDp = pxToDp(metrics.widthPixels, densityDpi);
+        config.screenHeightDp = pxToDp(metrics.heightPixels, densityDpi);
+        config.smallestScreenWidthDp = Math.min(config.screenWidthDp, config.screenHeightDp);
+        return context.createConfigurationContext(config);
+    }
+
+    private static int pxToDp(int px, int densityDpi) {
+        return Math.max(1, Math.round(px * (float) DisplayMetrics.DENSITY_DEFAULT / densityDpi));
     }
 
     public static boolean isSiteHealthSort() {

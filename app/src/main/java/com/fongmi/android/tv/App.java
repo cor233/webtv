@@ -90,6 +90,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
     @Override
     public void onCreate() {
         super.onCreate();
+        Setting.applyLanguage();
         DebugLogStore.restoreEnabled();
         if (DebugLogStore.isEnabled()) Setting.logDebugEnvironment("restore");
         Notify.createChannel();

@@ -133,7 +133,7 @@
                                 android:gravity="center"
                                 android:singleLine="true"
                                 android:text="@string/sync_sender"
-                                android:textColor="#0B57D0"
+                                android:textColor="@color/theme_green_dark"
                                 android:textSize="12sp"
                                 android:textStyle="bold" />
 
@@ -223,7 +223,7 @@
                                 android:gravity="center"
                                 android:singleLine="true"
                                 android:text="@string/sync_receiver"
-                                android:textColor="#0B57D0"
+                                android:textColor="@color/theme_green_dark"
                                 android:textSize="12sp"
                                 android:textStyle="bold" />
 

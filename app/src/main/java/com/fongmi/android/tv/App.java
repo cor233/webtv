@@ -96,6 +96,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
         super.onCreate();
         Prefers.remove("theme_color");
         Prefers.remove("wall_color");
+        Setting.restoreClassicGreenWall();
         Setting.applyLanguage();
         DebugLogStore.restoreEnabled();
         if (DebugLogStore.isEnabled()) Setting.logDebugEnvironment("restore");

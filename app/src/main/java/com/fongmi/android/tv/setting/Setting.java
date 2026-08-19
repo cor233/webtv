@@ -63,7 +63,7 @@ public class Setting {
     public static final int WALL_GREEN = 1;
 
     private static final int[] DEFAULT_WALLS = {
-            WALL_DREAM_PURPLE, WALL_LAVENDER_CRYSTAL, WALL_PASTEL_PRISM, WALL_ROSE_VEIL, WALL_VIOLET_SMOKE,
+            WALL_GREEN, WALL_DREAM_PURPLE, WALL_LAVENDER_CRYSTAL, WALL_PASTEL_PRISM, WALL_ROSE_VEIL, WALL_VIOLET_SMOKE,
             WALL_NEON_BERRY, WALL_MIDNIGHT_MOON, WALL_NEON_CYBER, WALL_DEEP_SPACE_GLASS, WALL_GRAPHITE_SMOKE,
             WALL_DAYLIGHT_MINIMAL, WALL_SKY_MINT, WALL_POLAR_LIGHT_GLASS, WALL_GLASS_GRADIENT, WALL_CRYSTAL_SKY,
             WALL_BLUE_SILK, WALL_CYAN_CRYSTAL, WALL_MINT_GLACIER, WALL_AURORA_GLASS, WALL_DEEP_SEA,
@@ -110,7 +110,7 @@ public class Setting {
     }
 
     public static int getWall() {
-        return Prefers.getInt("wall", WALL_DREAM_PURPLE);
+        return Prefers.getInt("wall", WALL_GREEN);
     }
 
     public static void putWall(int wall) {
@@ -120,7 +120,7 @@ public class Setting {
     public static int nextDefaultWall() {
         int wall = getWall();
         for (int i = 0; i < DEFAULT_WALLS.length; i++) if (DEFAULT_WALLS[i] == wall) return DEFAULT_WALLS[(i + 1) % DEFAULT_WALLS.length];
-        return WALL_DREAM_PURPLE;
+        return WALL_GREEN;
     }
 
     public static int[] getDefaultWalls() {
@@ -141,10 +141,11 @@ public class Setting {
     }
 
     public static boolean isBuiltInDesignWall(int wall) {
-        return isBuiltInWall(wall);
+        return wall != WALL_GREEN && isBuiltInWall(wall);
     }
 
     public static int getBuiltInWallColor(int wall) {
+        if (wall == WALL_GREEN) return 0xFF40C090;
         if (wall == WALL_EMERALD_AURORA) return 0xFF27B07D;
         if (wall == WALL_NEON_BERRY || wall == WALL_VIOLET_SMOKE) return 0xFF7C4BE2;
         if (wall == WALL_ROSE_VEIL || wall == WALL_CHAMPAGNE_MIST) return 0xFFB27FAE;
@@ -154,9 +155,10 @@ public class Setting {
     }
 
     public static String getBuiltInWallName(int wall) {
+        if (wall == WALL_GREEN) return "经典绿意";
         String[] names = {"蓝紫流光", "珊瑚暮色", "薄荷星云", "银色潮汐", "莓果极光", "香槟晨雾", "玻璃渐变", "深空玻璃", "极光玻璃", "暗夜霓虹", "暖月玻璃", "冰晶幻彩", "梦幻紫霞", "雾青薄荷", "森林雾绿", "雾蓝极简", "深海月影", "紫雾星旋", "玫瑰薄雾", "翡翠极光", "蓝绸流影", "暖桃晨光", "石墨烟岚", "彩虹幻璃", "午夜月影", "水晶青蓝", "薰衣水晶"};
-        int index = getDefaultWallIndex(wall);
-        return index < 0 ? "梦幻紫霞" : names[index];
+        int index = getDefaultWallIndex(wall) - 1;
+        return index < 0 || index >= names.length ? "经典绿意" : names[index];
     }
 
     public static int getWallType() {
@@ -165,6 +167,13 @@ public class Setting {
 
     public static void putWallType(int type) {
         Prefers.put("wall_type", type);
+    }
+
+    public static void restoreClassicGreenWall() {
+        String key = "classic_green_wall_migrated";
+        boolean migrated = Prefers.getBoolean(key);
+        if (WallpaperMigrationPolicy.shouldRestoreClassicGreen(migrated, getWall(), getWallType())) putWall(WALL_GREEN);
+        Prefers.put(key, true);
     }
 
     public static int getReset() {

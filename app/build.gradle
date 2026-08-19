@@ -23,8 +23,8 @@ android {
         applicationId "com.fongmi.android.tv"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 692
-        versionName "5.9.2"
+        versionCode 695
+        versionName "5.9.5"
         resConfigs "en", "zh-rCN", "zh-rTW"
         javaCompileOptions {
             annotationProcessorOptions {
@@ -129,7 +129,6 @@ dependencies {
     implementation libs.media
     implementation libs.bundles.media3
     implementation libs.nextlib.media3ext
-    implementation libs.palette
     implementation libs.recyclerview
     implementation libs.room.runtime
     implementation libs.splashscreen

@@ -356,9 +356,6 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
     <string name="setting_proxy_test_failed">Proxy test failed: %1$s</string>
     <string name="setting_one_key_sync">One-key sync</string>
     <string name="setting_incognito">Incognito mode</string>
-    <string name="setting_theme_color">Theme color</string>
-    <string name="setting_auto">Auto</string>
-    <string name="setting_custom">Custom</string>
     <string name="setting_size">Image size</string>
     <string name="setting_language">Language</string>
     <string name="setting_ui_scale">Interface size</string>

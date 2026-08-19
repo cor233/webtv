@@ -324,9 +324,6 @@ WebHomeTV 是播放器外殼，不內建內容源，請使用合法設定。</st
     <string name="setting_proxy_test_failed">代理測試失敗：%1$s</string>
     <string name="setting_one_key_sync">一鍵同步</string>
     <string name="setting_incognito">無痕模式</string>
-    <string name="setting_theme_color">主題色彩</string>
-    <string name="setting_auto">自動</string>
-    <string name="setting_custom">自訂</string>
     <string name="setting_size">圖片尺寸</string>
     <string name="setting_language">語言</string>
     <string name="setting_ui_scale">介面大小</string>

@@ -21,12 +21,10 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
-import androidx.palette.graphics.Palette;
 
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.ViewWallBinding;
 import com.fongmi.android.tv.event.ConfigEvent;
-import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.github.catvod.crawler.SpiderDebug;
@@ -43,7 +41,6 @@ import pl.droidsonroids.gif.GifDrawable;
 public class CustomWallView extends FrameLayout implements DefaultLifecycleObserver {
 
     private static final int DEFAULT_WALL_COLOR = Setting.getBuiltInWallColor(Setting.WALL_DREAM_PURPLE);
-    private static final int GREEN_WALL_COLOR = 0xFF40C090;
     private static final int MAX_WALL_BITMAP_SIDE = 1920;
     private static final int TYPE_RES = 0;
     private static final int TYPE_GIF = 1;
@@ -80,8 +77,7 @@ public class CustomWallView extends FrameLayout implements DefaultLifecycleObser
             observerAdded = true;
         }
         removeCallbacks(refreshRunnable);
-        if (loadedPlaceholder && isStaticBuiltInWall()) theme();
-        else post(refreshRunnable);
+        if (!loadedPlaceholder || !isStaticBuiltInWall()) post(refreshRunnable);
     }
 
     @Override
@@ -100,7 +96,6 @@ public class CustomWallView extends FrameLayout implements DefaultLifecycleObser
         long start = System.currentTimeMillis();
         stop();
         load();
-        theme();
         SpiderDebug.log("startup", "wall refresh cost=%sms", System.currentTimeMillis() - start);
     }
 
@@ -133,14 +128,6 @@ public class CustomWallView extends FrameLayout implements DefaultLifecycleObser
         else if (motionEnabled && type == TYPE_VIDEO) loadVideo(FileUtil.getWall(wall));
         else if (motionEnabled && type == TYPE_GIF) loadGif(FileUtil.getWall(wall));
         else loadImage();
-    }
-
-    private void theme() {
-        int newColor = getWallColor();
-        int oldColor = Setting.getWallColor();
-        if (newColor == oldColor) return;
-        Setting.putWallColor(newColor);
-        if (Setting.getThemeColor() == 0) RefreshEvent.theme();
     }
 
     private void loadRes(int resId) {
@@ -286,35 +273,6 @@ public class CustomWallView extends FrameLayout implements DefaultLifecycleObser
 
     private boolean hasVideo() {
         return player != null && video != null && video.getVisibility() == VISIBLE && player.getMediaItemCount() > 0;
-    }
-
-    private int getWallColor() {
-        int wall = Setting.getWall();
-        int type = Setting.getWallType();
-        if (type == TYPE_RES && Setting.isBuiltInWall(wall)) return Setting.getBuiltInWallColor(wall);
-        if (isGreen(wall, type)) return GREEN_WALL_COLOR;
-        File file = FileUtil.getWallCache();
-        return file.exists() ? paletteColor(file) : DEFAULT_WALL_COLOR;
-    }
-
-    private int paletteColor(File file) {
-        Bitmap bitmap = decodeBitmap(file);
-        if (bitmap == null) return DEFAULT_WALL_COLOR;
-        Palette palette = Palette.from(bitmap).maximumColorCount(8).generate();
-        bitmap.recycle();
-        return swatchColor(palette);
-    }
-
-    private Bitmap decodeBitmap(File file) {
-        BitmapFactory.Options opts = new BitmapFactory.Options();
-        opts.inSampleSize = 8;
-        return BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
-    }
-
-    private int swatchColor(Palette palette) {
-        Palette.Swatch swatch = palette.getVibrantSwatch();
-        if (swatch == null) swatch = palette.getDominantSwatch();
-        return swatch != null ? swatch.getRgb() : DEFAULT_WALL_COLOR;
     }
 
     private boolean isBuiltInColor(int wall, int type) {

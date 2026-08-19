@@ -561,28 +561,6 @@ public class Setting {
         Prefers.put("compact_episode_title", compact);
     }
 
-    public static int getThemeColor() {
-        return Prefers.getInt("theme_color", -1);
-    }
-
-    public static void putThemeColor(int color) {
-        Prefers.put("theme_color", color);
-    }
-
-    public static int getWallColor() {
-        return Prefers.getInt("wall_color", 0);
-    }
-
-    public static void putWallColor(int color) {
-        Prefers.put("wall_color", color);
-    }
-
-    public static int getDynamicColor() {
-        int color = getThemeColor();
-        if (color == -1) return 0;
-        return color != 0 ? color : getWallColor();
-    }
-
     public static boolean hasFileAccess() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) return true;
         return hasLegacyReadAccess();

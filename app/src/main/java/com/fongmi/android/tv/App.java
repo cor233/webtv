@@ -25,6 +25,7 @@ import com.fongmi.hook.Hook;
 import com.github.catvod.crawler.DebugLogStore;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.Init;
+import com.github.catvod.utils.Prefers;
 import com.google.gson.Gson;
 
 public class App extends Application implements Application.ActivityLifecycleCallbacks {
@@ -93,6 +94,8 @@ public class App extends Application implements Application.ActivityLifecycleCal
     @Override
     public void onCreate() {
         super.onCreate();
+        Prefers.remove("theme_color");
+        Prefers.remove("wall_color");
         Setting.applyLanguage();
         DebugLogStore.restoreEnabled();
         if (DebugLogStore.isEnabled()) Setting.logDebugEnvironment("restore");

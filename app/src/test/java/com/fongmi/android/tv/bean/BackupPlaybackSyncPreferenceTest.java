@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 
 import org.junit.Test;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -53,6 +54,33 @@ public class BackupPlaybackSyncPreferenceTest {
 
         assertFalse(exported.contains("plain"));
         assertFalse(JsonParser.parseString(exported).getAsJsonArray().get(0).getAsJsonObject().has("token"));
+    }
+
+    @Test
+    public void deprecatedThemePreferencesAreFilteredWithoutRemovingWallSettings() {
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put("theme_color", 0x112233);
+        source.put("wall_color", 0x445566);
+        source.put("wall", "https://example.test/wall.jpg");
+        source.put("wall_type", 2);
+
+        Map<String, ?> filtered = Backup.withoutDeprecated(source);
+
+        assertFalse(filtered.containsKey("theme_color"));
+        assertFalse(filtered.containsKey("wall_color"));
+        assertEquals("https://example.test/wall.jpg", filtered.get("wall"));
+        assertEquals(2, filtered.get("wall_type"));
+    }
+
+    @Test
+    public void fullBackupSetterCannotReintroduceDeprecatedThemePreferences() {
+        Backup backup = new Backup();
+        backup.setPrefers(Map.of("theme_color", 1, "wall_color", 2, "wall", "image", "wall_type", 1));
+
+        assertFalse(backup.getPrefers().containsKey("theme_color"));
+        assertFalse(backup.getPrefers().containsKey("wall_color"));
+        assertEquals("image", backup.getPrefers().get("wall"));
+        assertEquals(1, backup.getPrefers().get("wall_type"));
     }
 
     @Test

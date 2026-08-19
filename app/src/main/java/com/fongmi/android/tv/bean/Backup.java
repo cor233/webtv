@@ -31,6 +31,7 @@ public class Backup {
 
     private static final String PLAYBACK_REMOTE_SYNC_CONFIG = "playback_remote_sync_config";
     private static final String PLAYBACK_WEBHOOK_CONFIG = "playback_webhook_config";
+    private static final Set<String> DEPRECATED_PREFS = Set.of("theme_color", "wall_color");
     private static final Set<String> APP_PREFS = Set.of("doh", "ua", "wall", "wall_type", "reset", "site_mode", "sync_mode", "sync_paths", "sync_device", "incognito", "family_filter_enabled", "family_filter_keywords", "family_filter_pass", "drive_check", "drive_check_cache", "web_home_fullscreen", "playback_artwork_wall", "csp_warmup", "csp_warmup_mode", "csp_warmup_sites", "shell_proxy", "shell_proxy_rules", "shell_proxy_url", "shell_proxy_hosts", "viewing_record_sync_enabled", "viewing_record_sync_local_write", PLAYBACK_REMOTE_SYNC_CONFIG, PLAYBACK_WEBHOOK_CONFIG, "update", "adblock", "zhuyin", "language", "ui_scale", "crash", "player", "mpv_render", "render", "size", "scale", "buffer", "background", "speed", "caption", "tunnel", "audio_prefer", "video_prefer", "prefer_aac", "subtitle_text_size", "subtitle_position", "boot_live", "across", "change", "invert", "scale_live");
 
     @SerializedName("site")
@@ -48,7 +49,7 @@ public class Backup {
 
     public static Backup create() {
         Backup backup = new Backup();
-        backup.setPrefers(Prefers.getPrefers().getAll());
+        backup.setPrefers(withoutDeprecated(Prefers.getPrefers().getAll()));
         backup.setSite(AppDatabase.get().getSiteDao().findAll());
         backup.setLive(AppDatabase.get().getLiveDao().findAll());
         backup.setKeep(AppDatabase.get().getKeepDao().findAll());
@@ -66,7 +67,7 @@ public class Backup {
         }
         if (options.isKeep()) backup.setKeep(AppDatabase.get().getKeepDao().findAll());
         if (options.isHistory()) backup.setHistory(AppDatabase.get().getHistoryDao().findAll());
-        backup.setPrefers(filter(Prefers.getPrefers().getAll(), options));
+        backup.setPrefers(filter(withoutDeprecated(Prefers.getPrefers().getAll()), options));
         return backup;
     }
 
@@ -87,7 +88,7 @@ public class Backup {
         AppDatabase.get().getKeepDao().insertOrUpdate(getKeep());
         AppDatabase.get().getConfigDao().insertOrUpdate(getConfig());
         AppDatabase.get().getHistoryDao().insertOrUpdate(getHistory());
-        for (Map.Entry<String, ?> entry : getPrefers().entrySet()) Prefers.put(entry.getKey(), entry.getValue());
+        for (Map.Entry<String, ?> entry : withoutDeprecated(getPrefers()).entrySet()) Prefers.put(entry.getKey(), entry.getValue());
         Prefers.remove("playback_webhook_privacy_accepted");
         Setting.applyLanguage();
         RefreshEvent.language();
@@ -152,9 +153,22 @@ public class Backup {
     private static Map<String, ?> filter(Map<String, ?> source, SyncOptions options) {
         Map<String, Object> result = new HashMap<>();
         for (Map.Entry<String, ?> entry : source.entrySet()) {
-            if (entry.getValue() != null && include(entry.getKey(), options)) result.put(entry.getKey(), redact(entry.getKey(), entry.getValue()));
+            if (entry.getValue() != null && !isDeprecated(entry.getKey()) && include(entry.getKey(), options)) result.put(entry.getKey(), redact(entry.getKey(), entry.getValue()));
         }
         return result;
+    }
+
+    static Map<String, ?> withoutDeprecated(Map<String, ?> source) {
+        Map<String, Object> result = new HashMap<>();
+        if (source == null) return result;
+        for (Map.Entry<String, ?> entry : source.entrySet()) {
+            if (!isDeprecated(entry.getKey())) result.put(entry.getKey(), entry.getValue());
+        }
+        return result;
+    }
+
+    private static boolean isDeprecated(String key) {
+        return DEPRECATED_PREFS.contains(key);
     }
 
     static Object redact(String key, Object value) {
@@ -243,8 +257,8 @@ public class Backup {
 
     public void setPrefers(Map<String, ?> prefers) {
         Map<String, Object> safe = new HashMap<>();
-        if (prefers != null) {
-            for (Map.Entry<String, ?> entry : prefers.entrySet()) safe.put(entry.getKey(), redact(entry.getKey(), entry.getValue()));
+        for (Map.Entry<String, ?> entry : withoutDeprecated(prefers).entrySet()) {
+            safe.put(entry.getKey(), redact(entry.getKey(), entry.getValue()));
         }
         this.prefers = safe;
     }

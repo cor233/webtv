@@ -1,5 +1,62 @@
 # Changelog
 
+## 5.10.0 — 批量对齐上游与 WebHTV（8 个功能批次） (2026-09-03)
+
+本版本将上游 FongMi/TV v5.6.3 与 fish2018/webhtv v5.6.0 的可用增量整体并入，共 8 个提交、约 300 个文件。全程保持既有定制（家庭过滤、ServerAuth、强制签名、targetSdk 37、经典绿色界面）不变。
+
+### 来自上游 FongMi（播放正确性与体验）
+
+- data:URI 图片本地代理：base64 海报经 `/image/<md5>` 16MB LRU 缓存提供，修复部分配置海报/封面与 MediaSession 封面不显示。
+- 退出首页自动轮换备份：`.tv` 格式、保留 7 份、旧 `tv-*.bk.gz` 自动迁移；恢复对话框列出新格式。
+- 字幕/音轨语言智能匹配：zh-Hans/Hant 脚本级评分选轨。
+- Exo 跳过静音（倍速设置面板开关）；补齐 mpv TLS CA 资产 `cacert.pem`（vendored MpvPlayer 期望但缺失）。
+- YouTube 提取器升级：HLS 优先、音视频分段重建 DASH MPD、字幕轨；Dolby Vision 输出选项接入 mpv（SPDIF 直通已有）。
+- 外挂字幕字体导入（SAF 导入 ttf/otf，喂给 mpv fonts.conf / sub-font）。
+- 长按倍速面板、音效面板补档位（响度/10 段 EQ/稳定/语音增强/增益/平衡/声道模式）、画质面板 14 个预设芯片、leanback 分享入口。
+
+### 应用内更新（原复制链接升级 → 真下载）
+
+- 应用内下载 APK + 进度 + 速度，SHA-256/大小/包名/签名四重校验，GitHub 代理 → GitHub → CNB 多路回退；失败回退复制链接。
+- 「更新下载设置」（GitHub 代理预设/自定义）入口在关于对话框；CI 清单升级为含 versionName/size/sha256。
+
+### Git 云备份（webhtv）
+
+- gitcloud 全家桶：GitHub/CNB provider、JGit 引擎、GitCloudDialog（账号/仓库/文件树/上传下载/恢复）、AppBackup 全量备份；入口在增强功能。
+
+### 管理页（webhtv）
+
+- 新端点：文件树、接口配置管理（切/删）、登录态 6 个、代理建议 2 个；管理页新增登录态、接口配置、目录树、代理建议 UI；webtv 安全面板与 token 鉴权保留。
+
+### 站点注入与 WebHome 扩展（webhtv）
+
+- 站点注入：「识别」粘贴多段 JSON 自动归类（含远程 live 脚本探测）、本地文件导入、拖拽/置顶排序、WebHome 站点级扩展文件选择器。
+- WebHome 扩展：按站点多选 / CSP key 正则匹配作用域；调试台可选脚本并保留匹配范围；旧数据零迁移兼容。
+
+### 性能面板与 LUT 调色（webhtv）
+
+- 性能面板 UI（四档配置 + 逐内核参数，接 webtv 自有目录 API）。
+- LUT 调色全链路打通：LUT 引擎首次接入 PlayerManager（MPV 原生 shader + EXO 视频效果，换内核自动恢复）、LutDialog/LutPanelDialog/LutQuickPanel、13 个内置 .cube 预设、自定义目录。
+
+### UI 杂项（webhtv）
+
+- APK 推送安装 + 推送播放（手机 → 设备，含服务端 /action 分支与进度恢复）。
+- 360kan 三列热搜（电视剧/电影/综艺）；TV 悬浮 OSD 面板设置项；快速搜索浮窗（含搜索进度）；毛玻璃退出确认；leanback 控制面板；leanback 睡眠定时；播放器按钮自定义排序/显隐。
+- 网盘测速诊断 + 上次异常退出日志。
+
+### 大块功能（webhtv）
+
+- 歌词/桌面歌词/沉浸音频音乐模式：7 家歌词源、逐字歌词、音频舞台（唱片机背景、队列加歌、歌词搜索）、桌面歌词悬浮窗。
+- KTV 伴唱：TFLite BasicPitch 音高提取（含 DSP/YIN 降级）、麦克风录音评分三档难度、UltraStar/USDB 等曲库源、结算弹窗。
+- 播放器调优策略类成套并入（110 个文件）：补齐 mpv seek/track 刷新策略与 Exo HttpEofRecovery/缓存观测接线；其余策略按「webtv 自有策略优先」原则入库待用。
+
+### 其他
+
+- webhome-devkit 文档/模板/技能并入；开发文档合并至 webhtv 当前版（保留 webtv 专属章节）。
+- mobile 直播线路九宫格、多日节目单弹窗。
+- 依赖保守升级：appcompat 1.8.0、lifecycle-service 2.11.0、glide 5.0.9、guava 33.7.1、NewPipeExtractor v0.26.5、okhttp 5.5.0（AGP 维持 9.2.1）；新增 jgit、tensorflow-lite 2.17.0。
+- 修复：`shape_accent` 引用的 `selector_button/selector_stroke` 颜色从未定义（CI 全新构建必炸的暗雷）、`Backup.redact` 对 gson 2.14 宽松解析的防线失效、`BackupManager` 异常捕获兼容。
+- 未并入：Exo DoVi 原生 GPU 渲染器（需 C++/NDK 构建链，本机与 CI 均未配置，且 mpv 层已有 DV 输出路径）。
+
 ## 5.9.6 — 恢复经典绿色界面 (2026-08-18)
 
 - 恢复旧版 `wallpaper_1` 绿色壁纸作为默认背景，并安全迁移此前默认的梦幻紫霞壁纸。

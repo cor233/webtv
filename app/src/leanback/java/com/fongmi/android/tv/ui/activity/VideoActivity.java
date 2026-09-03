@@ -16,6 +16,8 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.widget.LinearLayoutCompat;
 import androidx.fragment.app.FragmentActivity;
 import androidx.leanback.widget.OnChildViewHolderSelectedListener;
@@ -55,6 +57,8 @@ import com.fongmi.android.tv.impl.CustomTarget;
 import com.fongmi.android.tv.model.SiteViewModel;
 import com.fongmi.android.tv.player.PlayerHelper;
 import com.fongmi.android.tv.player.PlayerManager;
+import com.fongmi.android.tv.player.lut.LutPreset;
+import com.fongmi.android.tv.player.lut.LutStore;
 import com.fongmi.android.tv.playback.PlaybackEventCollector;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.setting.DanmakuSetting;
@@ -143,6 +147,39 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     private String playHealthKey;
     private long detailStartTime;
     private long playerStartTime;
+    private boolean pendingLutImport;
+
+    private final ActivityResultLauncher<Intent> mLutDir = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) return;
+        LutStore.setUserDir(result.getData().getData(), result.getData().getFlags());
+        Notify.show(R.string.lut_directory_selected);
+        mBinding.lutQuick.refreshList();
+        if (pendingLutImport) {
+            pendingLutImport = false;
+            chooseLutFile();
+        }
+    });
+
+    private final ActivityResultLauncher<Intent> mLutFile = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) return;
+        String path = FileChooser.getPathFromUri(result.getData().getData());
+        if (TextUtils.isEmpty(path)) {
+            Notify.show(R.string.lut_import_failed);
+            return;
+        }
+        Task.submit(() -> {
+            try {
+                LutPreset preset = LutStore.importFile(path);
+                App.post(() -> {
+                    Notify.show(R.string.lut_imported);
+                    mBinding.lutQuick.selectImported(preset, player(), mBinding.exo, this::onLutChanged);
+                });
+            } catch (Exception e) {
+                if (SpiderDebug.isEnabled()) SpiderDebug.log("lut", "import failed path=%s error=%s", path, e.getMessage());
+                App.post(() -> Notify.show(Notify.getError(R.string.lut_import_failed, e)));
+            }
+        });
+    });
 
     public static void push(FragmentActivity activity, String text) {
         if (FileChooser.isValid(activity, Uri.parse(text))) file(activity, FileChooser.getPathFromUri(Uri.parse(text)));
@@ -196,7 +233,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         intent.putExtra("cast", cast);
         intent.putExtra("mark", mark);
         intent.putExtra("name", name);
-        intent.putExtra("pic", pic);
+        intent.putExtra("pic", ImgUtil.cache(pic));
         intent.putExtra("key", key);
         intent.putExtra("id", id);
         activity.startActivity(intent);
@@ -372,6 +409,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         mBinding.control.action.next.setOnClickListener(view -> checkNext());
         mBinding.control.action.prev.setOnClickListener(view -> checkPrev());
         mBinding.control.action.scale.setOnClickListener(view -> onScale());
+        mBinding.control.action.lut.setOnClickListener(view -> onLut());
         mBinding.control.action.speed.setOnClickListener(view -> SpeedSettingDialog.show(this, player()));
         mBinding.control.action.reset.setOnClickListener(view -> onReset());
         mBinding.control.action.title.setOnClickListener(view -> onTitle());
@@ -451,6 +489,58 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     private void setVideoView() {
         mBinding.control.action.danmaku.setVisibility(DanmakuSetting.isLoad() ? View.VISIBLE : View.GONE);
         mBinding.control.action.reset.setText(ResUtil.getStringArray(R.array.select_reset)[Setting.getReset()]);
+        setLut();
+    }
+
+    private void setLut() {
+        mBinding.control.action.lut.setText(player().getLutText());
+    }
+
+    private void onLutChanged() {
+        setLut();
+    }
+
+    private void onLut() {
+        mBinding.lutQuick.toggle(player(), mBinding.exo, this::onLutChanged, new com.fongmi.android.tv.ui.custom.LutQuickPanel.ImportCallback() {
+            @Override
+            public void onImportLut() {
+                onLutImport();
+            }
+
+            @Override
+            public void onSelectLutDir() {
+                onLutDir();
+            }
+        });
+        focusLutQuickIfVisible();
+    }
+
+    private void focusLutQuickIfVisible() {
+        mBinding.lutQuick.post(() -> {
+            if (mBinding.lutQuick.getVisibility() == View.VISIBLE) mBinding.lutQuick.focusSelectedEntry();
+        });
+    }
+
+    private void onLutImport() {
+        if (!LutStore.hasUserDir()) {
+            pendingLutImport = true;
+            chooseLutDir();
+            return;
+        }
+        chooseLutFile();
+    }
+
+    private void onLutDir() {
+        pendingLutImport = false;
+        chooseLutDir();
+    }
+
+    private void chooseLutFile() {
+        FileChooser.from(mLutFile).show("*/*", new String[]{"application/octet-stream", "text/*", "image/*", "*/*"});
+    }
+
+    private void chooseLutDir() {
+        mLutDir.launch(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE));
     }
 
     private int getEpisodeColumn() {

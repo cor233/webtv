@@ -57,6 +57,40 @@ public class FileUtil {
         }
     }
 
+    public static boolean gzipCompress(byte[] data, File target) {
+        File temp = null;
+        try {
+            temp = createTempFile(target);
+            try (FileOutputStream fileOutput = new FileOutputStream(temp); GZIPOutputStream output = new GZIPOutputStream(fileOutput)) {
+                output.write(data);
+                output.finish();
+                fileOutput.getFD().sync();
+            }
+            Path.move(temp, target);
+            return true;
+        } catch (IOException e) {
+            SpiderDebug.log(e);
+            if (temp != null) Path.clear(temp);
+            return false;
+        }
+    }
+
+    public static String readGzip(File file) {
+        try (GZIPInputStream is = new GZIPInputStream(new BufferedInputStream(new FileInputStream(file)))) {
+            return Path.read(is);
+        } catch (IOException e) {
+            SpiderDebug.log(e);
+            return "";
+        }
+    }
+
+    private static File createTempFile(File target) throws IOException {
+        File parent = target.getAbsoluteFile().getParentFile();
+        if (parent == null) throw new IOException("Target has no parent directory");
+        if (!parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) throw new IOException("Unable to create target directory");
+        return File.createTempFile("copy-", ".tmp", parent);
+    }
+
     private static final long GZIP_MAX_BYTES = 50L * 1024 * 1024;
 
     public static void gzipDecompress(File target, File path) {

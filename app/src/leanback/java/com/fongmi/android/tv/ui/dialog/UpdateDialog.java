@@ -5,8 +5,10 @@ import android.view.View;
 import androidx.fragment.app.FragmentActivity;
 import androidx.viewbinding.ViewBinding;
 
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.DialogUpdateBinding;
 import com.fongmi.android.tv.impl.UpdateListener;
+import com.fongmi.android.tv.utils.ResUtil;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Locale;
@@ -66,6 +68,17 @@ public class UpdateDialog extends BaseAlertDialog {
 
     public void setProgress(int progress) {
         binding.confirm.setText(String.format(Locale.getDefault(), "%1$d%%", progress));
+    }
+
+    public void setProgress(int progress, long speed) {
+        String text = progress < 0 ? ResUtil.getString(R.string.update_downloading) : String.format(Locale.getDefault(), "%1$d%% · %2$s", progress, formatSpeed(speed));
+        binding.confirm.setText(text);
+    }
+
+    private String formatSpeed(long speed) {
+        if (speed <= 0) return "";
+        if (speed >= 1024 * 1024) return String.format(Locale.getDefault(), "%.1fMB/s", speed / 1024f / 1024f);
+        return String.format(Locale.getDefault(), "%.0fKB/s", speed / 1024f);
     }
 
     private void onConfirm(View view) {

@@ -12,6 +12,8 @@ import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.web.HomeWebController;
+import com.fongmi.android.tv.web.ext.WebHomeExtensionRegistry;
 import com.github.catvod.utils.Prefers;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -28,6 +30,9 @@ import java.util.Map;
 import java.util.Set;
 
 public class Backup {
+
+    public static final String PREF_WEB_HOME_EXTENSION = "web_home_extension";
+    public static final String PREF_WEB_HOME_EXTENSION_SOURCES = "web_home_extension_user_sources";
 
     private static final String PLAYBACK_REMOTE_SYNC_CONFIG = "playback_remote_sync_config";
     private static final String PLAYBACK_WEBHOOK_CONFIG = "playback_webhook_config";
@@ -92,6 +97,36 @@ public class Backup {
         Prefers.remove("playback_webhook_privacy_accepted");
         Setting.applyLanguage();
         RefreshEvent.language();
+    }
+
+    public void restore(boolean preserveMissingWebHomePrefs) {
+        restore();
+    }
+
+    public static void refreshWebHomeExtensions() {
+        WebHomeExtensionRegistry.get().clear();
+        HomeWebController.requestExtensionReload();
+    }
+
+    public int getWebHomeExtensionPreferenceCount() {
+        int count = 0;
+        for (String key : getPrefers().keySet()) if (isWebHomeExtensionPref(key)) count++;
+        return count;
+    }
+
+    public int getWebHomeExtensionSourceCount() {
+        Object value = getPrefers().get(PREF_WEB_HOME_EXTENSION_SOURCES);
+        if (!(value instanceof String) || ((String) value).isEmpty()) return 0;
+        try {
+            JsonElement element = new Gson().fromJson((String) value, JsonElement.class);
+            return element != null && element.isJsonArray() ? element.getAsJsonArray().size() : 0;
+        } catch (Throwable e) {
+            return 0;
+        }
+    }
+
+    static boolean isWebHomeExtensionPref(String key) {
+        return PREF_WEB_HOME_EXTENSION.equals(key) || key.startsWith("web_home_extension_") || key.startsWith("web_home_ext_enabled_");
     }
 
     public void restore(SyncOptions options, boolean force) {
@@ -175,6 +210,7 @@ public class Backup {
         if (!(value instanceof String) || (!PLAYBACK_REMOTE_SYNC_CONFIG.equals(key) && !PLAYBACK_WEBHOOK_CONFIG.equals(key))) return value;
         try {
             JsonElement root = JsonParser.parseString((String) value);
+            if (!root.isJsonObject() && !root.isJsonArray()) return "[]";
             redactSecrets(root);
             return root.toString();
         } catch (Exception e) {

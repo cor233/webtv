@@ -13,8 +13,10 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
+import androidx.media3.effect.ColorLut;
 import androidx.media3.ui.danmaku.DanmakuConfig;
 import androidx.media3.ui.danmaku.DanmakuController;
 
@@ -36,14 +38,23 @@ import com.fongmi.android.tv.player.exo.ExoNetworkGuardController;
 import com.fongmi.android.tv.player.exo.ExoNetworkGuardEligibility;
 import com.fongmi.android.tv.player.exo.ExoNextEpisodePreloader;
 import com.fongmi.android.tv.player.exo.ForwardBufferTrend;
+import com.fongmi.android.tv.player.lut.LutEffectFactory;
+import com.fongmi.android.tv.player.lut.LutEligibility;
+import com.fongmi.android.tv.player.lut.LutPreset;
+import com.fongmi.android.tv.player.lut.LutSetting;
+import com.fongmi.android.tv.player.lut.LutStore;
+import com.fongmi.android.tv.player.lut.MpvLutShader;
+import com.fongmi.android.tv.player.lut.MpvLutShaderFactory;
 import com.fongmi.android.tv.setting.DanmakuSetting;
 import com.fongmi.android.tv.setting.DanmakuState;
 import com.fongmi.android.tv.setting.ExoPerformanceSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.fongmi.android.tv.setting.VideoSetting;
+import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
+import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.net.OkHttp;
@@ -70,6 +81,7 @@ public class PlayerManager implements ParseCallback {
     private boolean initTrack;
     private int retry;
     private int lastListenerState = Player.STATE_IDLE;
+    private int lutApplySeq;
 
     private final Runnable networkProtectionRunnable = this::evaluateNetworkProtection;
     private final ExoNetworkGuardController networkProtectionController = new ExoNetworkGuardController();
@@ -289,6 +301,95 @@ public class PlayerManager implements ParseCallback {
         engine.clearVideoProfile();
     }
 
+    public String getLutText() {
+        return LutSetting.getButtonText();
+    }
+
+    public String getLutUnavailableReason() {
+        return engine == null ? null : LutEligibility.getUnavailableReason(engine, spec);
+    }
+
+    public boolean selectLut(LutPreset preset, boolean preview) {
+        if (engine == null) return false;
+        if (preset != null) {
+            String reason = getLutUnavailableReason();
+            if (!TextUtils.isEmpty(reason)) {
+                SpiderDebug.log("lut-ui", "reject preset=%s reason=%s", preset.getId(), reason);
+                Notify.show(reason);
+                return false;
+            }
+        }
+        LutSetting.select(preset);
+        if (preset != null && preview) applyLutPreview(true);
+        else applyLut(true);
+        return true;
+    }
+
+    public void applyLut(boolean notify) {
+        applyLut(notify, false);
+    }
+
+    public void applyLutPreview(boolean notify) {
+        applyLut(notify, true);
+    }
+
+    private void applyLut(boolean notify, boolean preview) {
+        if (engine == null) return;
+        int seq = ++lutApplySeq;
+        if (!LutSetting.isEnabled()) {
+            clearLut();
+            return;
+        }
+        LutPreset preset = LutStore.find(LutSetting.getPresetId());
+        if (preset == null) {
+            clearLut();
+            if (notify) Notify.show(R.string.lut_missing);
+            return;
+        }
+        String reason = getLutUnavailableReason();
+        if (!TextUtils.isEmpty(reason)) {
+            clearLut();
+            if (notify) Notify.show(reason);
+            return;
+        }
+        boolean nativeLut = engine.supportsNativeLut();
+        int strength = LutSetting.getStrength();
+        int previewSeconds = LutSetting.getPreviewSeconds();
+        Task.submit(() -> {
+            long start = System.currentTimeMillis();
+            try {
+                if (nativeLut) {
+                    MpvLutShader shader = MpvLutShaderFactory.create(preset, strength, preview);
+                    if (SpiderDebug.isEnabled()) SpiderDebug.log("lut-mpv", "create shader preset=%s strength=%d preview=%s cost=%dms", preset.getId(), strength, preview, System.currentTimeMillis() - start);
+                    App.post(() -> {
+                        if (seq != lutApplySeq || engine == null) return;
+                        engine.setNativeLutShader(shader);
+                    });
+                } else {
+                    ColorLut colorLut = LutEffectFactory.createColorLut(preset, strength);
+                    if (SpiderDebug.isEnabled()) SpiderDebug.log("lut", "create preset=%s strength=%d preview=%s cost=%dms", preset.getId(), strength, preview, System.currentTimeMillis() - start);
+                    App.post(() -> {
+                        if (seq != lutApplySeq || engine == null) return;
+                        engine.applyLut(colorLut, preview, previewSeconds);
+                    });
+                }
+            } catch (Throwable e) {
+                if (SpiderDebug.isEnabled()) SpiderDebug.log("lut", "create failed preset=%s strength=%d error=%s", preset.getId(), strength, causeChain(e));
+                App.post(() -> {
+                    if (seq != lutApplySeq || engine == null) return;
+                    clearLut();
+                    if (notify) Notify.show(R.string.lut_apply_failed);
+                });
+            }
+        });
+    }
+
+    private void clearLut() {
+        if (engine == null) return;
+        engine.setNativeLutShader(null);
+        engine.clearLut();
+    }
+
     public void applyAudioSetting() {
         if (engine != null) engine.applyAudioSetting();
     }
@@ -329,6 +430,7 @@ public class PlayerManager implements ParseCallback {
                 SpiderDebug.log(t);
             }
         }
+        applyLut(false);
     }
 
     private PlayerEngine buildEngine(int type, int decode) {
@@ -340,6 +442,7 @@ public class PlayerManager implements ParseCallback {
     }
 
     public static MediaMetadata buildMetadata(String title, String artist, String artUri) {
+        artUri = ImgUtil.cache(artUri);
         Uri artwork = TextUtils.isEmpty(artUri) ? null : Uri.parse(artUri);
         return new MediaMetadata.Builder().setTitle(title).setArtist(artist).setArtworkUri(artwork).build();
     }
@@ -445,6 +548,18 @@ public class PlayerManager implements ParseCallback {
 
     public String toggleSpeed() {
         return setSpeed(getSpeed() == 1 ? PlayerSetting.getSpeed() : 1);
+    }
+
+    public boolean supportsSkipSilence() {
+        return player instanceof ExoPlayer;
+    }
+
+    public boolean isSkipSilence() {
+        return player instanceof ExoPlayer exo && exo.getSkipSilenceEnabled();
+    }
+
+    public void setSkipSilenceEnabled(boolean enabled) {
+        if (player instanceof ExoPlayer exo) exo.setSkipSilenceEnabled(enabled);
     }
 
     private void applyEffectiveSpeed(float speed, String reason) {

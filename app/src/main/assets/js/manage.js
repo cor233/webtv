@@ -1,5 +1,7 @@
 const icDir = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23F5A623'><path d='M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z'/></svg>`;
 const icFile = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23717970'><path d='M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z'/></svg>`;
+const icTextFile = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%232F7D4F' d='M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z'/><path fill='%23FFFFFF' d='M13 4v5h5zM8 12h8v1.6H8zM8 15h8v1.6H8zM8 18h5v1.6H8z'/></svg>`;
+const icBinaryFile = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%237B1E3A' d='M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z'/><path fill='%23FFFFFF' d='M13 4v5h5zM8 12h3v3H8zM13 12h3v3h-3zM8 17h3v3H8zM13 17h3v3h-3z'/></svg>`;
 
 let mode = 'local';
 let currentView = 'files';
@@ -8,10 +10,25 @@ let targetName = '';
 let currentRoot = '';
 let currentParent = '';
 let currentFile = '';
+let fileTreeExpanded = new Set(['']);
+let fileTreeCache = {};
+let fileTreeLoading = new Set();
 let pendingDelFolder = null;
 let warnToastTimer = null;
 let syncPaths = [];
 let syncLoadedKey = '';
+let loginStateLoadedKey = '';
+let loginStateData = null;
+let loginStatePaths = [];
+let loginStatePathSet = new Set();
+let loginStatePathSorted = [];
+let loginStateVisiblePendingSet = new Set();
+let loginStateVisiblePendingSorted = [];
+let currentLoginStatePath = '';
+let currentLoginStateEditable = false;
+let loginStateExpanded = new Set(['app', 'sdcard']);
+let loginStateTreeCache = {};
+let loginStateTreeLoading = new Set();
 let cspRegistry = null;
 let cspLoadedKey = '';
 let cspRawDirty = false;
@@ -30,6 +47,11 @@ let syncMode = 'push';
 let proxyEnabled = false;
 let proxyMode = 'form';
 let proxyRules = [];
+let proxySuggestSites = [];
+let configsLoadedKey = '';
+let configsData = [];
+let configFilter = 0;
+let editingConfig = null;
 
 const REQUEST_TIMEOUT = 12000;
 const FILE_TIMEOUT = 15000;
@@ -37,6 +59,10 @@ const UPLOAD_TIMEOUT = 60000;
 const SYNC_TIMEOUT = 600000;
 const REMOTE_HEALTH_INTERVAL = 6000;
 const REMOTE_HEALTH_BLOCK_MS = 18000;
+const CONFIG_UPLOAD_DIR = 'WebHTV/Config';
+const LOGIN_TEXTAREA_LIMIT = 32 * 1024;
+const LOGIN_TEXTAREA_LINE_LIMIT = 1600;
+const LOGIN_PREVIEW_ROW_CHARS = 1200;
 
 function escPath(s) { return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -54,9 +80,16 @@ function activeKey() { return mode + ':' + target; }
 function healthKey(url = target) { return String(url || '').replace(/\/+$/, ''); }
 
 function fileApi(path, download = false) {
+    path = fileRequestPath(path);
     if (mode === 'remote' && target) return authUrl('/manage/remote/file?' + new URLSearchParams({ target, path, download: download ? '1' : '' }).toString());
     const encoded = path.split('/').map(encodeURIComponent).join('/');
     return authUrl('/file' + encoded + (download ? '?download=1' : ''));
+}
+
+function fileRequestPath(path) {
+    const value = String(path || '').trim();
+    if (!value) return '';
+    return value.startsWith('/') ? value : '/' + value;
 }
 
 function archiveApi() {
@@ -274,10 +307,17 @@ function updateTargetText() {
 function resetViewState() {
     currentRoot = '';
     currentParent = '';
+    fileTreeExpanded = new Set(['']);
+    fileTreeCache = {};
+    fileTreeLoading = new Set();
     syncLoadedKey = '';
+    loginStateLoadedKey = '';
+    loginStateExpanded = new Set(['app', 'sdcard']);
+    loginStateTreeCache = {};
+    loginStateTreeLoading = new Set();
     cspLoadedKey = '';
     proxyLoadedKey = '';
-    $('#file_list').html('');
+    configsLoadedKey = '';
     currentFiles = [];
     clearFileSelection();
 }
@@ -369,8 +409,10 @@ function loadCurrentView(force) {
     if (!ensureTarget()) return;
     if (currentView === 'files') listFile(force ? '' : currentRoot);
     if (currentView === 'sync') loadSyncManage(force);
+    if (currentView === 'loginState') loadLoginStateManage(force);
     if (currentView === 'csp') loadCspManage(force);
     if (currentView === 'proxy') loadProxyManage(force);
+    if (currentView === 'configs') loadConfigsManage(force);
 }
 
 function formatFileSize(size, isDir) {
@@ -397,21 +439,121 @@ function renderFileBreadcrumb(path) {
     $('#fileUpBtn').prop('disabled', currentParent === '.');
 }
 
-function buildDirItem(name, time, path, size) {
-    const ep = escPath(path);
-    const checked = fileSelection.has(path) ? ' checked' : '';
-    return `<div class="file-item file-row is-dir"><label class="tree-check file-check"><input type="checkbox" aria-label="选择 ${escHtml(name)}" onchange="toggleFileSelection('${ep}',this.checked)"${checked}></label><button class="file-main file-name-cell" type="button" onclick="listFile('${ep}')"><img class="file-icon" src="${icDir}" alt=""><div class="file-info"><div class="file-name">${escHtml(name)}</div><div class="file-time mobile-meta">${escHtml(time)} · ${formatFileSize(size, true)}</div></div></button><div class="file-time file-time-cell">${escHtml(time)}</div><div class="file-size-cell">${formatFileSize(size, true)}</div><div class="file-actions-cell"><button class="file-action" type="button" onclick="downloadArchive(['${ep}'])">打包</button><button class="file-action danger" type="button" onclick="showDelFolderDialog('${ep}',currentRoot)">删除</button></div></div>`;
+function syncNormalize(path) { return String(path || '').replace(/^\/+|\/+$/g, ''); }
+
+function loadFileTree(path = '') {
+    path = syncNormalize(path);
+    if (fileTreeCache[path] || fileTreeLoading.has(path)) return;
+    fileTreeLoading.add(path);
+    const requestPath = path ? '/' + path : '';
+    if (blockOfflineRemote(fileApi(requestPath), null)) {
+        fileTreeLoading.delete(path);
+        return;
+    }
+    $.ajax({ url: fileApi(requestPath), timeout: FILE_TIMEOUT, cache: false })
+        .done(res => {
+            let data;
+            try { data = parseJson(res); }
+            catch (e) { warnToast('响应格式错误'); return; }
+            fileTreeCache[path] = { path, parent: data.parent || '', items: data.files || [] };
+            renderFileTree();
+        })
+        .fail((xhr, status) => warnToast(requestError(xhr, status, '目录树加载失败')))
+        .always(() => {
+        fileTreeLoading.delete(path);
+        });
 }
 
-function buildFileItem(name, time, path, size) {
+function renderFileTree() {
+    const selected = syncNormalize(currentRoot);
+    const rootActive = selected ? '' : ' active';
+    const rootExpanded = fileTreeExpanded.has('');
+    const visible = [];
+    const rows = [`<div class="file-tree-row file-tree-root${rootActive}" style="--depth:0" data-path="">
+        <button class="tree-toggle file-tree-toggle" type="button" onclick="toggleFileTree('')" aria-label="${rootExpanded ? '收起' : '展开'}">${rootExpanded ? '−' : '+'}</button>
+        <span class="tree-check file-tree-check"></span>
+        <button class="file-tree-main" type="button" onclick="listFile('')"><img class="file-icon" src="${icDir}" alt=""><span>全部文件</span></button>
+        <div class="file-tree-actions"></div>
+    </div>`];
+    buildFileTreeRows('', 0, rows, visible);
+    currentFiles = visible;
+    $('#fileTree').html(rows.join('') || '<div class="empty-state compact">没有目录</div>');
+    updateFileSelection();
+}
+
+function buildFileTreeRows(path, depth, rows, visible) {
+    path = syncNormalize(path);
+    if (path && !fileTreeExpanded.has(path)) return;
+    const tree = fileTreeCache[path];
+    if (!tree) {
+        rows.push(`<div class="file-tree-row muted" style="--depth:${depth + 1}"><span class="tree-toggle placeholder"></span><span class="tree-check file-tree-check"></span><div class="file-tree-main"><span>加载中...</span></div><div class="file-tree-actions"></div></div>`);
+        loadFileTree(path);
+        return;
+    }
+    const items = (tree.items || []).slice().sort((a, b) => {
+        if (a.dir !== b.dir) return b.dir - a.dir;
+        return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hans');
+    });
+    if (!items.length && path === syncNormalize(currentRoot)) rows.push(`<div class="file-tree-row muted" style="--depth:${depth + 1}"><span class="tree-toggle placeholder"></span><span class="tree-check file-tree-check"></span><div class="file-tree-main"><span>当前目录没有文件</span></div><div class="file-tree-actions"></div></div>`);
+    items.forEach(item => {
+        if (item.path) visible.push(syncNormalize(item.path));
+        rows.push(buildFileTreeNode(item, depth + 1));
+        if (item.dir === 1 && fileTreeExpanded.has(syncNormalize(item.path || ''))) buildFileTreeRows(item.path, depth + 1, rows, visible);
+    });
+}
+
+function buildFileTreeNode(item, depth) {
+    const path = syncNormalize(item.path || '');
     const ep = escPath(path);
+    const isDir = Number(item.dir || 0) === 1;
+    const expanded = isDir && fileTreeExpanded.has(path);
+    const active = isDir && syncNormalize(currentRoot) === path ? ' active' : '';
     const checked = fileSelection.has(path) ? ' checked' : '';
-    return `<div class="file-item file-row"><label class="tree-check file-check"><input type="checkbox" aria-label="选择 ${escHtml(name)}" onchange="toggleFileSelection('${ep}',this.checked)"${checked}></label><button class="file-main file-name-cell" type="button" onclick="selectFile('${ep}')"><img class="file-icon" src="${icFile}" alt=""><div class="file-info"><div class="file-name">${escHtml(name)}</div><div class="file-time mobile-meta">${escHtml(time)} · ${formatFileSize(size, false)}</div></div></button><div class="file-time file-time-cell">${escHtml(time)}</div><div class="file-size-cell">${formatFileSize(size, false)}</div><div class="file-actions-cell"><button class="file-action" type="button" onclick="downloadPath('${ep}')">下载</button><button class="file-action danger" type="button" onclick="showDelFileDialog('${ep}')">删除</button></div></div>`;
+    const icon = isDir ? icDir : icFile;
+    const toggle = isDir ? `<button class="tree-toggle file-tree-toggle" type="button" onclick="toggleFileTree('${ep}')" aria-label="${expanded ? '收起' : '展开'}">${expanded ? '−' : '+'}</button>` : '<span class="tree-toggle placeholder"></span>';
+    const click = isDir ? `listFile('${ep}')` : `selectFile('${ep}')`;
+    const actions = isDir
+        ? `<button class="file-action" type="button" onclick="downloadArchive(['${ep}'])">打包</button><button class="file-action danger" type="button" onclick="showDelFolderDialog('${ep}','${escPath(parentPath(path))}')">删除</button>`
+        : `<button class="file-action" type="button" onclick="downloadPath('${ep}')">下载</button><button class="file-action danger" type="button" onclick="showDelFileDialog('${ep}')">删除</button>`;
+    return `<div class="file-tree-row${active}" style="--depth:${depth}" data-path="${escHtml(path)}">
+        ${toggle}
+        <label class="tree-check file-tree-check"><input type="checkbox" aria-label="选择 ${escHtml(item.name || path)}" onchange="toggleFileSelection('${ep}',this.checked)"${checked}></label>
+        <button class="file-tree-main" type="button" onclick="${click}"><img class="file-icon" src="${icon}" alt=""><span>${escHtml(item.name || path)}</span></button>
+        <div class="file-tree-actions">${actions}</div>
+    </div>`;
+}
+
+function expandFileTreePath(path) {
+    path = syncNormalize(path);
+    fileTreeExpanded.add('');
+    while (path) {
+        const index = path.lastIndexOf('/');
+        path = index < 0 ? '' : path.substring(0, index);
+        fileTreeExpanded.add(path);
+    }
+}
+
+function toggleFileTree(path) {
+    path = syncNormalize(path);
+    if (fileTreeExpanded.has(path)) {
+        fileTreeExpanded.delete(path);
+        renderFileTree();
+    } else {
+        fileTreeExpanded.add(path);
+        loadFileTree(path);
+        renderFileTree();
+    }
+}
+
+function parentPath(path) {
+    path = syncNormalize(path);
+    const index = path.lastIndexOf('/');
+    return index < 0 ? '' : path.substring(0, index);
 }
 
 function toggleFileSelection(path, checked) { checked ? fileSelection.add(path) : fileSelection.delete(path); updateFileSelection(); }
-function toggleSelectAll(checked) { fileSelection = checked ? new Set(currentFiles) : new Set(); $('#file_list input[type=checkbox]').prop('checked', checked); updateFileSelection(); }
-function clearFileSelection() { fileSelection.clear(); $('#file_list input[type=checkbox],#fileSelectAll').prop('checked', false); updateFileSelection(); }
+function toggleSelectAll(checked) { fileSelection = checked ? new Set(currentFiles) : new Set(); $('#fileTree input[type=checkbox]').prop('checked', checked); updateFileSelection(); }
+function clearFileSelection() { fileSelection.clear(); $('#fileTree input[type=checkbox],#fileSelectAll').prop('checked', false); updateFileSelection(); }
 function updateFileSelection() {
     const count = fileSelection.size;
     const total = currentFiles.length;
@@ -425,6 +567,7 @@ function updateFileSelection() {
 
 function listFile(path = '') {
     if (!ensureTarget()) return;
+    path = fileRequestPath(path);
     if (blockOfflineRemote(fileApi(path), null)) return;
     showLoading();
     $.ajax({ url: fileApi(path), timeout: FILE_TIMEOUT, cache: false })
@@ -436,12 +579,12 @@ function listFile(path = '') {
         currentParent = info.parent || '';
         const files = info.files || [];
         currentFiles = files.map(node => node.path).filter(Boolean);
+        fileTreeCache[syncNormalize(path)] = { path: syncNormalize(path), parent: info.parent || '', items: files };
+        expandFileTreePath(path);
+        loadFileTree('');
         renderFileBreadcrumb(path);
         fileSelection.clear();
-        updateFileSelection();
-        const rows = [];
-        files.forEach(node => rows.push(node.dir === 1 ? buildDirItem(node.name, node.time, node.path, node.size) : buildFileItem(node.name, node.time, node.path, node.size)));
-        $('#file_list').html(rows.join('') || '<div class="empty-state file-empty"><div>当前目录没有文件</div></div>');
+        renderFileTree();
     })
         .fail((xhr, status) => warnToast(requestError(xhr, status, '加载失败')))
         .always(hideLoading);
@@ -561,6 +704,430 @@ function renderSyncPaths() {
 }
 function saveSyncPaths() { postJson('/manage/sync/paths', { paths: syncPaths.join('\n') }, data => { syncPaths = data.paths || []; renderSyncPaths(); warnToast('同步目录已保存'); }); }
 function detectSyncPaths() { postJson('/manage/sync/detect', {}, data => { syncPaths = data.paths || []; renderSyncPaths(); warnToast('已自动加入本地包目录'); }, '自动识别失败'); }
+
+function loadLoginStateManage(force = false) {
+    if (loginStateLoadedKey === activeKey() && !force) return;
+    getJson('/manage/login-state?' + targetQuery(), data => {
+        loginStateData = data || {};
+        loginStatePaths = data.learned || [];
+        loginStateLoadedKey = activeKey();
+        expandLoginStateImportantPaths();
+        loadLoginStateTree('app');
+        loadLoginStateTree('sdcard');
+        renderLoginStateManage();
+    }, '登录态加载失败');
+}
+
+function renderLoginStateManage() {
+    rebuildLoginStateIndexes();
+    const data = loginStateData || {};
+    const pendingItems = loginStatePendingItems();
+    const findings = data.findings || [];
+    const findingsTotal = Number(data.findingsTotal == null ? findings.length : data.findingsTotal);
+    const missing = ((data.states || []).filter(item => item && item.exists === false)).length;
+    $('#loginStateSummary').text(`${data.learning ? '学习中' : '未学习'} · 已确认 ${loginStatePaths.length} · 待确认 ${pendingItems.length} · 最近 ${findingsTotal}${missing ? ` · 缺失 ${missing}` : ''}`);
+    $('#loginStateLearnBtn').text(data.learning ? '完成学习' : '开始学习');
+    $('#loginStateRevealBtn').prop('disabled', pendingItems.length === 0).text(pendingItems.length ? `显示待确认(${pendingItems.length})` : '显示待确认');
+    $('#loginStateLearned').html(loginStatePathStates().map(item => buildLoginStateRow(item, 'selected')).join('') || '<div class="empty-state compact">未确认任何登录态路径</div>');
+    $('#loginStatePending').html(pendingItems.map(item => buildLoginStateRow(item, 'pending')).join('') || '<div class="empty-state compact">暂无待确认项</div>');
+    const findingsMore = findingsTotal > findings.length ? `<div class="empty-state compact">结果较多，仅显示前 ${findings.length} 条；完整结果仍保留在设备中</div>` : '';
+    $('#loginStateFindings').html((findings.map(item => buildLoginStateRow(item, 'finding')).join('') + findingsMore) || '<div class="empty-state compact">暂无最近学习结果</div>');
+    renderLoginStateTrees();
+}
+
+function loginStatePathStates() {
+    const byPath = {};
+    ((loginStateData && loginStateData.states) || []).forEach(item => { if (item && item.path) byPath[item.path] = item; });
+    return loginStatePaths.map(path => byPath[path] || { path, displayPath: path, exists: true, file: true, size: 0, confidence: 'selected', reason: '已确认路径' });
+}
+
+function loginStateFindingByPath(path) {
+    path = String(path || '');
+    return ((loginStateData && loginStateData.findings) || []).find(item => item && item.path === path) || null;
+}
+
+function loginStatePendingItems() {
+    const byPath = {};
+    ((loginStateData && loginStateData.findings) || []).forEach(item => { if (item && item.path) byPath[item.path] = item; });
+    return ((loginStateData && loginStateData.pending) || [])
+        .filter(path => loginStateState(path) !== 'checked')
+        .map(path => byPath[path] || { path, displayPath: path, confidence: 'pending', reason: '学习期间发生变化' });
+}
+
+function loginStateMeta(path) {
+    path = String(path || '');
+    for (const key of Object.keys(loginStateTreeCache || {})) {
+        const tree = loginStateTreeCache[key];
+        const item = ((tree && tree.items) || []).find(x => x && x.path === path);
+        if (item) return item;
+    }
+    return ((loginStateData && loginStateData.states) || []).find(item => item && item.path === path) || null;
+}
+
+function loginStateFileIcon(item) {
+    if (item && item.dir) return icDir;
+    if (item && item.text === true) return icTextFile;
+    if (item && item.fileType === 'binary') return icBinaryFile;
+    return icFile;
+}
+
+function loginStateTypeTitle(item) {
+    if (!item || item.dir) return '';
+    if (item.text === true) return '文本';
+    if (item.fileType === 'binary' || item.text === false) return '非文本';
+    return '文件';
+}
+
+function loginStatePreviewText(data) {
+    const parts = [];
+    if (data.encoding) parts.push(data.encoding);
+    if (data.size != null) parts.push(formatFileSize(Number(data.size || 0), false));
+    if (data.truncated) parts.push('只读预览，已截断');
+    else if (!data.editable) parts.push('只读预览');
+    return parts.join(' · ');
+}
+
+function loginStateUsePreviewList(data) {
+    const text = String((data && data.content) || '');
+    return !(data && data.editable) || text.length > LOGIN_TEXTAREA_LIMIT || loginStateMaxLine(text) > LOGIN_TEXTAREA_LINE_LIMIT;
+}
+
+function loginStateMaxLine(text) {
+    let max = 0;
+    let count = 0;
+    for (let i = 0; i < text.length; i++) {
+        const ch = text.charAt(i);
+        if (ch === '\n' || ch === '\r') {
+            max = Math.max(max, count);
+            count = 0;
+        } else {
+            count++;
+        }
+    }
+    return Math.max(max, count);
+}
+
+function loginStatePreviewRows(text) {
+    const rows = [];
+    const value = String(text || '');
+    let start = 0;
+    for (let i = 0; i <= value.length; i++) {
+        if (i < value.length && value.charAt(i) !== '\n' && value.charAt(i) !== '\r') continue;
+        loginStateAddPreviewChunks(rows, value.substring(start, i));
+        if (i + 1 < value.length && value.charAt(i) === '\r' && value.charAt(i + 1) === '\n') i++;
+        start = i + 1;
+    }
+    if (!rows.length) rows.push('');
+    return rows;
+}
+
+function loginStateAddPreviewChunks(rows, line) {
+    if (!line.length) {
+        rows.push('');
+        return;
+    }
+    for (let start = 0; start < line.length; start += LOGIN_PREVIEW_ROW_CHARS) rows.push(line.substring(start, start + LOGIN_PREVIEW_ROW_CHARS));
+}
+
+function renderLoginStatePreviewContent(data) {
+    const content = (data && data.content) || '';
+    const listPreview = loginStateUsePreviewList(data);
+    currentLoginStateEditable = !!(data && data.editable) && !listPreview;
+    $('#loginStateContent')
+        .toggle(!listPreview)
+        .val(listPreview ? '' : content)
+        .prop('readonly', !currentLoginStateEditable)
+        .toggleClass('readonly-code', !currentLoginStateEditable);
+    $('#loginStatePreviewList')
+        .toggle(listPreview)
+        .html(listPreview ? loginStatePreviewRows(content).map(row => `<div class="file-preview-row">${row ? escHtml(row) : '&nbsp;'}</div>`).join('') : '');
+    $('#loginStateSaveBtn').prop('disabled', !currentLoginStateEditable).toggle(currentLoginStateEditable);
+}
+
+function buildLoginStateRow(item, type) {
+    const path = item.path || '';
+    const ep = escPath(path);
+    const confidence = type === 'selected' ? 'selected' : (item.confidence || (type === 'pending' ? 'pending' : 'low'));
+    const title = confidenceTitle(confidence, type);
+    const size = item.size != null ? formatFileSize(Number(item.size || 0), false) : '';
+    const reason = item.reason || (type === 'selected' ? '已确认路径' : '学习期间发生变化');
+    const display = item.displayPath || path;
+    const missing = item.exists === false ? ' missing' : '';
+    const action = type === 'selected'
+        ? `<button class="file-action danger" type="button" onclick="removeLoginStatePath('${ep}')">移除</button>`
+        : `<button class="file-action" type="button" onclick="addLoginStatePath('${ep}')">确认</button>`;
+    return `<div class="login-file-row ${escHtml(type)}${missing}">
+        <button class="login-file-main" type="button" onclick="openLoginStateFile('${ep}')">
+            <strong>${escHtml(path)}</strong>
+            <span>${escHtml(reason)}${size ? ` · ${escHtml(size)}` : ''}</span>
+            <small>${escHtml(display)}</small>
+        </button>
+        <span class="file-tag ${escHtml(confidence)}">${escHtml(title)}</span>
+        ${action}
+    </div>`;
+}
+
+function confidenceTitle(confidence, type = '') {
+    if (type === 'selected' || confidence === 'selected') return '已确认';
+    if (type === 'pending' || confidence === 'pending') return '待确认';
+    if (confidence === 'high') return '高置信';
+    if (confidence === 'medium') return '中置信';
+    return '低置信';
+}
+
+function toggleLoginStateLearning() {
+    const learning = !!(loginStateData && loginStateData.learning);
+    postJson('/manage/login-state/learn', { action: learning ? 'finish' : 'begin' }, data => {
+        loginStateData = data || {};
+        loginStatePaths = data.learned || [];
+        loginStateLoadedKey = activeKey();
+        loginStateTreeCache = {};
+        expandLoginStateImportantPaths();
+        loadLoginStateTree('app');
+        loadLoginStateTree('sdcard');
+        renderLoginStateManage();
+        warnToast(learning ? '登录态学习完成' : '已开始登录态学习');
+    }, '登录态学习失败');
+}
+
+function addLoginStatePath(path) {
+    path = String(path || '').trim();
+    if (!path || loginStatePaths.includes(path)) return;
+    loginStatePaths = loginStatePaths.filter(item => !loginStateCovers(path, item) && !loginStateCovers(item, path));
+    loginStatePaths.push(path);
+    expandLoginStatePath(path);
+    renderLoginStateManage();
+}
+
+function removeLoginStatePath(path) {
+    loginStatePaths = loginStatePaths.filter(item => !loginStateCovers(item, path));
+    renderLoginStateManage();
+}
+
+function saveLoginStatePaths() {
+    postJson('/manage/login-state/paths', { paths: loginStatePaths.join('\n') }, data => {
+        loginStateData = data || {};
+        loginStatePaths = data.learned || [];
+        loginStateLoadedKey = activeKey();
+        loginStateTreeCache = {};
+        expandLoginStateImportantPaths();
+        loadLoginStateTree('app');
+        loadLoginStateTree('sdcard');
+        renderLoginStateManage();
+        warnToast('登录态路径已保存');
+    }, '登录态路径保存失败');
+}
+
+function openLoginStateFile(path) {
+    if (!path) return;
+    const meta = loginStateMeta(path);
+    if (meta && meta.text === false) {
+        warnToast('非文本文件不能查看内容');
+        return;
+    }
+    postJson('/manage/login-state/file', { path }, data => {
+        currentLoginStatePath = data.path || path;
+        $('#loginStatePath').text(data.displayPath || currentLoginStatePath);
+        $('#loginStatePreviewMeta').text(loginStatePreviewText(data)).toggle(!!loginStatePreviewText(data));
+        renderLoginStatePreviewContent(data);
+        openDialog('loginStateEditorDialog');
+        if (currentLoginStateEditable) setTimeout(() => $('#loginStateContent').trigger('focus'), 80);
+    }, '登录态文件读取失败');
+}
+
+function saveLoginStateFile() {
+    if (!currentLoginStatePath) return;
+    if (!currentLoginStateEditable) {
+        warnToast('只读预览不能保存');
+        return;
+    }
+    const content = $('#loginStateContent').val();
+    postJson('/manage/login-state/file', { path: currentLoginStatePath, content }, data => {
+        $('#loginStatePreviewMeta').text(loginStatePreviewText(data)).toggle(!!loginStatePreviewText(data));
+        renderLoginStatePreviewContent(data);
+        addLoginStatePath(data.path || currentLoginStatePath);
+        saveLoginStatePaths();
+        warnToast('登录态文件已保存');
+    }, '登录态文件保存失败');
+    closeDialog('loginStateEditorDialog');
+}
+
+function loginStateNormalize(path) { return String(path || '').replace(/^\/+|\/+$/g, ''); }
+function loginStateCovers(parent, child) {
+    parent = loginStateNormalize(parent);
+    child = loginStateNormalize(child);
+    return !!parent && (parent === child || child.startsWith(parent + '/'));
+}
+function loginStateHasAncestor(set, path) {
+    path = loginStateNormalize(path);
+    while (path) {
+        if (set.has(path)) return true;
+        const index = path.lastIndexOf('/');
+        path = index < 0 ? '' : path.substring(0, index);
+    }
+    return false;
+}
+function loginStateLowerBound(values, target) {
+    let low = 0, high = values.length;
+    while (low < high) {
+        const mid = (low + high) >>> 1;
+        if (values[mid] < target) low = mid + 1;
+        else high = mid;
+    }
+    return low;
+}
+function loginStateHasDescendant(values, path) {
+    const prefix = loginStateNormalize(path) + '/';
+    const index = loginStateLowerBound(values, prefix);
+    return !!prefix && index < values.length && values[index].startsWith(prefix);
+}
+function rebuildLoginStateIndexes() {
+    loginStatePathSet = new Set(loginStatePaths.map(loginStateNormalize).filter(Boolean));
+    loginStatePathSorted = Array.from(loginStatePathSet).sort();
+    const visiblePending = ((loginStateData && loginStateData.pending) || [])
+        .map(loginStateNormalize)
+        .filter(path => path && !loginStateHasAncestor(loginStatePathSet, path));
+    loginStateVisiblePendingSet = new Set(visiblePending);
+    loginStateVisiblePendingSorted = Array.from(loginStateVisiblePendingSet).sort();
+}
+function loginStateState(path) {
+    path = loginStateNormalize(path);
+    if (loginStateHasAncestor(loginStatePathSet, path)) return 'checked';
+    if (loginStateHasDescendant(loginStatePathSorted, path)) return 'partial';
+    return 'unchecked';
+}
+function loginStateHasPendingChild(path) {
+    return loginStateHasDescendant(loginStateVisiblePendingSorted, path);
+}
+function expandLoginStatePath(path) {
+    path = loginStateNormalize(path);
+    while (path) {
+        const index = path.lastIndexOf('/');
+        if (index < 0) { loginStateExpanded.add(path); return; }
+        path = path.substring(0, index);
+        if (path) loginStateExpanded.add(path);
+    }
+}
+function expandLoginStateImportantPaths() {
+    loginStateExpanded.add('app');
+    loginStateExpanded.add('sdcard');
+    if (loginStatePaths.length + (((loginStateData && loginStateData.pending) || []).length) > 128) return;
+    loginStatePaths.forEach(expandLoginStatePath);
+    ((loginStateData && loginStateData.pending) || []).forEach(expandLoginStatePath);
+}
+function loadLoginStateTree(path, callback) {
+    path = loginStateNormalize(path || '');
+    if (!path) path = 'app';
+    if (loginStateTreeCache[path] || loginStateTreeLoading.has(path)) {
+        if (callback) callback(loginStateTreeCache[path]);
+        return;
+    }
+    loginStateTreeLoading.add(path);
+    getJson('/manage/login-state/tree?' + targetQuery({ path }), data => {
+        loginStateTreeLoading.delete(path);
+        loginStateTreeCache[path] = data || { path, items: [] };
+        renderLoginStateManage();
+        if (callback) callback(loginStateTreeCache[path]);
+    }, '登录态目录加载失败');
+}
+function toggleLoginStateTree(path) {
+    path = loginStateNormalize(path);
+    if (!path) return;
+    if (loginStateExpanded.has(path)) {
+        loginStateExpanded.delete(path);
+        renderLoginStateManage();
+    } else {
+        loginStateExpanded.add(path);
+        loadLoginStateTree(path);
+        renderLoginStateManage();
+    }
+}
+function revealLoginStatePending() {
+    const items = loginStatePendingItems();
+    if (!items.length) {
+        warnToast('没有待确认项');
+        return;
+    }
+    items.forEach(item => expandLoginStatePath(item.path));
+    loginStateTreeCache = {};
+    loadLoginStateTree('app');
+    loadLoginStateTree('sdcard');
+    renderLoginStateManage();
+    warnToast(`已显示 ${items.length} 个待确认项`);
+}
+function renderLoginStateTrees() {
+    renderLoginStateTree('app', $('#loginStateTreeApp'));
+    renderLoginStateTree('sdcard', $('#loginStateTreeSdcard'));
+}
+function renderLoginStateTree(root, targetEl) {
+    if (!targetEl || !targetEl.length) return;
+    const rows = [];
+    buildLoginStateTreeRows(root, 0, rows);
+    appendMissingLoginStateRows(root, rows);
+    targetEl.html(rows.join('') || '<div class="empty-state compact">没有可显示的文件</div>');
+    targetEl.find('input[data-partial="1"]').each(function () { this.indeterminate = true; });
+}
+function buildLoginStateTreeRows(path, depth, rows) {
+    const tree = loginStateTreeCache[path];
+    if (!tree) {
+        rows.push(`<div class="login-tree-row muted" style="--depth:${depth}"><span class="login-tree-spacer"></span><span class="tree-check login-tree-check"></span><div class="login-tree-main"><span>加载中...</span></div></div>`);
+        if (!loginStateTreeLoading.has(path)) loadLoginStateTree(path);
+        return;
+    }
+    (tree.items || []).forEach(item => {
+        rows.push(buildLoginStateTreeRow(item, depth));
+        if (item.dir && loginStateExpanded.has(item.path)) buildLoginStateTreeRows(item.path, depth + 1, rows);
+    });
+    if (tree.truncated) rows.push(`<div class="login-tree-row muted" style="--depth:${depth + 1}"><span class="login-tree-spacer"></span><span class="tree-check login-tree-check"></span><div class="login-tree-main"><span>目录共 ${Number(tree.total || 0)} 项，仅显示前 ${(tree.items || []).length} 项；可直接选择文件夹</span></div></div>`);
+}
+function appendMissingLoginStateRows(root, rows) {
+    const visible = new Set();
+    const re = /data-path="([^"]*)"/g;
+    rows.forEach(row => {
+        let match;
+        while ((match = re.exec(row))) visible.add(match[1].replace(/&quot;/g, '"'));
+    });
+    const paths = [...loginStatePaths, ...((loginStateData && loginStateData.pending) || [])];
+    paths.forEach(path => {
+        if (!path.startsWith(root + '/') || visible.has(path)) return;
+        const state = ((loginStateData && loginStateData.states) || []).find(item => item && item.path === path);
+        if (state && state.exists !== false) return;
+        rows.push(buildLoginStateTreeRow({ name: path.split('/').pop(), path, dir: false, size: 0, modified: 0, selectable: true, missing: true }, loginStateDepth(path)));
+    });
+}
+function loginStateDepth(path) {
+    return Math.max(0, loginStateNormalize(path).split('/').length - 2);
+}
+function buildLoginStateTreeRow(item, depth) {
+    const path = item.path || '';
+    const ep = escPath(path);
+    const state = loginStateState(path);
+    const pending = loginStateVisiblePendingSet.has(path);
+    const hasPending = item.dir && loginStateHasPendingChild(path);
+    const missing = item.missing || (((loginStateData && loginStateData.states) || []).some(x => x && x.path === path && x.exists === false));
+    const checked = state === 'checked' ? ' checked' : '';
+    const partial = state === 'partial' ? ' data-partial="1"' : '';
+    const stateBadge = missing ? '<span class="login-state-badge missing">缺失</span>' : pending ? '<span class="login-state-badge pending">待确认</span>' : hasPending ? '<span class="login-state-badge pending">含待确认</span>' : state === 'checked' ? '<span class="login-state-badge selected">已选</span>' : state === 'partial' ? '<span class="login-state-badge partial">部分</span>' : '';
+    const typeTitle = loginStateTypeTitle(item);
+    const typeBadge = typeTitle && !missing ? `<span class="login-state-badge file-type ${item.text === true ? 'text' : 'binary'}">${escHtml(typeTitle)}</span>` : '';
+    const toggle = item.dir ? `<button class="login-tree-toggle" type="button" onclick="toggleLoginStateTree('${ep}')" aria-label="${loginStateExpanded.has(path) ? '收起' : '展开'}">${loginStateExpanded.has(path) ? '−' : '+'}</button>` : '<span class="login-tree-toggle placeholder"></span>';
+    const icon = loginStateFileIcon(item);
+    const click = item.dir ? `toggleLoginStateTree('${ep}')` : `openLoginStateFile('${ep}')`;
+    return `<div class="login-tree-row ${item.dir ? 'dir' : 'file'} ${pending || hasPending ? 'pending' : ''} ${missing ? 'missing' : ''}" style="--depth:${depth}" data-path="${escHtml(path)}">
+        ${toggle}
+        <label class="tree-check login-tree-check"><input type="checkbox" onchange="toggleLoginStatePath('${ep}',this.checked)"${checked}${partial} aria-label="选择 ${escHtml(item.name || path)}"></label>
+        <button class="login-tree-main" type="button" onclick="${click}">
+            <img class="file-icon" src="${icon}" alt="">
+            <span class="login-tree-name">${escHtml(item.name || path)}</span>
+            <span class="login-tree-badges">${typeBadge}${stateBadge}</span>
+        </button>
+    </div>`;
+}
+function toggleLoginStatePath(path, checked) {
+    if (checked) addLoginStatePath(path);
+    else removeLoginStatePath(path);
+}
+
 function setSyncMode(next) {
     syncMode = next === 'pull' ? 'pull' : 'push';
     $('#syncModePush').toggleClass('active', syncMode === 'push');
@@ -568,7 +1135,7 @@ function setSyncMode(next) {
     $('#syncDirectionBtn').text(syncMode === 'push' ? '推送' : '拉取');
 }
 function toggleSyncMode() { setSyncMode(syncMode === 'push' ? 'pull' : 'push'); }
-function syncOptionIds() { return ['syncOptConfig', 'syncOptSpider', 'syncOptWebHome', 'syncOptSearch', 'syncOptHistory', 'syncOptKeep', 'syncOptSettings']; }
+function syncOptionIds() { return ['syncOptConfig', 'syncOptSpider', 'syncOptLoginState', 'syncOptWebHome', 'syncOptSearch', 'syncOptHistory', 'syncOptKeep', 'syncOptSettings']; }
 function allSyncSelected() { return syncOptionIds().every(id => $('#' + id).prop('checked')); }
 function toggleSyncSelection() {
     const checked = !allSyncSelected();
@@ -584,6 +1151,7 @@ function syncOptionsPayload() {
     return {
         config: $('#syncOptConfig').prop('checked'),
         spider: $('#syncOptSpider').prop('checked'),
+        loginState: $('#syncOptLoginState').prop('checked'),
         webHome: $('#syncOptWebHome').prop('checked'),
         search: $('#syncOptSearch').prop('checked'),
         history: $('#syncOptHistory').prop('checked'),
@@ -621,7 +1189,9 @@ function startSyncManage() {
         .done(res => {
             let data = {};
             try { data = parseJson(res); } catch (e) {}
-            const detail = data.files ? ` · ${data.files} 个文件 · ${formatFileSize(data.zipSize, false)}` : '';
+            const fileCount = Number(data.files || 0) + Number(data.loginStateFiles || 0);
+            const zipSize = Number(data.zipSize || 0) + Number(data.loginStateZipSize || 0);
+            const detail = fileCount ? ` · ${fileCount} 个文件 · ${formatFileSize(zipSize, false)}` : '';
             warnToast((syncMode === 'push' ? '推送完成' : '拉取已完成') + detail);
         })
         .fail((xhr, status) => warnToast(requestError(xhr, status, '同步失败')))
@@ -1168,6 +1738,205 @@ function saveProxyManage() {
         renderProxyManage(data);
         warnToast('Proxy 已保存');
     }, 'Proxy 保存失败');
+}
+
+function showProxySuggestDialog() {
+    if (!ensureProxyDefaultUrl()) return;
+    getJson('/manage/proxy/suggest/sites?' + targetQuery(), data => {
+        proxySuggestSites = Array.isArray(data.sites) ? data.sites : [];
+        renderProxySuggestList();
+        openDialog('proxySuggestDialog');
+    }, '自动建议加载失败');
+}
+function renderProxySuggestList() {
+    const rows = [];
+    if (proxySuggestSites.length) rows.push(buildProxySuggestRow({ key: 'all', name: '全部站点', home: false, all: true }));
+    proxySuggestSites.forEach(site => rows.push(buildProxySuggestRow(site)));
+    $('#proxySuggestList').html(rows.length ? rows.join('') : '<div class="empty-state compact">暂无可选站点</div>');
+}
+function buildProxySuggestRow(site) {
+    const key = escPath(site.key || '');
+    const name = escHtml(site.name || site.key || '未命名站点');
+    const meta = site.all ? '扫描当前接口内所有站点' : (site.home ? '当前首页站点' : escHtml(site.key || ''));
+    return `<button class="proxy-suggest-row" onclick="applyProxySuggest('${key}',${site.all ? 'true' : 'false'})" type="button"><span>${name}</span><small>${meta}</small></button>`;
+}
+function applyProxySuggest(key, all) {
+    if (!ensureProxyDefaultUrl()) return;
+    const query = targetQuery(all ? { all: 'true' } : { key });
+    getJson('/manage/proxy/suggest?' + query, data => {
+        const hosts = Array.isArray(data.hosts) ? data.hosts : [];
+        if (!hosts.length) { warnToast('未发现可代理域名'); return; }
+        const added = appendProxyHosts(hosts, cleanProxyUrl($('#proxyUrl').val()));
+        proxyEnabled = true;
+        proxyMode = 'form';
+        renderProxyManage({ count: proxyRules.filter(rule => rule.hosts || rule.url).length });
+        closeDialog('proxySuggestDialog');
+        warnToast(`已新增 ${added} 个域名，共 ${countProxyHosts()} 个`);
+    }, '自动建议失败');
+}
+function ensureProxyDefaultUrl() {
+    if (isValidProxyUrl(cleanProxyUrl($('#proxyUrl').val()))) return true;
+    warnToast('请先填写默认代理地址');
+    return false;
+}
+function isValidProxyUrl(url) {
+    try {
+        const parsed = new URL(String(url || '').trim());
+        return /^(https?|socks)\w*$/i.test(parsed.protocol.replace(':', '')) && !!parsed.hostname && !!parsed.port;
+    } catch (e) {
+        return false;
+    }
+}
+function appendProxyHosts(hosts, url) {
+    if (proxyMode === 'text') proxyRules = parseProxyRules($('#proxyRules').val());
+    else syncProxyRulesFromForm();
+    proxyRules = proxyRules.filter(rule => rule.hosts || rule.url);
+    const exists = new Set();
+    proxyRules.forEach(rule => splitProxyValue(rule.hosts).forEach(host => exists.add(normalizeProxyHost(host))));
+    let added = 0;
+    hosts.forEach(host => {
+        const value = String(host || '').trim();
+        const key = normalizeProxyHost(value);
+        if (!value || !key || exists.has(key)) return;
+        proxyRules.push(proxyRule(value, url));
+        exists.add(key);
+        added++;
+    });
+    if (!proxyRules.length) proxyRules.push(proxyRule('', ''));
+    return added;
+}
+function normalizeProxyHost(host) {
+    return String(host || '').trim().toLowerCase();
+}
+function countProxyHosts() {
+    const hosts = new Set();
+    proxyRules.forEach(rule => splitProxyValue(rule.hosts).forEach(host => {
+        const value = normalizeProxyHost(host);
+        if (value) hosts.add(value);
+    }));
+    return hosts.size;
+}
+
+function loadConfigsManage(force = false) {
+    if (configsLoadedKey === activeKey() && !force) return;
+    getJson('/manage/configs?' + targetQuery(), data => {
+        configsLoadedKey = activeKey();
+        configsData = Array.isArray(data.items) ? data.items : [];
+        renderConfigsManage();
+    }, '接口配置加载失败');
+}
+function renderConfigsManage() {
+    const filtered = configsData.filter(item => Number(item.type || 0) === Number(configFilter));
+    const active = configsData.filter(item => item.active).length;
+    $('#configsSummary').text(`${configsData.length} 个接口 · 当前启用 ${active}`);
+    $('#configFilterVod').toggleClass('active', configFilter === 0);
+    $('#configFilterLive').toggleClass('active', configFilter === 1);
+    $('#configFilterWall').toggleClass('active', configFilter === 2);
+    $('#configList').html(filtered.map(buildConfigCard).join('') || '<div class="empty-state">暂无接口配置</div>');
+}
+function setConfigFilter(type) {
+    configFilter = Number(type);
+    renderConfigsManage();
+}
+function buildConfigCard(item) {
+    const url = item.url || '';
+    const name = item.name || '';
+    const type = Number(item.type || 0);
+    const title = name || url || '未命名接口';
+    const active = item.active ? ' active' : '';
+    return `<div class="config-card${active}">
+        <div class="config-main">
+            <div class="config-title-line"><span class="config-type">${escHtml(item.typeName || configTypeName(type))}</span><strong>${escHtml(title)}</strong>${item.active ? '<em>当前</em>' : ''}</div>
+            <div class="config-url">${escHtml(url)}</div>
+        </div>
+        <div class="config-actions">
+            <button class="file-action" type="button" onclick="useConfig(${type},'${escPath(url)}')"${item.active ? ' disabled' : ''}>启用</button>
+            <button class="file-action" type="button" onclick="showConfigDialog(${type},'${escPath(url)}','${escPath(name)}')">编辑</button>
+            <button class="file-action danger" type="button" onclick="deleteConfig(${type},'${escPath(url)}')">删除</button>
+        </div>
+    </div>`;
+}
+function configTypeName(type) {
+    if (Number(type) === 1) return '直播';
+    if (Number(type) === 2) return '壁纸';
+    return '影视';
+}
+function showConfigDialog(type = null, url = '', name = '') {
+    const editing = !!url;
+    const selectedType = editing ? Number(type || 0) : Number(configFilter || 0);
+    editingConfig = { type: selectedType, oldUrl: url || '', editing };
+    $('#configType').val(String(editingConfig.type));
+    $('#configTypeRow').toggle(!editing);
+    $('#configName').val(name || '');
+    $('#configUrl').val(url || '');
+    $('#configDialogTitle').text(editing ? '编辑接口' : '新增接口');
+    openDialog('configDialog');
+}
+function chooseConfigLocalFile() {
+    if (mode === 'remote' && !target) { ensureActionTarget(); return; }
+    $('#config_file_uploader').val('').click();
+}
+function onConfigLocalFileSelected() {
+    const input = $('#config_file_uploader')[0];
+    const file = input && input.files ? input.files[0] : null;
+    if (!file) return;
+    const remote = mode === 'remote' && !!target;
+    const data = new FormData();
+    data.append('path', CONFIG_UPLOAD_DIR);
+    if (remote) data.append('target', target);
+    if (authToken) data.append('token', authToken);
+    data.append('files-0', file);
+    const url = authUrl(remote ? '/manage/remote/upload' : '/upload');
+    if (blockOfflineRemote(url, remote ? { target } : {})) return;
+    showLoading();
+    $.ajax({ url, type: 'post', data, processData: false, contentType: false, timeout: UPLOAD_TIMEOUT })
+        .done(() => {
+            const path = CONFIG_UPLOAD_DIR + '/' + file.name;
+            const prefix = Number($('#configType').val() || 0) === 2 ? 'file:/' : 'file://';
+            $('#configUrl').val(prefix + path);
+            warnToast('文件已上传并填入接口地址');
+        })
+        .fail((xhr, status) => warnToast(requestError(xhr, status, '本地文件上传失败')))
+        .always(() => { $('#config_file_uploader').val(''); hideLoading(); });
+}
+function saveConfigDialog() {
+    const type = Number($('#configType').val() || 0);
+    const name = $('#configName').val().trim();
+    const url = $('#configUrl').val().trim();
+    if (!url) { warnToast('请填写接口地址'); return; }
+    const oldUrl = editingConfig && editingConfig.oldUrl && editingConfig.oldUrl !== url ? editingConfig.oldUrl : '';
+    const save = () => postJson('/manage/configs', { type, name, url }, data => {
+        configsData = data.items || [];
+        configsLoadedKey = activeKey();
+        configFilter = type;
+        renderConfigsManage();
+        closeDialog('configDialog');
+        warnToast('接口已保存');
+    }, '接口保存失败');
+    if (oldUrl) postJson('/manage/config/delete', { type: editingConfig.type, url: oldUrl }, save, '旧接口移除失败');
+    else save();
+}
+function useConfig(type, url) {
+    postJson('/manage/config/use', { type, url }, data => {
+        configsData = data.items || [];
+        configsLoadedKey = activeKey();
+        renderConfigsManage();
+        warnToast('已切换接口，正在加载');
+    }, '接口启用失败');
+}
+function deleteConfig(type, url) {
+    postJson('/manage/config/delete', { type, url }, data => {
+        configsData = data.items || [];
+        configsLoadedKey = activeKey();
+        renderConfigsManage();
+        warnToast('接口已删除');
+    }, '接口删除失败');
+}
+function ensureActionTarget() {
+    warnToast('请先选择远端设备');
+    devicePanelOpen = true;
+    updateRemotePicker();
+    loadDevices();
 }
 
 function remoteSearch() { if (!ensureTarget()) return; postAction('/manage/action', { target, do: 'search', word: $('#remoteKeyword').val().trim() }, () => warnToast('已发送搜索'), '搜索发送失败'); }

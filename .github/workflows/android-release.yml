@@ -115,17 +115,24 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           VERSION_CODE="$(grep -m1 'versionCode' app/build.gradle | awk '{print $2}')"
+          VERSION_NAME="$(grep -m1 'versionName' app/build.gradle | sed 's/.*"\(.*\)".*/\1/')"
           SHORT_SHA="$(echo "${{ github.sha }}" | cut -c1-7)"
           for apk in dist/*.apk; do
             base=$(basename "$apk" .apk)
+            SIZE=$(stat -c %s "$apk")
+            SHA=$(sha256sum "$apk" | awk '{print $1}')
             cat > "dist/${base}.json" << JSONEOF
           {
             "name": "${{ github.ref_name }}",
+            "versionName": "$VERSION_NAME",
             "desc": "${{ github.ref_name }} — $SHORT_SHA",
-            "code": $VERSION_CODE
+            "code": $VERSION_CODE,
+            "apk": "${base}.apk",
+            "size": $SIZE,
+            "sha256": "$SHA"
           }
           JSONEOF
-            echo "Generated dist/${base}.json code=$VERSION_CODE"
+            echo "Generated dist/${base}.json code=$VERSION_CODE size=$SIZE"
           done
 
       - name: Write release notes

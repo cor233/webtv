@@ -45,6 +45,7 @@
     <string name="speed_setting_reset">重置</string>
     <string name="speed_setting_current">播放速度</string>
     <string name="speed_setting_quick">快速選擇</string>
+    <string name="speed_setting_skip_silence">跳過靜音</string>
     <string name="play_reset">刷新</string>
     <string name="play_replay">重播</string>
     <string name="play_decode">硬解</string>
@@ -157,6 +158,8 @@ WebHomeTV 是播放器外殼，不內建內容源，請使用合法設定。</st
     <string name="setting_site_health_dialog_sort">站點彈窗排序</string>
     <string name="site_health_clear_done">站點健康記錄已清空</string>
     <string name="setting_web_home_extension">WebHome 擴展</string>
+    <string name="setting_git_cloud">Git 雲盤</string>
+    <string name="git_cloud_account_count">帳號 %1$d</string>
     <string name="setting_web_home_fullscreen">WebHome 主頁全螢幕</string>
     <string name="setting_csp_warmup">CSP預熱</string>
     <string name="setting_csp_warmup_default">預設</string>
@@ -217,6 +220,12 @@ WebHomeTV 是播放器外殼，不內建內容源，請使用合法設定。</st
     <string name="web_home_extension_exclude">排除：%1$s</string>
     <string name="web_home_extension_depends">依賴：%1$s</string>
     <string name="web_home_extension_last_log">最近日誌：%1$s</string>
+    <string name="web_home_extension_match_mode">匹配方式</string>
+    <string name="web_home_extension_match_sites">選擇</string>
+    <string name="web_home_extension_match_regex">正則</string>
+    <string name="web_home_extension_choose_sites">選擇站點</string>
+    <string name="web_home_extension_no_webhome_sites">目前點播配置沒有 WebHome 站點</string>
+    <string name="web_home_extension_select_script">選擇腳本</string>
     <string name="web_home_extension_enable_confirm_title">啟用擴展</string>
     <string name="web_home_extension_enable_confirm_message">啟用後該擴展可以調用 WebHome 已開放的 SDK。\n\n名稱：%1$s\n來源：%2$s\n匹配：%3$s</string>
     <string name="web_home_extension_status_ready">待注入</string>
@@ -299,6 +308,29 @@ WebHomeTV 是播放器外殼，不內建內容源，請使用合法設定。</st
     <string name="setting_custom_csp_json_invalid">站點注入 JSON 格式無效</string>
     <string name="setting_custom_csp_jar">Jar</string>
     <string name="setting_custom_csp_link">連結</string>
+    <string name="setting_custom_csp_insert_short">位置</string>
+    <string name="setting_custom_csp_recognize">識別</string>
+    <string name="setting_custom_csp_recognize_title">自動識別</string>
+    <string name="setting_custom_csp_recognize_hint">貼上站點 JSON 片段</string>
+    <string name="setting_custom_csp_recognize_empty">請先貼上站點 JSON</string>
+    <string name="setting_custom_csp_recognize_invalid">未識別到有效站點 JSON</string>
+    <string name="setting_custom_csp_recognize_done">已加入 %1$d 個條目</string>
+    <string name="setting_custom_csp_sort">排序</string>
+    <string name="setting_custom_csp_sort_done">完成</string>
+    <string name="setting_custom_csp_sort_drag">拖曳排序</string>
+    <string name="setting_custom_csp_sort_more">排序操作</string>
+    <string name="setting_custom_csp_sort_top">置頂</string>
+    <string name="setting_custom_csp_sort_bottom">置底</string>
+    <string name="setting_custom_csp_sort_forward_five">上移 5 位</string>
+    <string name="setting_custom_csp_sort_backward_five">下移 5 位</string>
+    <string name="setting_custom_csp_sort_move_to">移動到指定位置</string>
+    <string name="setting_custom_csp_sort_move_to_title">移動到指定位置</string>
+    <string name="setting_custom_csp_sort_move_to_hint">位置 1-%1$d</string>
+    <string name="setting_custom_csp_extensions_file">檔案</string>
+    <string name="setting_custom_csp_files">檔案</string>
+    <string name="setting_custom_csp_extensions_example">https://example.com/site.js</string>
+    <string name="setting_custom_csp_permission_required">站點注入需要檔案存取權限。</string>
+    <string name="setting_custom_csp_save_failed">站點注入保存失敗：%1$s</string>
     <string name="setting_custom_csp_up">上移</string>
     <string name="setting_proxy_url">socks5://127.0.0.1:9978</string>
     <string name="setting_proxy_hosts">匹配網域</string>
@@ -522,6 +554,19 @@ WebHomeTV 是播放器外殼，不內建內容源，請使用合法設定。</st
     <string name="update_confirm">更新</string>
     <string name="update_export_done">已下載到 <xliff:g name="path">%s</xliff:g>，請用檔案管理員開啟安裝</string>
     <string name="update_export_failed">下載完成，但匯出到公開目錄失敗；請開啟儲存權限後重試</string>
+    <string name="update_canceled">已取消更新</string>
+    <string name="update_download_invalid">下載檔案無效</string>
+    <string name="update_download_incomplete">下載不完整，請重試</string>
+    <string name="update_download_checksum">校驗和不符，已拒絕安裝</string>
+    <string name="update_download_identity">套件名或簽名不符，已拒絕安裝</string>
+    <string name="update_settings">更新下載設定</string>
+    <string name="update_settings_save">儲存</string>
+    <string name="update_settings_saved">更新設定已儲存</string>
+    <string name="update_github_proxy">GitHub 下載代理</string>
+    <string name="update_proxy_direct">直連</string>
+    <string name="update_proxy_custom">自訂</string>
+    <string name="update_proxy_custom_hint">自訂代理源（https://…）</string>
+    <string name="update_proxy_invalid">代理必須為合法 HTTPS 源地址</string>
 
     <!-- Crash -->
     <string name="crash_info">發生意外錯誤\n抱歉給您帶來不便</string>
@@ -717,8 +762,10 @@ WebHomeTV 是播放器外殼，不內建內容源，請使用合法設定。</st
 <string name="lut_unavailable_soft_decode">軟解不支援 LUT 調色</string>
 <string name="lut_unavailable_tunnel">隧道模式不支援 LUT 調色</string>
 <string name="lut_unavailable_video_prefer">擴展視訊解碼不支援 LUT 調色</string>
+<string name="lut_unavailable_output_mode">目前輸出模式不支援 LUT 調色，請切換為 GPU 輸出模式後使用</string>
 <string name="lut_unfavorited">已取消收藏</string>
 <string name="play_lut">LUT</string>
+<string name="player_lut">LUT 調色</string>
 <string name="error_play_mpv_hls_unsupported">MPV 播放此 HLS 失敗，請手動切換播放器或更換線路</string>
 <string name="error_play_mpv_load_failed">MPV 載入媒體失敗，請檢查網路或更換線路</string>
 <string name="error_play_mpv_network_failed">MPV 網路載入失敗，請檢查網路、請求頭或更換線路</string>
@@ -917,4 +964,15 @@ WebHomeTV 是播放器外殼，不內建內容源，請使用合法設定。</st
     <string name="mpv_config_script_warning">Lua/JavaScript 檔案屬於受信任程式碼。請僅匯入可信腳本；遠端腳本預設以停用狀態儲存。</string>
     <string name="mpv_config_mobile_edit_hint">請使用行動端編輯設定文字；TV 端支援設定檔選擇與匯入。</string>
     <string name="mpv_config_restart_hint">變更僅對新建 MPV 實例生效，請重新進入播放。</string>
+
+    <string name="player_performance">播放效能</string>
+    <string name="player_performance_recommended">均衡</string>
+    <string name="player_performance_auto">自動</string>
+    <string name="player_performance_compatible">相容</string>
+    <string name="player_performance_lightweight">輕量</string>
+    <string name="player_performance_help">說明</string>
+    <string name="player_performance_help_title">播放效能參數說明</string>
+    <string name="player_performance_help_close">關閉</string>
+    <string name="player_performance_help_intro">目前播放器內核：%1$s。一般使用者保持「自動」即可；「輕量」面向低階裝置，整合原相容檔的穩定性取向並降低固定資源預算，取代原本獨立的相容檔。遇到特殊硬解、輸出或協定問題仍可直接調整下方參數形成「自訂」。目前內核可用參數均直接顯示並按用途分組，多數底層參數需重新播放或重建播放器後生效。</string>
+    <string name="player_performance_common_section">常用參數</string>
 </resources>

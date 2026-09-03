@@ -1,14 +1,17 @@
 package com.fongmi.android.tv.setting;
 
+import android.net.Uri;
 import android.text.TextUtils;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.bean.Live;
 import com.fongmi.android.tv.bean.Site;
 import com.fongmi.android.tv.bean.Style;
 import com.fongmi.android.tv.gson.ExtAdapter;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.utils.UrlUtil;
+import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.utils.Path;
 import com.github.catvod.utils.Util;
 import com.google.gson.annotations.JsonAdapter;
@@ -21,12 +24,14 @@ import com.google.gson.JsonParser;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public class CustomCspSetting {
 
@@ -38,6 +43,8 @@ public class CustomCspSetting {
     private static final String KIND_CSP = "csp";
     private static final String KIND_LIVE = "live";
     private static final String API_BUILTIN = "csp_Builtin";
+    private static final Pattern PYTHON_LIVE_METHOD = Pattern.compile("(?m)^\\s*def\\s+liveContent\\s*\\(");
+    private static final Pattern JS_LIVE_METHOD = Pattern.compile("(?m)(?:^|[,{;]\\s*)(?:async\\s+)?liveContent\\s*(?:[:=]\\s*(?:async\\s*)?(?:function\\s*)?|\\()", Pattern.CASE_INSENSITIVE);
 
     public static Registry load() {
         String text = Path.read(registryFile());
@@ -130,6 +137,150 @@ public class CustomCspSetting {
 
     public static String localUrl(String id, String name) {
         return "file://" + file(id, name).getAbsolutePath();
+    }
+
+    public static JsonElement parseFlexible(String text) {
+        String value = stripTrailingCommas(text);
+        try {
+            return JsonParser.parseString(value);
+        } catch (Exception e) {
+            if (!looksLikeRootFields(value)) throw e;
+            return JsonParser.parseString("{" + stripTrailingCommas(value) + "}");
+        }
+    }
+
+    private static boolean looksLikeRootFields(String value) {
+        if (TextUtils.isEmpty(value) || value.startsWith("{") || value.startsWith("[")) return false;
+        return value.startsWith("\"") && value.contains("\":");
+    }
+
+    private static String stripTrailingCommas(String text) {
+        String value = text == null ? "" : text.trim();
+        if (TextUtils.isEmpty(value)) return "";
+        StringBuilder builder = new StringBuilder(value.length());
+        boolean inString = false;
+        boolean escaped = false;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (inString) {
+                builder.append(c);
+                if (escaped) escaped = false;
+                else if (c == '\\') escaped = true;
+                else if (c == '"') inString = false;
+                continue;
+            }
+            if (c == '"') {
+                inString = true;
+                builder.append(c);
+                continue;
+            }
+            if (c == ',') {
+                int next = nextNonWhitespace(value, i + 1);
+                if (next >= 0 && (value.charAt(next) == ']' || value.charAt(next) == '}')) continue;
+            }
+            builder.append(c);
+        }
+        value = builder.toString().trim();
+        while (value.endsWith(",") || value.endsWith(";") || value.endsWith("；")) value = value.substring(0, value.length() - 1).trim();
+        return value;
+    }
+
+    private static int nextNonWhitespace(String text, int start) {
+        for (int i = start; i < text.length(); i++) if (!Character.isWhitespace(text.charAt(i))) return i;
+        return -1;
+    }
+
+    public static boolean isRemoteScript(String api) {
+        if (TextUtils.isEmpty(api)) return false;
+        try {
+            Uri uri = Uri.parse(api.trim());
+            String scheme = uri.getScheme();
+            String path = uri.getPath();
+            if (!("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) || TextUtils.isEmpty(path)) return false;
+            String lower = path.toLowerCase(Locale.ROOT);
+            return lower.endsWith(".py") || lower.endsWith(".js");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static boolean hasLiveMethod(String api, String script) {
+        if (TextUtils.isEmpty(api) || TextUtils.isEmpty(script)) return false;
+        String path;
+        try {
+            path = Uri.parse(api.trim()).getPath();
+        } catch (Exception e) {
+            path = api;
+        }
+        String lower = TextUtils.isEmpty(path) ? api.toLowerCase(Locale.ROOT) : path.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".py")) return PYTHON_LIVE_METHOD.matcher(script).find();
+        if (lower.endsWith(".js")) return JS_LIVE_METHOD.matcher(script).find();
+        return false;
+    }
+
+    public static void writePage(String id, String code) {
+        ensureFileAccess();
+        File file = file(id, "index.html");
+        String text = code == null ? "" : code;
+        Path.write(file, text.getBytes(StandardCharsets.UTF_8));
+        ensureWritten(file, text);
+    }
+
+    public static void copyPage(File source, String id) {
+        ensureFileAccess();
+        File file = file(id, "index.html");
+        Path.copy(source, file);
+        if (!source.exists() || !file.exists() || !Arrays.equals(Path.readToByte(source), Path.readToByte(file))) throw new IllegalStateException(App.get().getString(R.string.setting_custom_csp_save_failed, file.getAbsolutePath()));
+    }
+
+    public static String copyFile(File source, String id) {
+        ensureFileAccess();
+        if (source == null || !source.isFile()) throw new IllegalStateException(App.get().getString(R.string.setting_custom_csp_save_failed, ""));
+        File file = file(id, source.getName());
+        try {
+            if (!source.getCanonicalPath().equals(file.getCanonicalPath())) Path.copy(source, file);
+        } catch (Exception e) {
+            Path.copy(source, file);
+        }
+        if (!file.exists() || !Arrays.equals(Path.readToByte(source), Path.readToByte(file))) throw new IllegalStateException(App.get().getString(R.string.setting_custom_csp_save_failed, file.getAbsolutePath()));
+        return localUrl(id, source.getName());
+    }
+
+    public static void deleteFiles(String id) {
+        if (TextUtils.isEmpty(id)) return;
+        try {
+            File root = dir().getCanonicalFile();
+            File target = new File(root, id).getCanonicalFile();
+            if (!isInside(root, target)) return;
+            Path.clear(target);
+        } catch (Throwable e) {
+            SpiderDebug.log("custom-csp", "delete files failed id=%s error=%s", id, e.toString());
+        }
+    }
+
+    private static boolean isInside(File root, File target) throws Exception {
+        String rootPath = root.getCanonicalPath();
+        String targetPath = target.getCanonicalPath();
+        return targetPath.equals(rootPath) || targetPath.startsWith(rootPath + File.separator);
+    }
+
+    private static Set<String> itemIds(Registry registry) {
+        Set<String> ids = new HashSet<>();
+        if (registry == null) return ids;
+        for (Item item : registry.getItems()) if (item != null && !TextUtils.isEmpty(item.getId())) ids.add(item.getId());
+        return ids;
+    }
+
+    public static void cleanupRemovedFiles(Set<String> before, Set<String> after) {
+        for (String id : before) if (!after.contains(id)) deleteFiles(id);
+    }
+
+    private static void ensureFileAccess() {
+        if (!Setting.hasFileAccess()) throw new IllegalStateException(App.get().getString(R.string.setting_custom_csp_permission_required));
+    }
+
+    private static void ensureWritten(File file, String text) {
+        if (!file.exists() || !TextUtils.equals(Path.read(file), text)) throw new IllegalStateException(App.get().getString(R.string.setting_custom_csp_save_failed, file.getAbsolutePath()));
     }
 
     public static Result inject(List<Site> sites) {

@@ -1,0 +1,81 @@
+package com.fongmi.android.tv.ui.dialog;
+
+import android.app.Dialog;
+import android.text.TextUtils;
+import android.view.LayoutInflater;
+import android.view.View;
+
+import androidx.fragment.app.FragmentActivity;
+
+import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.databinding.DialogUpdateSettingsBinding;
+import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.update.GithubProxy;
+import com.fongmi.android.tv.update.UpdateUrl;
+import com.fongmi.android.tv.utils.Github;
+import com.fongmi.android.tv.utils.Notify;
+
+public final class UpdateSettingsDialog {
+
+    private UpdateSettingsDialog() {
+    }
+
+    public static void show(FragmentActivity activity) {
+        DialogUpdateSettingsBinding binding = DialogUpdateSettingsBinding.inflate(LayoutInflater.from(activity));
+        Dialog dialog = LightDialog.create(activity, activity.getString(R.string.update_settings), binding.getRoot());
+        String proxy = Setting.getUpdateGithubProxy();
+        binding.githubProxy.setOnClickListener(view -> chooseGithub(activity, binding));
+        binding.save.setOnClickListener(view -> save(activity, dialog, binding));
+        renderGithub(activity, binding, proxy);
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.show();
+    }
+
+    private static void chooseGithub(FragmentActivity activity, DialogUpdateSettingsBinding binding) {
+        GithubProxy.Preset[] presets = GithubProxy.presets();
+        CharSequence[] labels = new CharSequence[presets.length];
+        int selected = 0;
+        String current = binding.getRoot().getTag() == null ? Setting.getUpdateGithubProxy() : (String) binding.getRoot().getTag();
+        for (int i = 0; i < presets.length; i++) {
+            labels[i] = label(activity, presets[i].label, presets[i].id);
+            if (presets[i].id.equals(current)) selected = i;
+        }
+        ChoiceDialog.showSingle(activity, R.string.update_github_proxy, labels, selected, which -> {
+            binding.getRoot().setTag(presets[which].id);
+            renderGithub(activity, binding, presets[which].id);
+        });
+    }
+
+    private static String label(FragmentActivity activity, String label, String id) {
+        if (GithubProxy.DIRECT.equals(id)) return activity.getString(R.string.update_proxy_direct);
+        if (GithubProxy.CUSTOM.equals(id)) return activity.getString(R.string.update_proxy_custom);
+        return label;
+    }
+
+    private static void renderGithub(FragmentActivity activity, DialogUpdateSettingsBinding binding, String proxyId) {
+        GithubProxy.Preset preset = GithubProxy.find(proxyId);
+        binding.githubProxy.setText(label(activity, preset.label, preset.id));
+        boolean custom = GithubProxy.CUSTOM.equals(preset.id);
+        binding.githubCustomLayout.setVisibility(custom ? View.VISIBLE : View.GONE);
+        if (custom && TextUtils.isEmpty(binding.githubCustom.getText())) binding.githubCustom.setText(Setting.getUpdateGithubProxyUrl());
+    }
+
+    private static void save(FragmentActivity activity, Dialog dialog, DialogUpdateSettingsBinding binding) {
+        String proxy = binding.getRoot().getTag() == null ? Setting.getUpdateGithubProxy() : (String) binding.getRoot().getTag();
+        String custom = binding.githubCustom.getText() == null ? "" : binding.githubCustom.getText().toString().trim();
+        if (GithubProxy.CUSTOM.equals(proxy)) {
+            try {
+                UpdateUrl.requireHttpsOrigin(custom);
+            } catch (Exception e) {
+                binding.githubCustomLayout.setError(activity.getString(R.string.update_proxy_invalid));
+                return;
+            }
+        }
+        Setting.putUpdateGithubProxy(proxy);
+        Setting.putUpdateGithubProxyUrl(custom);
+        Setting.putUpdateGithubProxyMode(GithubProxy.MODE_FULL_URL);
+        Github.setMirror(Setting.getMirror());
+        dialog.dismiss();
+        Notify.show(R.string.update_settings_saved);
+    }
+}

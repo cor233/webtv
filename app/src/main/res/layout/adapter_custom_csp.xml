@@ -39,10 +39,50 @@
             android:text="@string/setting_custom_csp_home"
             android:textColor="@color/black" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/localFiles"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:minHeight="40dp"
+            android:minWidth="76dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:text="@string/setting_custom_csp_files"
+            android:textColor="@color/dialog_tonal_button_text"
+            android:visibility="gone"
+            app:backgroundTint="@color/dialog_tonal_button_bg" />
+
         <Space
             android:layout_width="0dp"
             android:layout_height="1dp"
             android:layout_weight="1" />
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/drag"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/selector_dialog_switch"
+            android:contentDescription="@string/setting_custom_csp_sort_drag"
+            android:focusable="true"
+            android:padding="8dp"
+            android:src="@drawable/ic_action_drag"
+            android:visibility="gone"
+            app:tint="#5F6368" />
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/more"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/selector_dialog_switch"
+            android:contentDescription="@string/setting_custom_csp_sort_more"
+            android:focusable="true"
+            android:padding="8dp"
+            android:src="@drawable/ic_action_more_vert"
+            android:visibility="gone"
+            app:tint="#5F6368" />
 
         <androidx.appcompat.widget.AppCompatImageButton
             android:id="@+id/up"
@@ -493,6 +533,22 @@
             android:textColor="@color/dialog_tonal_button_text"
             app:backgroundTint="@color/dialog_tonal_button_bg" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/extensionsFile"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginTop="6dp"
+            android:minHeight="40dp"
+            android:minWidth="76dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:text="@string/setting_custom_csp_extensions_file"
+            android:textColor="@color/dialog_outlined_button_text"
+            android:visibility="gone"
+            app:backgroundTint="@color/dialog_outlined_button_bg"
+            app:strokeColor="@color/dialog_outlined_button_stroke" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/extensionsLayout"
             android:layout_width="match_parent"
@@ -501,7 +557,9 @@
             android:hint="@string/setting_custom_csp_extensions"
             app:boxBackgroundColor="@color/white"
             app:boxStrokeColor="@color/dialog_outlined_button_stroke"
-            app:hintTextColor="#5F6368">
+            app:hintTextColor="#5F6368"
+            app:placeholderText="@string/setting_custom_csp_extensions_example"
+            app:placeholderTextColor="#666666">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/extensions"

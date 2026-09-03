@@ -24,6 +24,7 @@ public class Task {
     private static final RejectedExecutionHandler REJECT_HANDLER = (r, e) -> SpiderDebug.log("task", "rejected task from pool=%s", e.toString());
     private static final ListeningExecutorService executor = MoreExecutors.listeningDecorator(new ThreadPoolExecutor(Math.max(2, CORES), Math.max(2, CORES), 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(QUEUE_CAPACITY), REJECT_HANDLER));
     private static final ListeningExecutorService largeExecutor = MoreExecutors.listeningDecorator(new ThreadPoolExecutor(Math.max(4, CORES * 2), Math.max(4, CORES * 2), 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(QUEUE_CAPACITY), REJECT_HANDLER));
+    private static final ListeningExecutorService serialExecutor = MoreExecutors.listeningDecorator(new ThreadPoolExecutor(1, 1, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(QUEUE_CAPACITY), REJECT_HANDLER));
     private static final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1, REJECT_HANDLER);
 
     public static ListeningExecutorService executor() {
@@ -48,6 +49,10 @@ public class Task {
 
     public static void execute(Runnable task) {
         executor.execute(task);
+    }
+
+    public static void executeSerial(Runnable task) {
+        serialExecutor.execute(task);
     }
 
     public static void schedule(Runnable task, long delay, TimeUnit unit) {

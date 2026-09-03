@@ -14,12 +14,14 @@ import com.fongmi.android.tv.impl.BufferListener;
 import com.fongmi.android.tv.impl.SpeedListener;
 import com.fongmi.android.tv.impl.UaListener;
 import com.fongmi.android.tv.player.mpv.MpvConfigStore;
+import com.fongmi.android.tv.setting.PlaybackPerformanceSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.BufferDialog;
 import com.fongmi.android.tv.ui.dialog.MpvConfigDialog;
+import com.fongmi.android.tv.ui.dialog.PlaybackPerformanceDialog;
 import com.fongmi.android.tv.ui.dialog.PreloadDialog;
 import com.fongmi.android.tv.ui.dialog.SpeedDialog;
 import com.fongmi.android.tv.ui.dialog.UaDialog;
@@ -76,6 +78,8 @@ public class SettingPlayerActivity extends BaseActivity implements UaListener, B
         mBinding.preloadSizeText.setText(PreloadSetting.getPreloadSizeMb() + " MB");
         mBinding.preloadTimeText.setText(String.valueOf(PreloadSetting.getPreloadTimeSeconds()));
         setPreloadVisible();
+        PlaybackPerformanceSetting.ensureInitialized();
+        setPerformanceText();
     }
 
     @Override
@@ -101,6 +105,15 @@ public class SettingPlayerActivity extends BaseActivity implements UaListener, B
         mBinding.audioDecode.setOnClickListener(this::setAudioDecode);
         mBinding.videoDecode.setOnClickListener(this::setVideoDecode);
         mBinding.decodeSetting.setOnClickListener(view -> SettingDecodeActivity.start(this));
+        mBinding.performance.setOnClickListener(view -> onPerformance());
+    }
+
+    private void onPerformance() {
+        PlaybackPerformanceDialog.show(this, this::setPerformanceText);
+    }
+
+    private void setPerformanceText() {
+        mBinding.performanceText.setText(PlaybackPerformanceSetting.getSummary());
     }
 
     private void setVisible() {

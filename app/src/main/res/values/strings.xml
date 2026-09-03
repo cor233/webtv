@@ -45,6 +45,7 @@
     <string name="speed_setting_reset">Reset</string>
     <string name="speed_setting_current">Playback speed</string>
     <string name="speed_setting_quick">Quick select</string>
+    <string name="speed_setting_skip_silence">Skip silence</string>
     <string name="play_reset">Reset</string>
     <string name="play_replay">Replay</string>
     <string name="play_decode">Hard</string>
@@ -189,6 +190,8 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
     <string name="setting_site_health_dialog_sort">Sort site dialog</string>
     <string name="site_health_clear_done">Site health data cleared</string>
     <string name="setting_web_home_extension">WebHome extensions</string>
+    <string name="setting_git_cloud">Git cloud drive</string>
+    <string name="git_cloud_account_count">Accounts %1$d</string>
     <string name="setting_web_home_fullscreen">WebHome homepage fullscreen</string>
     <string name="setting_csp_warmup">CSP warmup</string>
     <string name="setting_csp_warmup_default">Default</string>
@@ -249,6 +252,12 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
     <string name="web_home_extension_exclude">Exclude: %1$s</string>
     <string name="web_home_extension_depends">Depends: %1$s</string>
     <string name="web_home_extension_last_log">Last log: %1$s</string>
+    <string name="web_home_extension_match_mode">Match mode</string>
+    <string name="web_home_extension_match_sites">Select</string>
+    <string name="web_home_extension_match_regex">Regex</string>
+    <string name="web_home_extension_choose_sites">Choose sites</string>
+    <string name="web_home_extension_no_webhome_sites">No WebHome sites in current VOD config</string>
+    <string name="web_home_extension_select_script">Select script</string>
     <string name="web_home_extension_enable_confirm_title">Enable extension</string>
     <string name="web_home_extension_enable_confirm_message">After enabling, this extension can call the WebHome SDK.\n\nName: %1$s\nSource: %2$s\nMatch: %3$s</string>
     <string name="web_home_extension_status_ready">Ready</string>
@@ -331,6 +340,29 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
     <string name="setting_custom_csp_json_invalid">Invalid site injection JSON</string>
     <string name="setting_custom_csp_jar">Jar</string>
     <string name="setting_custom_csp_link">Link</string>
+    <string name="setting_custom_csp_insert_short">Pos</string>
+    <string name="setting_custom_csp_recognize">Detect</string>
+    <string name="setting_custom_csp_recognize_title">Detect sites</string>
+    <string name="setting_custom_csp_recognize_hint">Paste site JSON snippets</string>
+    <string name="setting_custom_csp_recognize_empty">Paste site JSON first</string>
+    <string name="setting_custom_csp_recognize_invalid">No valid site JSON detected</string>
+    <string name="setting_custom_csp_recognize_done">Added %1$d items</string>
+    <string name="setting_custom_csp_sort">Sort</string>
+    <string name="setting_custom_csp_sort_done">Done</string>
+    <string name="setting_custom_csp_sort_drag">Drag to sort</string>
+    <string name="setting_custom_csp_sort_more">Sort actions</string>
+    <string name="setting_custom_csp_sort_top">Move to top</string>
+    <string name="setting_custom_csp_sort_bottom">Move to bottom</string>
+    <string name="setting_custom_csp_sort_forward_five">Move up 5</string>
+    <string name="setting_custom_csp_sort_backward_five">Move down 5</string>
+    <string name="setting_custom_csp_sort_move_to">Move to position</string>
+    <string name="setting_custom_csp_sort_move_to_title">Move to position</string>
+    <string name="setting_custom_csp_sort_move_to_hint">Position 1-%1$d</string>
+    <string name="setting_custom_csp_extensions_file">File</string>
+    <string name="setting_custom_csp_files">Files</string>
+    <string name="setting_custom_csp_extensions_example">https://example.com/site.js</string>
+    <string name="setting_custom_csp_permission_required">Site injection needs file access permission.</string>
+    <string name="setting_custom_csp_save_failed">Site injection save failed: %1$s</string>
     <string name="setting_custom_csp_up">Move up</string>
     <string name="setting_proxy_url">socks5://127.0.0.1:9978</string>
     <string name="setting_proxy_hosts">Matched hosts</string>
@@ -560,6 +592,19 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
     <string name="update_export_failed">Update downloaded. Unable to export to public storage; please enable storage access and retry.</string>
     <string name="update_manual_title">Download update</string>
     <string name="update_manual_msg">Copy the link below and open it in your browser to download</string>
+    <string name="update_canceled">Update canceled</string>
+    <string name="update_download_invalid">Downloaded file is invalid</string>
+    <string name="update_download_incomplete">Download incomplete, please retry</string>
+    <string name="update_download_checksum">Checksum mismatch, download rejected</string>
+    <string name="update_download_identity">Package identity mismatch, download rejected</string>
+    <string name="update_settings">Update download settings</string>
+    <string name="update_settings_save">Save</string>
+    <string name="update_settings_saved">Update settings saved</string>
+    <string name="update_github_proxy">GitHub download proxy</string>
+    <string name="update_proxy_direct">Direct</string>
+    <string name="update_proxy_custom">Custom</string>
+    <string name="update_proxy_custom_hint">Custom proxy origin (https://…)</string>
+    <string name="update_proxy_invalid">Proxy must be a valid HTTPS origin</string>
     <string name="update_github">GitHub</string>
     <string name="update_cnb">CNB (国内快)</string>
 
@@ -762,8 +807,10 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
 <string name="lut_unavailable_soft_decode">Software decode does not support LUT color</string>
 <string name="lut_unavailable_tunnel">Tunnel mode does not support LUT color</string>
 <string name="lut_unavailable_video_prefer">Extension video decode does not support LUT color</string>
+<string name="lut_unavailable_output_mode">Current output mode does not support LUT color. Switch to GPU output mode to use it</string>
 <string name="lut_unfavorited">Removed from favorites</string>
 <string name="play_lut">LUT</string>
+<string name="player_lut">LUT color</string>
 <string name="error_play_mpv_hls_unsupported">MPV failed to play this HLS stream. Switch player manually or choose another line.</string>
 <string name="error_play_mpv_load_failed">MPV failed to load media. Check the network or choose another line.</string>
 <string name="error_play_mpv_network_failed">MPV network loading failed. Check the network, headers, or choose another line.</string>
@@ -960,4 +1007,15 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
     <string name="mpv_config_script_warning">Lua/JavaScript files are trusted code. Only import scripts you trust. Remote scripts are saved disabled by default.</string>
     <string name="mpv_config_mobile_edit_hint">Use the mobile app to edit config text. TV supports profile selection and import.</string>
     <string name="mpv_config_restart_hint">Changes apply to newly created MPV instances. Reopen playback to apply them.</string>
+
+    <string name="player_performance">Playback performance</string>
+    <string name="player_performance_recommended">Balanced</string>
+    <string name="player_performance_auto">Auto</string>
+    <string name="player_performance_compatible">Compatible</string>
+    <string name="player_performance_lightweight">Light</string>
+    <string name="player_performance_help">Guide</string>
+    <string name="player_performance_help_title">Playback performance guide</string>
+    <string name="player_performance_help_close">Close</string>
+    <string name="player_performance_help_intro">Current player engine: %1$s. Most users should leave the profile on Auto. Light targets lower-end devices, combines stability choices from the former Compatible profile with lower fixed resource budgets, and replaces that separate profile. Engine-specific decode, output, and protocol controls remain available below for unusual devices and create a Custom profile when changed. Most low-level changes take effect after playback restarts or the player is rebuilt.</string>
+    <string name="player_performance_common_section">Common settings</string>
 </resources>

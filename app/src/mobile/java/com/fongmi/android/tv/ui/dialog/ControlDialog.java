@@ -104,6 +104,7 @@ public class ControlDialog extends BaseBottomSheetDialog implements ParseAdapter
         binding.title.setOnClickListener(v -> dismiss(parent.control.action.title));
         binding.player.setOnClickListener(v -> dismiss(parent.control.action.player));
         binding.danmaku.setOnClickListener(v -> dismiss(parent.control.action.danmaku));
+        binding.lut.setOnClickListener(v -> onLut());
         binding.repeat.setOnClickListener(v -> active(binding.repeat, parent.control.action.repeat));
         binding.decode.setOnClickListener(v -> click(binding.decode, parent.control.action.decode));
         binding.ending.setOnClickListener(v -> click(binding.ending, parent.control.action.ending));
@@ -111,6 +112,11 @@ public class ControlDialog extends BaseBottomSheetDialog implements ParseAdapter
         binding.player.setOnLongClickListener(v -> longClick(binding.player, parent.control.action.player));
         binding.ending.setOnLongClickListener(v -> longClick(binding.ending, parent.control.action.ending));
         binding.opening.setOnLongClickListener(v -> longClick(binding.opening, parent.control.action.opening));
+    }
+
+    private void onLut() {
+        dismiss();
+        ((Listener) requireActivity()).onLutPanel();
     }
 
     private void onTimer(View view) {
@@ -199,5 +205,7 @@ public class ControlDialog extends BaseBottomSheetDialog implements ParseAdapter
         void onScale(int tag);
 
         void onParse(Parse item);
+
+        void onLutPanel();
     }
 }

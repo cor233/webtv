@@ -37,6 +37,14 @@ public class SpeedSetting {
         Prefers.put("play_speed", clamp(speed));
     }
 
+    public static boolean isSkipSilence() {
+        return Prefers.getBoolean("speed_skip_silence");
+    }
+
+    public static void putSkipSilence(boolean enabled) {
+        Prefers.put("speed_skip_silence", enabled);
+    }
+
     public static float next(float speed) {
         float value = clamp(speed);
         for (float preset : PRESETS) if (preset > value + EPSILON) return preset;

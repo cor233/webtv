@@ -24,6 +24,7 @@ public class SyncFiles {
 
     public static final String DEFAULT_PATHS = "TV\nTVBox\nTVData";
     public static final String PART_NAME = "syncFiles";
+    public static final String CUSTOM_CSP_PATH = "TV/CustomCsp";
 
     private static final int BUFFER_SIZE = 128 * 1024;
 
@@ -163,6 +164,45 @@ public class SyncFiles {
         String rootPath = root.getCanonicalPath();
         String filePath = file.getCanonicalPath();
         return filePath.equals(rootPath) || filePath.startsWith(rootPath + File.separator);
+    }
+
+    public static int countArchiveFiles(File archive, String path) throws IOException {
+        if (archive == null || !archive.isFile() || archive.length() <= 0) return 0;
+        String target = normalize(path);
+        int count = 0;
+        try (ZipInputStream zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(archive), BUFFER_SIZE))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                String name = normalize(entry.getName());
+                if (!entry.isDirectory() && covers(target, name)) count++;
+                zis.closeEntry();
+            }
+        }
+        return count;
+    }
+
+    public static int countFiles(String path) throws IOException {
+        File root = Path.root().getCanonicalFile();
+        File target = new File(root, normalize(path)).getCanonicalFile();
+        if (!inside(root, target)) return 0;
+        return countFiles(root, target);
+    }
+
+    private static int countFiles(File root, File file) throws IOException {
+        File canonical = file.getCanonicalFile();
+        if (!inside(root, canonical) || !canonical.exists()) return 0;
+        String name = root.toPath().relativize(canonical.toPath()).toString().replace(File.separatorChar, '/');
+        if (canonical.isFile()) return skip(name) ? 0 : 1;
+        int count = 0;
+        File[] files = canonical.listFiles();
+        if (files != null) for (File child : files) count += countFiles(root, child);
+        return count;
+    }
+
+    private static boolean covers(String parent, String child) {
+        String p = normalize(parent);
+        String c = normalize(child);
+        return !p.isEmpty() && (p.equals(c) || c.startsWith(p + "/"));
     }
 
     public static String normalize(String path) {

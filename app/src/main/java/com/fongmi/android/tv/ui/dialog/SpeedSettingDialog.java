@@ -42,6 +42,7 @@ public final class SpeedSettingDialog extends BaseBottomSheetDialog {
         bindSlider();
         bindPresets();
         bindReset();
+        bindSkipSilence();
         updateValue();
     }
 
@@ -74,6 +75,16 @@ public final class SpeedSettingDialog extends BaseBottomSheetDialog {
 
     private void bindReset() {
         binding.reset.setNextFocusDownId(binding.speed.slider.getId());
+    }
+
+    private void bindSkipSilence() {
+        boolean supported = player != null && !player.isReleased() && player.supportsSkipSilence();
+        binding.skipSilenceRow.setVisibility(supported ? View.VISIBLE : View.GONE);
+        binding.skipSilenceSwitch.setChecked(supported ? player.isSkipSilence() : SpeedSetting.isSkipSilence());
+        binding.skipSilenceSwitch.setOnCheckedChangeListener((button, checked) -> {
+            SpeedSetting.putSkipSilence(checked);
+            if (supported) player.setSkipSilenceEnabled(checked);
+        });
     }
 
     private TextView[] getPresetViews() {

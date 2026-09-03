@@ -41,9 +41,11 @@ import com.google.gson.JsonObject;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public class WebHomeExtensionDebugDialog extends BaseAlertDialog implements HomeWebController.Listener {
 
@@ -102,8 +104,9 @@ public class WebHomeExtensionDebugDialog extends BaseAlertDialog implements Home
     @Override
     protected void initView() {
         if (!Setting.isDebugLog()) Setting.putDebugLog(true);
-        source = firstCodeSource();
+        source = firstMatchedCodeSource();
         binding.codeText.setText(source == null ? "GM_log('ready');\n" : WebHomeExtensionSourceStore.code(source));
+        updateScriptSelectorText();
         setupScrollableText(binding.codeText);
         setupScrollableText(binding.consoleText);
         setupScrollableText(binding.elementsText);
@@ -128,6 +131,7 @@ public class WebHomeExtensionDebugDialog extends BaseAlertDialog implements Home
         });
         binding.inspect.setOnClickListener(view -> inspectElement());
         binding.clearPanel.setOnClickListener(view -> clearPanel());
+        binding.scriptSelector.setOnClickListener(view -> showScriptSelector());
         binding.networkFilterGroup.addOnButtonCheckedListener((group, checkedId, checked) -> {
             if (!checked) return;
             networkFilter = filter(checkedId);
@@ -179,6 +183,9 @@ public class WebHomeExtensionDebugDialog extends BaseAlertDialog implements Home
         binding.elementsLayout.setVisibility(tab == R.id.tabElements ? View.VISIBLE : View.GONE);
         binding.networkLayout.setVisibility(tab == R.id.tabNetwork ? View.VISIBLE : View.GONE);
         binding.codeLayout.setVisibility(tab == R.id.tabCode ? View.VISIBLE : View.GONE);
+        boolean code = tab == R.id.tabCode;
+        binding.scriptSelector.setVisibility(code ? View.VISIBLE : View.GONE);
+        binding.save.setVisibility(code ? View.VISIBLE : View.GONE);
         binding.clearPanel.setEnabled(tab != R.id.tabCode && tab != R.id.tabWeb);
     }
 
@@ -254,10 +261,12 @@ public class WebHomeExtensionDebugDialog extends BaseAlertDialog implements Home
         String id = source == null ? "" : source.getId();
         Site site = VodConfig.get().getHome();
         String siteKey = site == null ? "" : site.getKey();
+        List<String> before = sourceIds();
         if (!Setting.isWebHomeExtension()) Setting.putWebHomeExtension(true);
-        WebHomeExtensionSourceStore.saveCode(id, source == null ? getString(R.string.web_home_extension_local_code_default, WebHomeExtensionSourceStore.list().size() + 1) : source.getName(), code, true, siteKey);
-        source = TextUtils.isEmpty(id) ? firstCodeSource() : codeSource(id);
+        WebHomeExtensionSourceStore.saveCodeMeta(id, source == null ? getString(R.string.web_home_extension_local_code_default, WebHomeExtensionSourceStore.list().size() + 1) : source.getName(), runAt(source), matchText(source), code, true, source == null ? siteKey : source.getSiteKey(), WebHomeExtensionSourceStore.sourceType(source));
+        source = TextUtils.isEmpty(id) ? newCodeSource(before) : codeSource(id);
         if (source == null) source = firstCodeSource();
+        updateScriptSelectorText();
         if (source != null) WebHomeExtensionRegistry.get().setExtensionEnabled(source.getId(), true);
         consoleLines.clear();
         appendConsole("EXT preview saved, extension enabled, reload requested");
@@ -482,6 +491,112 @@ public class WebHomeExtensionDebugDialog extends BaseAlertDialog implements Home
     private WebHomeExtensionSourceStore.Entry firstCodeSource() {
         for (WebHomeExtensionSourceStore.Entry entry : WebHomeExtensionSourceStore.list()) if (WebHomeExtensionSourceStore.isCodeSource(entry)) return entry;
         return null;
+    }
+
+    private WebHomeExtensionSourceStore.Entry firstMatchedCodeSource() {
+        List<WebHomeExtensionSourceStore.Entry> sources = editableCodeSources(true);
+        if (!sources.isEmpty()) return sources.get(0);
+        return firstCodeSource();
+    }
+
+    private List<WebHomeExtensionSourceStore.Entry> editableCodeSources(boolean matchedOnly) {
+        List<WebHomeExtensionSourceStore.Entry> result = new ArrayList<>();
+        Site site = VodConfig.get().getHome();
+        String siteKey = site == null ? "" : site.getKey();
+        Set<String> matchedIds = matchedOnly ? matchedExtensionIds() : new HashSet<>();
+        for (WebHomeExtensionSourceStore.Entry entry : WebHomeExtensionSourceStore.list()) {
+            if (!WebHomeExtensionSourceStore.isCodeSource(entry)) continue;
+            if (matchedOnly && !matchedIds.isEmpty() && !matchedIds.contains(entry.getId())) continue;
+            if (matchedOnly && matchedIds.isEmpty() && !entry.matches(siteKey)) continue;
+            result.add(entry);
+        }
+        return result;
+    }
+
+    private Set<String> matchedExtensionIds() {
+        Set<String> ids = new HashSet<>();
+        for (WebHomeExtensionRegistry.Item item : WebHomeExtensionRegistry.get().snapshot().items) {
+            if (item == null || TextUtils.isEmpty(item.id)) continue;
+            if ("matched".equals(item.status) || "ready".equals(item.status) || "injected".equals(item.status)) ids.add(item.id);
+        }
+        return ids;
+    }
+
+    private WebHomeExtensionSourceStore.Entry newCodeSource(List<String> before) {
+        for (WebHomeExtensionSourceStore.Entry entry : WebHomeExtensionSourceStore.list()) {
+            if (!WebHomeExtensionSourceStore.isCodeSource(entry)) continue;
+            if (!before.contains(entry.getId())) return entry;
+        }
+        return null;
+    }
+
+    private List<String> sourceIds() {
+        List<String> ids = new ArrayList<>();
+        for (WebHomeExtensionSourceStore.Entry entry : WebHomeExtensionSourceStore.list()) ids.add(entry.getId());
+        return ids;
+    }
+
+    private void showScriptSelector() {
+        List<WebHomeExtensionSourceStore.Entry> sources = editableCodeSources(true);
+        if (sources.isEmpty()) sources = editableCodeSources(false);
+        if (sources.isEmpty()) {
+            Notify.show(R.string.web_home_extension_source_empty);
+            return;
+        }
+        String[] labels = new String[sources.size()];
+        int checked = 0;
+        for (int i = 0; i < sources.size(); i++) {
+            WebHomeExtensionSourceStore.Entry entry = sources.get(i);
+            labels[i] = scriptLabel(entry);
+            if (source != null && TextUtils.equals(source.getId(), entry.getId())) checked = i;
+        }
+        List<WebHomeExtensionSourceStore.Entry> options = sources;
+        ChoiceDialog.showSingle(this, R.string.web_home_extension_select_script, labels, checked, which -> selectSource(options.get(which)));
+    }
+
+    private void selectSource(WebHomeExtensionSourceStore.Entry entry) {
+        source = entry;
+        binding.codeText.setText(source == null ? "GM_log('ready');\n" : WebHomeExtensionSourceStore.code(source));
+        updateScriptSelectorText();
+    }
+
+    private void updateScriptSelectorText() {
+        binding.scriptSelector.setText(source == null ? getString(R.string.web_home_extension_select_script) : scriptLabel(source));
+    }
+
+    private String scriptLabel(WebHomeExtensionSourceStore.Entry entry) {
+        if (entry == null) return getString(R.string.web_home_extension_select_script);
+        String name = entry.getName();
+        return TextUtils.isEmpty(name) ? entry.getId() : name;
+    }
+
+    private String runAt(WebHomeExtensionSourceStore.Entry entry) {
+        try {
+            JsonElement element = WebHomeExtensionSourceStore.parse(entry.getRaw());
+            if (!element.isJsonObject()) return "";
+            JsonObject object = element.getAsJsonObject();
+            if (!object.has("runAt") || !object.get("runAt").isJsonPrimitive()) return "";
+            return object.get("runAt").getAsString();
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
+    private String matchText(WebHomeExtensionSourceStore.Entry entry) {
+        try {
+            JsonElement element = WebHomeExtensionSourceStore.parse(entry.getRaw());
+            if (!element.isJsonObject()) return "";
+            JsonObject object = element.getAsJsonObject();
+            if (!object.has("cspKeyRegex")) return "";
+            JsonElement match = object.get("cspKeyRegex");
+            if (match.isJsonPrimitive()) return match.getAsString();
+            if (!match.isJsonArray()) return "";
+            List<String> values = new ArrayList<>();
+            for (JsonElement item : match.getAsJsonArray()) if (item.isJsonPrimitive()) values.add(item.getAsString());
+            return TextUtils.join("\n", values);
+        } catch (Throwable e) {
+            return "";
+        }
     }
 
     private WebHomeExtensionSourceStore.Entry codeSource(String id) {

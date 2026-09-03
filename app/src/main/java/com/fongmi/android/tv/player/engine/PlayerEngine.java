@@ -106,6 +106,13 @@ public interface PlayerEngine {
     default void setNativeLutShader(MpvLutShader shader) {
     }
 
+    default boolean applyLut(androidx.media3.effect.ColorLut colorLut, boolean preview, int previewSeconds) {
+        return false;
+    }
+
+    default void clearLut() {
+    }
+
     default Format getVideoFormat() {
         return null;
     }

@@ -14,6 +14,7 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.playback.ViewingRecordSyncStore;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.databinding.FragmentSettingEnhanceBinding;
+import com.fongmi.android.tv.gitcloud.GitCloudAccountStore;
 import com.fongmi.android.tv.setting.CustomCspSetting;
 import com.fongmi.android.tv.setting.ProxySetting;
 import com.fongmi.android.tv.setting.SiteHealthStore;
@@ -21,6 +22,7 @@ import com.fongmi.android.tv.ui.base.BaseFragment;
 import com.fongmi.android.tv.ui.dialog.CspWarmupDialog;
 import com.fongmi.android.tv.ui.dialog.CustomCspDialog;
 import com.fongmi.android.tv.ui.dialog.DebugLogDialog;
+import com.fongmi.android.tv.ui.dialog.GitCloudDialog;
 import com.fongmi.android.tv.ui.dialog.LoginStateLearnDialog;
 import com.fongmi.android.tv.ui.dialog.ManagePageDialog;
 import com.fongmi.android.tv.ui.dialog.OneKeySyncDialog;
@@ -63,6 +65,7 @@ public class SettingEnhanceFragment extends BaseFragment {
         mBinding.siteHealthSort.setOnLongClickListener(this::clearSiteHealth);
         mBinding.webHomeExtension.setOnClickListener(view -> WebHomeExtensionDialog.show(this, this::setText));
         mBinding.webHomeExtension.setOnLongClickListener(this::clearWebHomeExtension);
+        mBinding.gitCloud.setOnClickListener(view -> GitCloudDialog.show(this, this::setText));
         mBinding.webHomeFullscreen.setOnClickListener(this::setWebHomeFullscreen);
         mBinding.cspWarmup.setOnClickListener(this::setCspWarmup);
         mBinding.playbackArtworkWall.setOnClickListener(this::setPlaybackArtworkWall);
@@ -95,6 +98,7 @@ public class SettingEnhanceFragment extends BaseFragment {
         CustomCspSetting.Count count = CustomCspSetting.count();
         mBinding.customCspText.setText(getSwitch(registry.isEnabled()) + " · " + getString(R.string.setting_custom_csp_count, count.active(), count.enabled()));
         mBinding.loginStateText.setText(getString(LoginStateSync.hasLearningSnapshot() ? R.string.login_state_learning_count : R.string.login_state_count, LoginStateSync.learnedCount(), LoginStateSync.pendingPaths().size()));
+        mBinding.gitCloudText.setText(getString(R.string.git_cloud_account_count, GitCloudAccountStore.list().size()));
     }
 
     private String getCspWarmupText() {

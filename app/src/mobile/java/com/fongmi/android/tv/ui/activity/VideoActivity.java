@@ -22,6 +22,8 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.FragmentActivity;
@@ -64,6 +66,8 @@ import com.fongmi.android.tv.impl.CustomTarget;
 import com.fongmi.android.tv.model.SiteViewModel;
 import com.fongmi.android.tv.player.PlayerHelper;
 import com.fongmi.android.tv.player.PlayerManager;
+import com.fongmi.android.tv.player.lut.LutPreset;
+import com.fongmi.android.tv.player.lut.LutStore;
 import com.fongmi.android.tv.playback.PlaybackEventCollector;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.setting.DanmakuSetting;
@@ -85,6 +89,7 @@ import com.fongmi.android.tv.ui.custom.CustomSeekView;
 import com.fongmi.android.tv.ui.custom.SpaceItemDecoration;
 import com.fongmi.android.tv.ui.dialog.CastDialog;
 import com.fongmi.android.tv.ui.dialog.ControlDialog;
+import com.fongmi.android.tv.ui.dialog.LutPanelDialog;
 import com.fongmi.android.tv.ui.dialog.DanmakuDialog;
 import com.fongmi.android.tv.ui.dialog.EpisodeGridDialog;
 import com.fongmi.android.tv.ui.dialog.EpisodeListDialog;
@@ -153,6 +158,40 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private String playHealthKey;
     private long detailStartTime;
     private long playerStartTime;
+    private boolean pendingLutImport;
+
+    private final ActivityResultLauncher<Intent> mLutDir = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) return;
+        LutStore.setUserDir(result.getData().getData(), result.getData().getFlags());
+        Notify.show(R.string.lut_directory_selected);
+        if (mBinding.lutQuick != null) mBinding.lutQuick.refreshList();
+        if (pendingLutImport) {
+            pendingLutImport = false;
+            chooseLutFile();
+        }
+    });
+
+    private final ActivityResultLauncher<Intent> mLutFile = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) return;
+        String path = FileChooser.getPathFromUri(result.getData().getData());
+        if (TextUtils.isEmpty(path)) {
+            Notify.show(R.string.lut_import_failed);
+            return;
+        }
+        Task.submit(() -> {
+            try {
+                LutPreset preset = LutStore.importFile(path);
+                App.post(() -> {
+                    Notify.show(R.string.lut_imported);
+                    if (isFullscreen() && mBinding.lutQuick != null) mBinding.lutQuick.selectImported(preset, player(), mBinding.exo, this::onLutChanged);
+                    else onLutSelected(preset);
+                });
+            } catch (Exception e) {
+                if (SpiderDebug.isEnabled()) SpiderDebug.log("lut", "import failed path=%s error=%s", path, e.getMessage());
+                App.post(() -> Notify.show(Notify.getError(R.string.lut_import_failed, e)));
+            }
+        });
+    });
 
     public static void push(FragmentActivity activity, String text) {
         if (FileChooser.isValid(activity, Uri.parse(text))) file(activity, FileChooser.getPathFromUri(Uri.parse(text)));
@@ -202,7 +241,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         intent.putExtra("collect", collect);
         intent.putExtra("mark", mark);
         intent.putExtra("name", name);
-        intent.putExtra("pic", pic);
+        intent.putExtra("pic", ImgUtil.cache(pic));
         intent.putExtra("key", key);
         intent.putExtra("id", id);
         activity.startActivity(intent);
@@ -369,6 +408,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.action.audio.setOnClickListener(this::onTrack);
         mBinding.control.action.video.setOnClickListener(this::onTrack);
         mBinding.control.action.scale.setOnClickListener(view -> onScale());
+        mBinding.control.action.lut.setOnClickListener(view -> onLut());
         mBinding.control.action.speed.setOnClickListener(view -> SpeedSettingDialog.show(this, player()));
         mBinding.control.action.reset.setOnClickListener(view -> onReset());
         mBinding.control.action.title.setOnClickListener(view -> onTitle());
@@ -424,6 +464,80 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.action.danmaku.setVisibility(DanmakuSetting.isLoad() ? View.VISIBLE : View.GONE);
         mBinding.control.action.reset.setText(ResUtil.getStringArray(R.array.select_reset)[Setting.getReset()]);
         mBinding.video.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> mPiP.update(this, view));
+        setLut();
+    }
+
+    private void setLut() {
+        mBinding.control.action.lut.setText(player().getLutText());
+    }
+
+    private void onLutChanged() {
+        setLut();
+    }
+
+    private void onLut() {
+        if (isFullscreen() && mBinding.lutQuick != null) {
+            mBinding.lutQuick.toggle(player(), mBinding.exo, this::onLutChanged, new com.fongmi.android.tv.ui.custom.LutQuickPanel.ImportCallback() {
+                @Override
+                public void onImportLut() {
+                    onLutImport();
+                }
+
+                @Override
+                public void onSelectLutDir() {
+                    onLutDir();
+                }
+            });
+        } else {
+            LutPanelDialog.create().player(player()).callback(new LutPanelDialog.Callback() {
+                @Override
+                public void onLutSelected(LutPreset preset) {
+                    onLutSelected(preset);
+                }
+
+                @Override
+                public void onLutImport() {
+                    onLutImport();
+                }
+
+                @Override
+                public void onLutDir() {
+                    onLutDir();
+                }
+            }).show(this);
+        }
+    }
+
+    @Override
+    public void onLutPanel() {
+        onLut();
+    }
+
+    private void onLutSelected(LutPreset preset) {
+        if (!player().selectLut(preset, preset != null)) return;
+        setLut();
+    }
+
+    private void onLutImport() {
+        if (!LutStore.hasUserDir()) {
+            pendingLutImport = true;
+            chooseLutDir();
+            return;
+        }
+        chooseLutFile();
+    }
+
+    private void onLutDir() {
+        pendingLutImport = false;
+        chooseLutDir();
+    }
+
+    private void chooseLutFile() {
+        FileChooser.from(mLutFile).show("*/*", new String[]{"application/octet-stream", "text/*", "image/*", "*/*"});
+    }
+
+    private void chooseLutDir() {
+        mLutDir.launch(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE));
     }
 
     private void setVideoView(boolean isInPictureInPictureMode) {

@@ -546,6 +546,30 @@ public class Setting {
         Github.setMirror(mirror);
     }
 
+    public static String getUpdateGithubProxy() {
+        return Prefers.getString("update_github_proxy", "direct");
+    }
+
+    public static void putUpdateGithubProxy(String id) {
+        Prefers.put("update_github_proxy", id);
+    }
+
+    public static String getUpdateGithubProxyUrl() {
+        return Prefers.getString("update_github_proxy_url", "");
+    }
+
+    public static void putUpdateGithubProxyUrl(String url) {
+        Prefers.put("update_github_proxy_url", url);
+    }
+
+    public static String getUpdateGithubProxyMode() {
+        return Prefers.getString("update_github_proxy_mode", "full_url");
+    }
+
+    public static void putUpdateGithubProxyMode(String mode) {
+        Prefers.put("update_github_proxy_mode", mode);
+    }
+
     public static boolean isAdblock() {
         return Prefers.getBoolean("adblock", true);
     }

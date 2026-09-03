@@ -36,6 +36,17 @@
                 app:surface_type="none" />
 
             <include
+                android:id="@+id/audioStage"
+                layout="@layout/view_audio_stage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <com.fongmi.android.tv.ui.custom.LyricsOverlayView
+                android:id="@+id/lyrics"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <include
                 android:id="@+id/widget"
                 layout="@layout/view_widget_vod"
                 android:layout_width="match_parent"

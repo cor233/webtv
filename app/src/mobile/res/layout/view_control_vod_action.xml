@@ -53,6 +53,11 @@
             android:id="@+id/repeat"
             style="@style/Control"
             android:text="@string/play_repeat" />
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/immersiveAudio"
+            style="@style/Control"
+            android:text="@string/player_immersive_audio_mode"
+            android:visibility="gone" />
 
         <View
             android:layout_width="0dp"

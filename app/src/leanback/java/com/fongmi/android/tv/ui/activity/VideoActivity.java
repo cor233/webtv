@@ -76,6 +76,7 @@ import com.fongmi.android.tv.ui.adapter.ParseAdapter;
 import com.fongmi.android.tv.ui.adapter.PartAdapter;
 import com.fongmi.android.tv.ui.adapter.QualityAdapter;
 import com.fongmi.android.tv.ui.adapter.QuickAdapter;
+import com.fongmi.android.tv.ui.custom.AudioStageController;
 import com.fongmi.android.tv.ui.custom.PlayerOsdController;
 import com.fongmi.android.tv.ui.custom.CustomKeyDownVod;
 import com.fongmi.android.tv.ui.custom.CustomMovement;
@@ -155,6 +156,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     private long playerStartTime;
     private boolean pendingLutImport;
     private Map<String, View> mActionButtons;
+    private AudioStageController mAudio;
     private QuickSearchDialog mQuickSearchDialog;
     private boolean quickSearchDialogClosed;
 
@@ -502,6 +504,46 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         mBinding.control.action.danmaku.setVisibility(DanmakuSetting.isLoad() ? View.VISIBLE : View.GONE);
         mBinding.control.action.reset.setText(ResUtil.getStringArray(R.array.select_reset)[Setting.getReset()]);
         setLut();
+        setAudioStage();
+    }
+
+    private void setAudioStage() {
+        if (mAudio != null) return;
+        mAudio = new AudioStageController(new AudioStageController.Host() {
+            @Override public FragmentActivity activity() { return VideoActivity.this; }
+            @Override public PlayerManager player() { return service() == null ? null : VideoActivity.this.player(); }
+            @Override public PlaybackService service() { return service(); }
+            @Override public History history() { return mHistory; }
+            @Override public Site getSite() { return VideoActivity.this.getSite(); }
+            @Override public String getSiteKey() { return getKey(); }
+            @Override public Flag getFlag() { return safeFlag(); }
+            @Override public Episode getEpisode() { return safeEpisode(); }
+            @Override public String getVodName() { return mBinding.name.getText().toString(); }
+            @Override public String getVodPic() { return mHistory == null ? "" : mHistory.getVodPic(); }
+            @Override public List<Episode> getQueueEpisodes() { Flag flag = safeFlag(); return flag == null ? new ArrayList<>() : flag.getEpisodes(); }
+            @Override public void setQueueEpisodes(List<Episode> items) { setEpisodeAdapter(items); }
+            @Override public void playEpisode(Episode episode) { if (episode != null) VideoActivity.this.onItemClick(episode); }
+            @Override public void playNext() { checkNext(); }
+            @Override public void playPrev() { checkPrev(); }
+            @Override public void onStageVisibilityChanged(boolean visible) { if (!visible) mBinding.video.requestFocus(); }
+        }, mBinding.audioStage, mBinding.lyrics);
+        mBinding.control.action.immersiveAudio.setOnClickListener(view -> mAudio.toggleImmersiveAudioMode());
+    }
+
+    private Flag safeFlag() {
+        try {
+            return mFlagAdapter == null || mFlagAdapter.getItemCount() == 0 ? null : getFlag();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Episode safeEpisode() {
+        try {
+            return mEpisodeAdapter == null || mEpisodeAdapter.getItemCount() == 0 ? null : getEpisode();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void setLut() {
@@ -1578,11 +1620,16 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     protected void onTracksChanged() {
         setTrackVisible();
         mClock.setCallback(this);
+        if (mAudio != null) {
+            mAudio.onTracksChanged();
+            mAudio.updateImmersiveAction();
+        }
     }
 
     @Override
     protected void onTitlesChanged() {
         setTitleVisible();
+        if (mAudio != null) mAudio.updateImmersiveAction();
     }
 
     @Override
@@ -1614,6 +1661,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
                 recordPlayHealth(true, "");
                 hideProgress();
                 player().reset();
+                if (mAudio != null) mAudio.onStateChanged(state);
                 break;
             case Player.STATE_ENDED:
                 checkEnded(true);
@@ -1624,6 +1672,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     @Override
     protected void onPlayingChanged(boolean isPlaying) {
         PlaybackEventCollector.get().onIsPlayingChanged(player(), isPlaying);
+        if (mAudio != null) mAudio.onPlayingChanged(isPlaying);
         if (isPlaying) {
             hideCenter();
         } else if (isPaused()) {
@@ -1650,6 +1699,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         mHistory.setCreateTime(time);
         mHistory.setPosition(position = player().getPosition());
         mHistory.setDuration(duration = player().getDuration());
+        if (mAudio != null) mAudio.onTimeChanged();
         PlaybackEventCollector.get().onProgress(mHistory, player());
         if (mHistory.canSave() && mHistory.canSync()) syncHistory();
         if (mHistory.getEnding() > 0 && duration > 0 && mHistory.getEnding() + position >= duration) {
@@ -1991,6 +2041,10 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
 
     @Override
     protected void onBackInvoked() {
+        if (mAudio != null && mAudio.interceptBack()) {
+            mAudio.consumeBack();
+            return;
+        }
         if (isVisible(mBinding.control.getRoot())) {
             hideControl();
         } else if (isVisible(mBinding.widget.center)) {
@@ -2007,6 +2061,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     @Override
     protected void onDestroy() {
         invalidatePreload();
+        if (mAudio != null) mAudio.release();
         if (mOsd != null) mOsd.release();
         mClock.release();
         saveHistory(true);

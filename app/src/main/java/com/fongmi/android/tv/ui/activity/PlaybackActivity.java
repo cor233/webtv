@@ -364,6 +364,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     protected void onResume() {
         super.onResume();
         setRedirect(false);
+        if (mService != null) mService.setPlaybackForeground(true);
         if (shouldReclaim()) {
             detachSurface();
             onReclaim();
@@ -379,6 +380,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     @Override
     protected void onStop() {
         super.onStop();
+        if (mService != null) mService.setPlaybackForeground(false);
         if (isOwner() && PlayerSetting.isBackgroundOff() && mController != null) mController.pause();
     }
 

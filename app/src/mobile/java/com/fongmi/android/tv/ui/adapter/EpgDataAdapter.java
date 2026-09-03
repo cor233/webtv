@@ -15,6 +15,7 @@ import java.util.List;
 public class EpgDataAdapter extends RecyclerView.Adapter<EpgDataAdapter.ViewHolder> {
 
     private final OnClickListener listener;
+    private OnLongClickListener longClickListener;
     private final List<EpgData> mItems;
 
     public EpgDataAdapter(OnClickListener listener) {
@@ -25,6 +26,15 @@ public class EpgDataAdapter extends RecyclerView.Adapter<EpgDataAdapter.ViewHold
     public interface OnClickListener {
 
         void onItemClick(EpgData item);
+    }
+
+    public interface OnLongClickListener {
+
+        boolean onItemLongClick(EpgData item);
+    }
+
+    public void setOnLongClickListener(OnLongClickListener listener) {
+        this.longClickListener = listener;
     }
 
     public void clear() {
@@ -67,6 +77,7 @@ public class EpgDataAdapter extends RecyclerView.Adapter<EpgDataAdapter.ViewHold
         holder.binding.getRoot().setOnClickListener(view -> {
             if (!item.isFuture()) listener.onItemClick(item);
         });
+        holder.binding.getRoot().setOnLongClickListener(view -> longClickListener != null && longClickListener.onItemLongClick(item));
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {

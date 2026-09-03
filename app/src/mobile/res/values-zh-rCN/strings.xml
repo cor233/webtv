@@ -59,4 +59,6 @@
         <item>画中画</item>
     </string-array>
 
+    <string name="live_program_empty">暂无节目预告</string>
+    <string name="live_program_current">直播中</string>
 </resources>

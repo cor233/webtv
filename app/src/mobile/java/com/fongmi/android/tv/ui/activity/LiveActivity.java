@@ -64,6 +64,8 @@ import com.fongmi.android.tv.ui.dialog.CastDialog;
 import com.fongmi.android.tv.ui.dialog.HistoryDialog;
 import com.fongmi.android.tv.ui.dialog.InfoDialog;
 import com.fongmi.android.tv.ui.dialog.LiveDialog;
+import com.fongmi.android.tv.ui.dialog.LiveLineDialog;
+import com.fongmi.android.tv.ui.dialog.LiveProgramDialog;
 import com.fongmi.android.tv.ui.dialog.PassDialog;
 import com.fongmi.android.tv.ui.dialog.SubtitleDialog;
 import com.fongmi.android.tv.ui.dialog.TrackDialog;
@@ -208,6 +210,7 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         mBinding.control.action.home.setOnClickListener(view -> onHome());
         mBinding.control.action.home.setOnLongClickListener(view -> onLiveEpg());
         mBinding.control.action.line.setOnClickListener(view -> onLine());
+        mBinding.control.action.line.setOnLongClickListener(view -> onLinePick());
         mBinding.control.action.scale.setOnClickListener(view -> onScale());
         mBinding.control.action.speed.setOnClickListener(view -> onSpeed());
         mBinding.control.action.config.setOnClickListener(view -> onConfig());
@@ -229,6 +232,7 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
         mBinding.group.setAdapter(mGroupAdapter = new GroupAdapter(this));
         mBinding.channel.setAdapter(mChannelAdapter = new ChannelAdapter(this));
         mBinding.epgData.setAdapter(mEpgDataAdapter = new EpgDataAdapter(this));
+        mEpgDataAdapter.setOnLongClickListener(item -> showLiveProgram());
     }
 
     private void setVideoView() {
@@ -446,6 +450,37 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
 
     private void onLine() {
         nextLine(false);
+    }
+
+    private boolean onLinePick() {
+        if (mChannel == null || mChannel.isOnly()) return true;
+        showLineDialog();
+        return true;
+    }
+
+    private void showLineDialog() {
+        hideControl();
+        hideInfo();
+        LiveLineDialog.create().channel(mChannel).listener(this::setLine).show(this);
+    }
+
+    private void setLine(int position) {
+        if (mChannel == null || position < 0 || position >= mChannel.getUrls().size()) return;
+        if (mChannel.getIndex() == position) return;
+        mChannel.setIndex(position);
+        setInfo();
+        fetch();
+    }
+
+    private boolean showLiveProgram() {
+        if (mChannel == null || mChannel.getDataList().isEmpty()) {
+            Notify.show(R.string.live_program_empty);
+            return true;
+        }
+        hideControl();
+        hideInfo();
+        LiveProgramDialog.create().channel(mChannel).zoneId(mViewModel.getZoneId()).listener(this::onItemClick).show(this);
+        return true;
     }
 
     private void onScale() {

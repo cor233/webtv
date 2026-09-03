@@ -59,4 +59,6 @@
         <item>子母畫面</item>
     </string-array>
 
+    <string name="live_program_empty">暫無節目預告</string>
+    <string name="live_program_current">直播中</string>
 </resources>

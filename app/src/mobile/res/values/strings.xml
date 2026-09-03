@@ -59,4 +59,6 @@
         <item>PiP</item>
     </string-array>
 
+    <string name="live_program_empty">No program guide</string>
+    <string name="live_program_current">Live</string>
 </resources>

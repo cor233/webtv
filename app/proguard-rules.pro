@@ -25,6 +25,12 @@
 -keep class okio.** { *; }
 -keep class okhttp3.** { *; }
 
+# JGit (git cloud backup)
+-dontwarn java.lang.ProcessHandle
+-dontwarn java.lang.management.ManagementFactory
+-dontwarn org.eclipse.jgit.**
+-keep class org.eclipse.jgit.** { *; }
+
 # CatVod
 -keep class com.github.catvod.Proxy { *; }
 -keep class com.github.catvod.crawler.** { *; }

@@ -62,6 +62,14 @@
             android:orientation="vertical"
             android:paddingBottom="24dp">
 
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/presetGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                app:singleSelection="true" />
+
             <include
                 android:id="@+id/saturation"
                 layout="@layout/view_setting_slider" />

@@ -1,8 +1,10 @@
 package com.fongmi.android.tv.utils;
 
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.StatFs;
+import android.provider.OpenableColumns;
 import android.text.TextUtils;
 
 import androidx.core.content.FileProvider;
@@ -28,6 +30,26 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 public class FileUtil {
+
+    public static String getDisplayName(Uri uri) {
+        return getDisplayName(uri, uri.toString());
+    }
+
+    public static String getDisplayName(Uri uri, String fallback) {
+        String name = "content".equalsIgnoreCase(uri.getScheme()) ? queryDisplayName(uri) : null;
+        if (!TextUtils.isEmpty(name)) return name;
+        name = uri.getLastPathSegment();
+        return TextUtils.isEmpty(name) ? fallback : name;
+    }
+
+    private static String queryDisplayName(Uri uri) {
+        String[] projection = {OpenableColumns.DISPLAY_NAME};
+        try (Cursor cursor = App.get().getContentResolver().query(uri, projection, null, null, null)) {
+            return cursor == null || !cursor.moveToFirst() ? null : cursor.getString(0);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
 
     public static File getWall(int index) {
         return Path.files("wallpaper_" + index);

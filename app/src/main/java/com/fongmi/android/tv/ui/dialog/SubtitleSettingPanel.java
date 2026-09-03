@@ -8,6 +8,8 @@ import android.text.TextUtils;
 import android.view.ContextThemeWrapper;
 import android.view.View;
 
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.MimeTypes;
@@ -24,6 +26,7 @@ import com.fongmi.android.tv.databinding.ViewSettingSliderBinding;
 import com.fongmi.android.tv.bean.Track;
 import com.fongmi.android.tv.player.PlayerHelper;
 import com.fongmi.android.tv.player.PlayerManager;
+import com.fongmi.android.tv.player.subtitle.ExternalFont;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.SubtitleSetting;
 import com.fongmi.android.tv.utils.SliderUtil;
@@ -54,13 +57,15 @@ final class SubtitleSettingPanel {
     private final DialogSubtitleSettingBinding binding;
     private final SubtitleView subtitleView;
     private final PlayerManager player;
+    private final ExternalFontSelector fontSelector;
     private boolean refreshAfterSystemSetting;
     private int currentTab;
 
-    SubtitleSettingPanel(DialogSubtitleSettingBinding binding, SubtitleView subtitleView, PlayerManager player) {
+    SubtitleSettingPanel(DialogSubtitleSettingBinding binding, SubtitleView subtitleView, PlayerManager player, Fragment fragment) {
         this.binding = binding;
         this.subtitleView = subtitleView;
         this.player = player;
+        this.fontSelector = new ExternalFontSelector(fragment, this::onFontSelected);
     }
 
     void bind() {
@@ -82,11 +87,13 @@ final class SubtitleSettingPanel {
     }
 
     void release() {
+        fontSelector.release();
     }
 
     private void bindAppearance() {
         var appearance = binding.appearance;
         bindSystemSetting();
+        fontSelector.bind(appearance.fontGroup, SubtitleSetting.getFont());
         bindStyleSource();
         setupChip(appearance.textColorGroup, SubtitleSetting.getTextBaseColor(), this::chipForTextColor, this::textColorForChip, SubtitleSetting::putTextColor);
         setupTransparency(appearance.textOpacity, R.string.subtitle_text_opacity, SubtitleSetting.getTextOpacity(), SubtitleSetting::putTextOpacity);
@@ -530,6 +537,11 @@ final class SubtitleSettingPanel {
         Context context = binding.getRoot().getContext();
         SubtitleSetting.applyStyle(context, subtitleView);
         if (player != null && !player.isReleased()) player.setSubtitleSettingStyle();
+    }
+
+    private void onFontSelected(@Nullable ExternalFont.Item font) {
+        SubtitleSetting.putFont(font);
+        applySubtitleStyle();
     }
 
     private boolean isMpvEngine() {

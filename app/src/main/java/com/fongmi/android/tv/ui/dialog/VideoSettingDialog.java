@@ -22,6 +22,8 @@ import com.fongmi.android.tv.player.effect.video.VideoEffectProfile;
 import com.fongmi.android.tv.setting.VideoSetting;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.SliderUtil;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.slider.Slider;
 
 import java.util.Locale;
@@ -57,10 +59,35 @@ public final class VideoSettingDialog extends BaseBottomSheetDialog {
 
     @Override
     protected void initView() {
+        setupPresets();
         setupEnable();
         setupSliders();
         binding.reset.setOnClickListener(this::onReset);
         updateUnsupported();
+    }
+
+    private void setupPresets() {
+        String[] names = ResUtil.getStringArray(R.array.video_preset_names);
+        for (int preset = 0; preset < names.length; preset++) {
+            Chip chip = new Chip(requireContext());
+            chip.setText(names[preset]);
+            chip.setId(preset);
+            binding.presetGroup.addView(chip);
+        }
+        binding.presetGroup.check(getAppliedPreset());
+        binding.presetGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds.isEmpty()) binding.presetGroup.check(getAppliedPreset());
+            else {
+                VideoSetting.putPreset(checkedIds.get(0));
+                binding.enable.setChecked(VideoSetting.isEnabled());
+                setupSliders();
+                refresh();
+            }
+        });
+    }
+
+    private int getAppliedPreset() {
+        return VideoSetting.isEnabled() ? VideoSetting.getPreset() : VideoEffectPreset.OFF;
     }
 
     private void setupEnable() {
@@ -71,6 +98,7 @@ public final class VideoSettingDialog extends BaseBottomSheetDialog {
             } else {
                 VideoSetting.putPreset(VideoEffectPreset.OFF);
             }
+            binding.presetGroup.check(getAppliedPreset());
             refresh();
         });
     }
@@ -118,6 +146,7 @@ public final class VideoSettingDialog extends BaseBottomSheetDialog {
     private void onReset(View view) {
         VideoSetting.reset();
         binding.enable.setChecked(false);
+        binding.presetGroup.check(getAppliedPreset());
         setupSliders();
         refresh();
     }
@@ -127,6 +156,7 @@ public final class VideoSettingDialog extends BaseBottomSheetDialog {
         binding.unsupported.setVisibility(supported ? GONE : VISIBLE);
         binding.enable.setEnabled(supported);
         binding.reset.setEnabled(supported);
+        binding.presetGroup.setEnabled(supported);
     }
 
     private void refresh() {

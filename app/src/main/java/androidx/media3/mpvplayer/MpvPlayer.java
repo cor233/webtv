@@ -42,6 +42,7 @@ import com.fongmi.android.tv.player.engine.PlayerCacheState;
 import com.fongmi.android.tv.player.iso.IsoSessionManager;
 import com.fongmi.android.tv.player.lut.MpvLutShader;
 import com.fongmi.android.tv.player.mpv.MpvNetworkRecoveryPolicy;
+import com.fongmi.android.tv.player.subtitle.ExternalFont;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.MpvPerformanceSetting;
 import com.fongmi.android.tv.setting.SubtitleSetting;
@@ -549,8 +550,25 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
      * {@code limiter} enables output limiting. An empty chain clears {@code af}.
      */
     public void setAudioDsp(float[] frequenciesHz, float[] gainsDb, boolean loudness, float compressorRatio, boolean limiter) {
+        setAudioDsp(frequenciesHz, gainsDb, loudness, compressorRatio, limiter, 1.0f, 1.0f, null);
+    }
+
+    /**
+     * Extended audio DSP chain. In addition to the base filters this applies
+     * {@code volume} (boost/preamp gains) and a positional {@code pan} matrix
+     * (center gain, channel mode and balance), mirroring the semantics of the
+     * software {@code AudioEffectProcessor} for MPV playback.
+     */
+    public void setAudioDsp(float[] frequenciesHz, float[] gainsDb, boolean loudness, float compressorRatio, boolean limiter, float boostGain, float preampGain, @Nullable float[][] channelMix) {
         if (!initialized) return;
         StringBuilder builder = new StringBuilder();
+        if (channelMix != null) appendAfPan(builder, channelMix);
+        if (loudness) appendAfSegment(builder, "loudnorm");
+        if (compressorRatio > 1.0f) {
+            appendAfSegment(builder, "acompressor=threshold=0.125:ratio=" + formatAfDouble(compressorRatio) + ":attack=20:release=250");
+        }
+        float gain = boostGain * preampGain;
+        if (gain != 1.0f) appendAfSegment(builder, "volume=" + formatAfDouble(gain));
         if (frequenciesHz != null && gainsDb != null && frequenciesHz.length > 0 && frequenciesHz.length == gainsDb.length) {
             for (int i = 0; i < frequenciesHz.length; i++) {
                 if (gainsDb[i] == 0f) continue;
@@ -558,12 +576,27 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
                 formatAfEqualizerBand(builder, frequenciesHz[i], gainsDb[i]);
             }
         }
-        if (loudness) appendAfSegment(builder, "loudnorm");
-        if (compressorRatio > 1.0f) {
-            appendAfSegment(builder, "acompressor=threshold=0.125:ratio=" + formatAfDouble(compressorRatio) + ":attack=20:release=250");
-        }
         if (limiter) appendAfSegment(builder, "alimiter=limit=0.98:attack=5:release=50");
         safeSetPropertyString("af", builder.toString());
+    }
+
+    private static void appendAfPan(StringBuilder builder, float[][] mix) {
+        StringBuilder segment = new StringBuilder("pan=").append(mix.length).append('c');
+        boolean identity = true;
+        for (int out = 0; out < mix.length; out++) {
+            segment.append("|c").append(out).append('=');
+            boolean first = true;
+            for (int in = 0; in < mix[out].length; in++) {
+                if (mix[out][in] == 0f) continue;
+                if (!first) segment.append('+');
+                first = false;
+                segment.append(formatAfDouble(mix[out][in])).append("*c").append(in);
+                identity = identity && out == in && mix[out][in] == 1.0f;
+            }
+            if (first) segment.append('0');
+        }
+        if (identity) return;
+        appendAfSegment(builder, segment.toString());
     }
 
     /** @deprecated use {@link #setAudioDsp(float[], float[], boolean, float, boolean)}. */
@@ -3110,7 +3143,9 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
         safeSetPropertyDouble("sub-pos", subtitlePosition());
         safeSetPropertyDouble("secondary-sub-pos", SubtitleSetting.getSecondaryPosition());
         safeSetPropertyString("sub-ass-override", SubtitleSetting.isStyleForced() ? "force" : "yes");
-        safeSetPropertyString("sub-font", style.font);
+        String fontFamily = SubtitleSetting.getFontFamily();
+        safeSetPropertyString("sub-font", fontFamily != null ? fontFamily : style.font);
+        if (fontFamily != null) safeSetPropertyString("sub-fonts-dir", ExternalFont.getDirectory().getAbsolutePath());
         safeSetPropertyString("sub-bold", style.bold ? "yes" : "no");
         safeSetPropertyString("sub-italic", style.italic ? "yes" : "no");
         safeSetPropertyString("sub-color", mpvColor(style.foreground));
@@ -3400,16 +3435,18 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
     }
 
     private void writeFontsConf(File file) {
-        String text = "<fontconfig>\n"
+        StringBuilder text = new StringBuilder("<fontconfig>\n"
                 + "<dir>/system/fonts/</dir>\n"
-                + "<dir>/product/fonts/</dir>\n"
-                + "<cachedir>" + config.cacheDir().getAbsolutePath() + "</cachedir>\n"
-                + "<alias><family>serif</family><prefer><family>Noto Serif</family></prefer></alias>\n"
-                + "<alias><family>sans-serif</family><prefer><family>Roboto</family><family>Noto Sans</family></prefer></alias>\n"
-                + "<alias><family>monospace</family><prefer><family>Droid Sans Mono</family></prefer></alias>\n"
-                + "</fontconfig>\n";
+                + "<dir>/product/fonts/</dir>\n");
+        File userFonts = ExternalFont.getDirectory();
+        if (userFonts.isDirectory()) text.append("<dir>").append(userFonts.getAbsolutePath()).append("</dir>\n");
+        text.append("<cachedir>").append(config.cacheDir().getAbsolutePath()).append("</cachedir>\n")
+                .append("<alias><family>serif</family><prefer><family>Noto Serif</family></prefer></alias>\n")
+                .append("<alias><family>sans-serif</family><prefer><family>Roboto</family><family>Noto Sans</family></prefer></alias>\n")
+                .append("<alias><family>monospace</family><prefer><family>Droid Sans Mono</family></prefer></alias>\n")
+                .append("</fontconfig>\n");
         try (OutputStream out = new FileOutputStream(file)) {
-            out.write(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            out.write(text.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         } catch (IOException ignored) {
         }
     }

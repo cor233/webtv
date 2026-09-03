@@ -24,11 +24,13 @@ import com.fongmi.android.tv.player.PlaybackTrace;
 import com.fongmi.android.tv.player.exo.ExoUtil;
 import com.fongmi.android.tv.player.exo.TrackUtil;
 import com.fongmi.android.tv.player.effect.audio.AudioEffectBands;
+import com.fongmi.android.tv.player.effect.audio.AudioChannelMode;
 import com.fongmi.android.tv.player.effect.audio.AudioEffectConfig;
 import com.fongmi.android.tv.player.effect.video.VideoEffectProfile;
 import com.fongmi.android.tv.player.lut.MpvLutShader;
 import com.fongmi.android.tv.player.mpv.MpvConfigStore;
 import com.fongmi.android.tv.setting.PlayerSetting;
+import com.fongmi.android.tv.setting.DecodeSetting;
 import com.fongmi.android.tv.setting.MpvPerformanceSetting;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Util;
@@ -247,7 +249,7 @@ public class MpvPlayerEngine implements PlayerEngine {
 
     @Override
     public boolean applyAudioSetting() {
-        int channelCount = 2;
+        int channelCount = getAudioChannelCount();
         AudioEffectConfig config = AudioEffectConfig.from(AudioEffectBands.STANDARD, channelCount);
         int count = AudioEffectBands.STANDARD.getCount();
         float[] frequencies = new float[count];
@@ -259,8 +261,84 @@ public class MpvPlayerEngine implements PlayerEngine {
         }
         float stability = Math.max(0f, config.getStabilityAmount());
         float ratio = 1.0f + stability * 2.5f;
-        player.setAudioDsp(frequencies, gains, config.isLoudnessEnabled(), ratio, config.shouldLimitOutput(channelCount));
+        player.setAudioDsp(frequencies, gains, config.isLoudnessEnabled(), ratio, config.shouldLimitOutput(channelCount), config.getBoostGain(), config.getPreampGain(), buildChannelMix(config, channelCount));
         return true;
+    }
+
+    private int getAudioChannelCount() {
+        Format format = TrackUtil.selectedFormat(player.getCurrentTracksSnapshot(), C.TRACK_TYPE_AUDIO);
+        return format == null || format.channelCount <= 0 ? 2 : format.channelCount;
+    }
+
+    /**
+     * Builds a positional pan matrix mirroring the software
+     * {@code AudioEffectProcessor} channel semantics: center gain, channel mode
+     * (stereo/mono/reverse downmix) and balance. {@code null} when no mixing is
+     * needed.
+     */
+    @Nullable
+    private float[][] buildChannelMix(AudioEffectConfig config, int channelCount) {
+        if (channelCount < 2 || channelCount > 8) return null;
+        int mode = AudioChannelMode.resolve(config.getChannelMode(), channelCount);
+        boolean centerGain = config.getCenterGain() != 0 && AudioEffectConfig.isCenterGainAvailable(channelCount);
+        int balance = AudioChannelMode.isAvailable(config.getChannelMode(), channelCount) ? config.getBalance() : 0;
+        if (mode == AudioChannelMode.AUTO && !centerGain && balance == 0) return null;
+        float[][] mix = modeMatrix(mode, channelCount);
+        if (centerGain) for (int row = 0; row < channelCount; row++) mix[row][2] *= config.getCenterGainFactor();
+        if (balance != 0) {
+            float left = balance > 0 ? 1.0f - balance / 100.0f : 1.0f;
+            float right = balance < 0 ? 1.0f + balance / 100.0f : 1.0f;
+            for (int column = 0; column < channelCount; column++) {
+                mix[0][column] *= left;
+                mix[1][column] *= right;
+            }
+        }
+        return mix;
+    }
+
+    /** Media3 PCM channel order: 0=FL, 1=FR, 2=FC, 3=LFE, 4=BL, 5=BR, 6=SL, 7=SR (ITU-R BS.775 downmix). */
+    private float[][] modeMatrix(int mode, int channelCount) {
+        float[][] mix = new float[channelCount][channelCount];
+        if (mode == AudioChannelMode.AUTO) {
+            for (int i = 0; i < channelCount; i++) mix[i][i] = 1.0f;
+            return mix;
+        }
+        for (int out = 0; out < 2; out++) for (int in = 0; in < channelCount; in++) mix[out][in] = 0.0f;
+        float[] left = stereoMix(channelCount, true);
+        float[] right = stereoMix(channelCount, false);
+        switch (mode) {
+            case AudioChannelMode.MONO -> {
+                for (int in = 0; in < channelCount; in++) {
+                    mix[0][in] = (left[in] + right[in]) * 0.5f;
+                    mix[1][in] = mix[0][in];
+                }
+            }
+            case AudioChannelMode.REVERSE -> {
+                mix[0] = right;
+                mix[1] = left;
+            }
+            default -> {
+                mix[0] = left;
+                mix[1] = right;
+            }
+        }
+        return mix;
+    }
+
+    private float[] stereoMix(int channelCount, boolean left) {
+        float[] mix = new float[channelCount];
+        if (left) {
+            mix[0] = 1.0f;
+            if (channelCount >= 3) mix[2] += 0.7071f;
+            if (channelCount >= 5) mix[4] += 0.7071f;
+            if (channelCount >= 7) mix[6] += 0.7071f;
+        } else {
+            mix[channelCount >= 2 ? 1 : 0] = 1.0f;
+            if (channelCount >= 3) mix[2] += 0.7071f;
+            if (channelCount >= 6) mix[5] += 0.7071f;
+            if (channelCount >= 8) mix[7] += 0.7071f;
+        }
+        return mix;
     }
 
     @Override
@@ -480,6 +558,7 @@ public class MpvPlayerEngine implements PlayerEngine {
                 .option("video-sync", MpvPerformanceSetting.getSyncOption())
                 .option("interpolation", MpvPerformanceSetting.isInterpolation() ? "yes" : "no")
                 .option("hls-bitrate", MpvPerformanceSetting.getHlsBitrateOption());
+        applyDolbyVisionOptions(builder);
         applySoftDecodeOptions(builder);
         if (surfaceDirect) {
             builder.vo("mediacodec_embed")
@@ -498,6 +577,20 @@ public class MpvPlayerEngine implements PlayerEngine {
             builder.vo("gpu-next");
         }
         return builder.build();
+    }
+
+    private void applyDolbyVisionOptions(MpvPlayerConfig.Builder builder) {
+        String mode = getDolbyVisionOutputOption();
+        builder.option("android-dolby-vision-output", mode);
+        builder.option("demuxer-dovi-profile7", mode);
+    }
+
+    private String getDolbyVisionOutputOption() {
+        return switch (DecodeSetting.getDolbyVisionOutputPolicy()) {
+            case 1 -> "yes";
+            case 2 -> "no";
+            default -> "auto";
+        };
     }
 
     private void applySoftDecodeOptions(MpvPlayerConfig.Builder builder) {

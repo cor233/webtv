@@ -45,6 +45,8 @@ import com.fongmi.android.tv.player.lut.LutSetting;
 import com.fongmi.android.tv.player.lut.LutStore;
 import com.fongmi.android.tv.player.lut.MpvLutShader;
 import com.fongmi.android.tv.player.lut.MpvLutShaderFactory;
+import com.fongmi.android.tv.player.extractor.MpdEdlResolver;
+import com.fongmi.android.tv.player.extractor.MpdSanitizer;
 import com.fongmi.android.tv.setting.DanmakuSetting;
 import com.fongmi.android.tv.setting.DanmakuState;
 import com.fongmi.android.tv.setting.ExoPerformanceSetting;
@@ -400,6 +402,24 @@ public class PlayerManager implements ParseCallback {
 
     public boolean canSetAudioSetting() {
         return engine != null && engine.supportsAudioSetting();
+    }
+
+    public int getAudioChannelCount() {
+        try {
+            Tracks tracks = player == null ? null : player.getCurrentTracks();
+            if (tracks == null) return Format.NO_VALUE;
+            for (Tracks.Group group : tracks.getGroups()) {
+                if (group.getType() != C.TRACK_TYPE_AUDIO) continue;
+                for (int i = 0; i < group.length; i++) {
+                    if (!group.isTrackSelected(i)) continue;
+                    Format format = group.getTrackFormat(i);
+                    if (format.channelCount > 0) return format.channelCount;
+                }
+            }
+        } catch (Exception e) {
+            SpiderDebug.log(e);
+        }
+        return Format.NO_VALUE;
     }
 
     public void togglePlayer() {
@@ -758,6 +778,7 @@ public class PlayerManager implements ParseCallback {
         if (spec == null || spec.getUrl() == null) return;
         SpiderDebug.log("player", "setMediaItem timeout=%d spec=%s", timeout, debugSpec());
         setDanmakus(spec.getDanmakus());
+        applyMpdHandling(spec);
         engine.start(spec.checkUa());
         setSpeed(PlayerSetting.getDefaultSpeed());
         App.post(runnable, timeout);
@@ -772,6 +793,49 @@ public class PlayerManager implements ParseCallback {
         }
         Danmaku selected = items.stream().filter(Danmaku::isSelected).findFirst().orElse(items.get(0));
         setDanmaku(selected);
+    }
+
+    private void applyMpdHandling(PlaySpec spec) {
+        String url = spec.getUrl();
+        String sanitized = MpdSanitizer.sanitize(url);
+        if (!sanitized.equals(url)) {
+            spec.setUrl(sanitized);
+            SpiderDebug.log("player", "mpd-sanitizer applied urlLen=%d", sanitized.length());
+        }
+        if (!isDash(sanitized)) return;
+        if (engine instanceof MpvPlayerEngine) {
+            String resolved = MpdEdlResolver.resolve(sanitized, safeHeaders(spec.getHeaders()));
+            if (!resolved.equals(sanitized)) {
+                spec.setFormat(null);
+                spec.setUrl(resolved);
+                SpiderDebug.log("player", "mpd-edl resolved urlLen=%d", resolved.length());
+            }
+        }
+        if (MpdSanitizer.isYoutube(sanitized)) applyYoutubeUserAgent(spec);
+    }
+
+    private Map<String, String> safeHeaders(Map<String, String> headers) {
+        Map<String, String> out = new HashMap<>();
+        if (headers == null) return out;
+        for (Map.Entry<String, String> entry : headers.entrySet()) if (entry.getValue() != null) out.put(entry.getKey(), entry.getValue());
+        return out;
+    }
+
+    private void applyYoutubeUserAgent(PlaySpec spec) {
+        spec.checkUa();
+        for (Map.Entry<String, String> entry : spec.getHeaders().entrySet()) {
+            if (HttpHeaders.USER_AGENT.equalsIgnoreCase(entry.getKey())) {
+                entry.setValue("com.google.android.youtube/21.02.35 (Linux; U; Android 14) gzip");
+                return;
+            }
+        }
+    }
+
+    private boolean isDash(String url) {
+        String format = spec == null ? null : spec.getFormat();
+        if (androidx.media3.common.MimeTypes.APPLICATION_MPD.equals(format) || "application/dash+xml".equalsIgnoreCase(format) || "dash".equalsIgnoreCase(format)) return true;
+        String lower = url == null ? "" : url.toLowerCase(Locale.US);
+        return lower.startsWith("data:application/dash+xml") || lower.contains(".mpd") || lower.contains("type=mpd") || lower.contains("format=mpd");
     }
 
     public void setDanmaku(Danmaku item) {

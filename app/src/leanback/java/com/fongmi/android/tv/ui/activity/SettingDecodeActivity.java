@@ -12,6 +12,7 @@ import com.fongmi.android.tv.databinding.ActivitySettingDecodeBinding;
 import com.fongmi.android.tv.setting.DecodeSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.ui.base.BaseActivity;
+import com.fongmi.android.tv.utils.ResUtil;
 
 public class SettingDecodeActivity extends BaseActivity {
 
@@ -45,6 +46,7 @@ public class SettingDecodeActivity extends BaseActivity {
         mBinding.audioPrefer.setOnClickListener(this::setAudioPrefer);
         mBinding.videoPrefer.setOnClickListener(this::setVideoPrefer);
         mBinding.audioPassThrough.setOnClickListener(this::setAudioPassThrough);
+        mBinding.dolbyVisionOutput.setOnClickListener(this::setDolbyVisionOutput);
     }
 
     private void setVisible() {
@@ -55,7 +57,7 @@ public class SettingDecodeActivity extends BaseActivity {
         mBinding.audioPrefer.setVisibility(exo ? View.VISIBLE : View.GONE);
         mBinding.videoPrefer.setVisibility(exo ? View.VISIBLE : View.GONE);
         mBinding.audioPassThrough.setVisibility(mpv ? View.VISIBLE : View.GONE);
-        mBinding.dolbyVisionOutput.setVisibility(View.GONE);
+        mBinding.dolbyVisionOutput.setVisibility(mpv ? View.VISIBLE : View.GONE);
     }
 
     private void refresh() {
@@ -64,6 +66,13 @@ public class SettingDecodeActivity extends BaseActivity {
         mBinding.audioPreferText.setText(getSwitch(DecodeSetting.isAudioPrefer()));
         mBinding.videoPreferText.setText(getSwitch(DecodeSetting.isVideoPrefer()));
         mBinding.audioPassThroughText.setText(getSwitch(DecodeSetting.isAudioPassThrough()));
+        mBinding.dolbyVisionOutputText.setText(ResUtil.getStringArray(R.array.select_dolby_vision_output)[DecodeSetting.getDolbyVisionOutputPolicy()]);
+    }
+
+    private void setDolbyVisionOutput(View view) {
+        int mode = (DecodeSetting.getDolbyVisionOutputPolicy() + 1) % ResUtil.getStringArray(R.array.select_dolby_vision_output).length;
+        DecodeSetting.putDolbyVisionOutputPolicy(mode);
+        mBinding.dolbyVisionOutputText.setText(ResUtil.getStringArray(R.array.select_dolby_vision_output)[mode]);
     }
 
     private void setTunnel(View view) {

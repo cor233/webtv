@@ -2,6 +2,7 @@ package com.fongmi.android.tv.setting;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.view.accessibility.CaptioningManager;
 
 import androidx.annotation.Nullable;
@@ -9,6 +10,7 @@ import androidx.media3.common.Format;
 import androidx.media3.ui.CaptionStyleCompat;
 import androidx.media3.ui.SubtitleView;
 
+import com.fongmi.android.tv.player.subtitle.ExternalFont;
 import com.github.catvod.utils.Prefers;
 
 public class SubtitleSetting {
@@ -206,6 +208,26 @@ public class SubtitleSetting {
         return clampSecondaryTrackId(Prefers.getInt("subtitle_secondary_track", DEFAULT_SECONDARY_TRACK));
     }
 
+    @Nullable
+    public static ExternalFont.Item getFont() {
+        return ExternalFont.find(Prefers.getString("subtitle_font", ""));
+    }
+
+    public static void putFont(@Nullable ExternalFont.Item font) {
+        Prefers.put("subtitle_font", font == null ? "" : font.fileName());
+    }
+
+    @Nullable
+    public static String getFontFamily() {
+        ExternalFont.Item font = getFont();
+        return font == null ? null : font.familyName();
+    }
+
+    @Nullable
+    public static Typeface getTypeface() {
+        return ExternalFont.getTypeface(getFont());
+    }
+
     public static void putSecondaryTrackId(int trackId) {
         Prefers.put("subtitle_secondary_track", clampSecondaryTrackId(trackId));
         if (trackId < 0) clearSecondaryTrackIdentity();
@@ -274,9 +296,13 @@ public class SubtitleSetting {
 
     public static CaptionStyleCompat getStyle(Context context) {
         CaptioningManager manager = (CaptioningManager) context.getSystemService(Context.CAPTIONING_SERVICE);
-        if (getStyleSource() == STYLE_SOURCE_ORIGINAL) return CaptionStyleCompat.DEFAULT;
-        if (isSystemStyle()) return manager == null ? CaptionStyleCompat.DEFAULT : CaptionStyleCompat.createFromCaptionStyle(manager.getUserStyle());
-        return new CaptionStyleCompat(getTextColor(), getBackgroundColor(), Color.TRANSPARENT, getEdgeType(), getEdgeColor(), null);
+        CaptionStyleCompat style;
+        if (getStyleSource() == STYLE_SOURCE_ORIGINAL) style = CaptionStyleCompat.DEFAULT;
+        else if (isSystemStyle()) style = manager == null ? CaptionStyleCompat.DEFAULT : CaptionStyleCompat.createFromCaptionStyle(manager.getUserStyle());
+        else style = new CaptionStyleCompat(getTextColor(), getBackgroundColor(), Color.TRANSPARENT, getEdgeType(), getEdgeColor(), null);
+        Typeface typeface = getTypeface();
+        if (typeface == null) return style;
+        return new CaptionStyleCompat(style.foregroundColor, style.backgroundColor, style.windowColor, style.edgeType, style.edgeColor, typeface);
     }
 
     public static void applyStyle(Context context, @Nullable SubtitleView subtitleView) {
@@ -305,6 +331,7 @@ public class SubtitleSetting {
         Prefers.put("subtitle_edge_opacity", DEFAULT_EDGE_OPACITY);
         Prefers.put("subtitle_edge_width", DEFAULT_EDGE_WIDTH);
         Prefers.put("subtitle_shadow", DEFAULT_SHADOW);
+        putFont(null);
     }
 
     public static void resetAdvanced() {

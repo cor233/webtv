@@ -976,4 +976,52 @@ WebHomeTV 是播放器壳子，不内置内容源，请使用合法配置。</st
     <string name="player_performance_help_close">关闭</string>
     <string name="player_performance_help_intro">当前播放器内核：%1$s。普通用户保持“自动”即可；“轻量”面向低端设备，整合原兼容档的稳定性取向并降低固定资源预算，替代原独立兼容档。遇到特殊硬解、输出或协议问题仍可直接调整下方参数形成“自定义”。当前内核可用参数均直接显示并按用途分组，多数底层参数需重新播放或重建播放器后生效。</string>
     <string name="player_performance_common_section">常用参数</string>
+
+    <string name="error_audio_effect_unsupported">音频效果需要 Android 9+ 且使用 EXO 播放器</string>
+    <string name="audio_setting">音效</string>
+    <string name="audio_effect_loudness">响度平衡</string>
+    <string name="audio_effect_stability">音量稳定</string>
+    <string name="audio_effect_boost">音量增益</string>
+    <string name="audio_effect_dialogue">语音增强</string>
+    <string name="audio_effect_headroom">前级衰减</string>
+    <string name="audio_effect_center_gain">中置声道增益</string>
+    <string name="audio_effect_balance">声道平衡</string>
+    <string name="audio_effect_balance_center">中央</string>
+    <string name="audio_effect_balance_left">左 %1$d%%</string>
+    <string name="audio_effect_balance_right">右 %1$d%%</string>
+    <string name="audio_channel_mode">声道模式</string>
+    <string name="audio_channel_auto">自动</string>
+    <string name="audio_channel_stereo">立体</string>
+    <string name="audio_channel_mono">单声</string>
+    <string name="audio_channel_reverse">反转</string>
+    <string name="playback_font">字体</string>
+    <string name="playback_font_default">系统默认</string>
+    <string name="playback_font_import">导入字体</string>
+    <string name="playback_font_imported">已导入字体：%1$s</string>
+    <string name="playback_font_import_failed">无法导入字体</string>
+    <string name="playback_font_load_failed">无法加载字体</string>
+    <string-array name="audio_effect_stability_levels">
+        <item>关闭</item>
+        <item>轻微</item>
+        <item>柔和</item>
+        <item>标准</item>
+        <item>明显</item>
+        <item>强力</item>
+    </string-array>
+    <string-array name="video_preset_names">
+        <item>关闭</item>
+        <item>自然</item>
+        <item>鲜艳</item>
+        <item>清澈</item>
+        <item>明亮</item>
+        <item>影院</item>
+        <item>柔和</item>
+        <item>温暖</item>
+        <item>冷色</item>
+        <item>舒适</item>
+        <item>动画</item>
+        <item>运动</item>
+        <item>游戏</item>
+        <item>自定义</item>
+    </string-array>
 </resources>

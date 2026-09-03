@@ -70,7 +70,7 @@ public final class SubtitleSettingDialog {
 
         @Override
         protected void initView() {
-            panel = new SubtitleSettingPanel(binding, subtitleView, player);
+            panel = new SubtitleSettingPanel(binding, subtitleView, player, this);
             panel.bind();
         }
 
@@ -113,7 +113,7 @@ public final class SubtitleSettingDialog {
 
         @Override
         protected void initView() {
-            panel = new SubtitleSettingPanel(binding, subtitleView, player);
+            panel = new SubtitleSettingPanel(binding, subtitleView, player, this);
             panel.bind();
         }
 

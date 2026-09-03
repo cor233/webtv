@@ -216,6 +216,10 @@ public class Result implements Parcelable {
         return subs == null ? new ArrayList<>() : new ArrayList<>(subs);
     }
 
+    public void setSubs(List<Sub> subs) {
+        this.subs = subs;
+    }
+
     public Map<String, String> getHeader() {
         return header == null ? new HashMap<>() : header;
     }

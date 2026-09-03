@@ -70,7 +70,7 @@ public final class AudioEffectConfig {
         return boost;
     }
 
-    float getBoostGain() {
+    public float getBoostGain() {
         return boostGain;
     }
 
@@ -78,7 +78,7 @@ public final class AudioEffectConfig {
         return preamp;
     }
 
-    float getPreampGain() {
+    public float getPreampGain() {
         return preampGain;
     }
 
@@ -90,7 +90,7 @@ public final class AudioEffectConfig {
         return centerGain;
     }
 
-    float getCenterGainFactor() {
+    public float getCenterGainFactor() {
         return centerGainFactor;
     }
 

@@ -195,6 +195,36 @@ public class FileUtil {
         }
     }
 
+    // Ported from webhtv: storage facts used by player cache capacity policies.
+    public static StorageSpace getStorageSpace(File file) {
+        try {
+            File target = existingPath(file);
+            if (target == null) return StorageSpace.unavailable();
+            StatFs stat = new StatFs(target.getAbsolutePath());
+            return StorageSpace.of(stat.getAvailableBytes(), stat.getTotalBytes());
+        } catch (Exception e) {
+            return StorageSpace.unavailable();
+        }
+    }
+
+    private static File existingPath(File file) {
+        File target = file;
+        while (target != null && !target.exists()) target = target.getParentFile();
+        return target;
+    }
+
+    public record StorageSpace(boolean available, long availableBytes, long totalBytes) {
+
+        public static StorageSpace of(long availableBytes, long totalBytes) {
+            boolean valid = availableBytes >= 0 && totalBytes > 0 && availableBytes <= totalBytes;
+            return valid ? new StorageSpace(true, availableBytes, totalBytes) : unavailable();
+        }
+
+        public static StorageSpace unavailable() {
+            return new StorageSpace(false, 0, 0);
+        }
+    }
+
     public static Uri getShareUri(String path) {
         return getShareUri(new File(path.replace("file://", "")));
     }

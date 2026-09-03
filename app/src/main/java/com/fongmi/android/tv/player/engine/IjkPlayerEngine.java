@@ -149,4 +149,27 @@ public class IjkPlayerEngine implements PlayerEngine {
         player.addListener(listener);
         return player;
     }
+
+    /** Ported from webhtv: shared vocabulary for IJK open-progress staging (see IjkErrorMappingPolicy). */
+    public enum OpenStage {
+        NONE("none"),
+        SOURCE_SET("source-set"),
+        HTTP_OPENING("http-opening"),
+        HTTP_OPENED("http-opened"),
+        INPUT_OPENED("input-opened"),
+        STREAM_INFO("stream-info"),
+        COMPONENT_OPENED("component-opened"),
+        PREPARED("prepared"),
+        FIRST_FRAME("first-frame");
+
+        private final String label;
+
+        OpenStage(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
 }

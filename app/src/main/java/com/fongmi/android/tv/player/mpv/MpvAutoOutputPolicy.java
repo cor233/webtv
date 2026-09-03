@@ -45,4 +45,11 @@ public final class MpvAutoOutputPolicy {
 
     public record Decision(boolean eligible, String reason) {
     }
+
+    /** Ported from webhtv: shared vocabulary for Dolby Vision decoder capability. */
+    public enum DolbyVisionSupport {
+        UNKNOWN,
+        SUPPORTED,
+        UNSUPPORTED
+    }
 }

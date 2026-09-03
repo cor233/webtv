@@ -79,7 +79,6 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
     private static final long END_FILE_VALIDATION_DELAY_MS = 800;
     private static final long LOAD_START_RETRY_DELAY_MS = 1000;
     private static final long MEDIA_REPLACEMENT_STOP_TIMEOUT_MS = 1200;
-    private static final long TRACK_REFRESH_DEBOUNCE_MS = 80;
     private static final float FRAME_RATE_REQUEST_EPSILON = 0.001f;
     private static final int MAX_LOAD_START_RETRIES = 2;
     private static final double SECONDS_TO_MS = 1000.0;
@@ -144,6 +143,7 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
     private final MpvHlsProxy hlsProxy;
     private final MpvCacheObserverState cacheObserverState;
     private final MpvMediaReplacementCoordinator mediaReplacementCoordinator;
+    private final MpvSeekPositionState seekPositionState;
     private final List<String> recentLogs;
     private final List<ParcelFileDescriptor> contentFds;
     @Nullable
@@ -212,6 +212,7 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
     private boolean audioTrackManuallySelected;
     private BiConsumer<Integer, Integer> videoSizeProbeListener;
     private boolean trackRefreshScheduled;
+    private long fileLoadedAtElapsedRealtimeMs;
     private int loadStartRetryCount;
     private int videoReconfigCount;
     private int currentChapter;
@@ -250,6 +251,7 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
         mainHandler = new Handler(Looper.getMainLooper());
         cacheObserverState = new MpvCacheObserverState();
         mediaReplacementCoordinator = new MpvMediaReplacementCoordinator();
+        seekPositionState = new MpvSeekPositionState();
         stateRefreshRunnable = this::refreshPlaybackState;
         endFileValidationRunnable = this::validateEarlyEndFile;
         loadStartRetryRunnable = this::retryLoadIfNotStarted;
@@ -334,6 +336,7 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
         cancelScheduledTrackRefresh();
         mediaItem = mediaItems.isEmpty() ? null : mediaItems.get(0);
         pendingSeekPositionMs = mediaItem != null && startPositionMs > 0 ? startPositionMs : C.TIME_UNSET;
+        seekPositionState.clear();
         cachedPositionMs = Math.max(0, startPositionMs == C.TIME_UNSET ? 0 : startPositionMs);
         cachedDurationMs = C.TIME_UNSET;
         resetCacheState();
@@ -463,7 +466,10 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
         cachedPositionMs = Math.max(0, positionMs);
         pendingSeekPositionMs = cachedPositionMs;
         if (initialized && playbackState != Player.STATE_IDLE) {
-            if (fileLoaded) cacheObserverState.onPlaybackDiscontinuity(SystemClock.elapsedRealtime());
+            if (fileLoaded) {
+                seekPositionState.begin(cachedPositionMs, SystemClock.elapsedRealtime());
+                cacheObserverState.onPlaybackDiscontinuity(SystemClock.elapsedRealtime());
+            }
             seekMpv(cachedPositionMs);
             if (currentLikelyHls && playbackRestarted) hlsProxy.preloadAround(cachedPositionMs);
             if (playbackState == Player.STATE_ENDED) playbackState = Player.STATE_BUFFERING;
@@ -1247,6 +1253,7 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
                     return;
                 }
                 fileLoaded = true;
+                fileLoadedAtElapsedRealtimeMs = SystemClock.elapsedRealtime();
                 cacheObserverState.onFileLoaded(SystemClock.elapsedRealtime());
                 mainHandler.removeCallbacks(endFileValidationRunnable);
                 playbackState = Player.STATE_BUFFERING;
@@ -1258,6 +1265,7 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
                 if (shouldCollectDebugDetails()) PlaybackTrace.log("mpv", playbackTraceId, "event=file-loaded duration=%d size=%dx%d path=%s", cachedDurationMs, videoSize.width, videoSize.height, MpvDiagnosticsPolicy.sourceSummary(stringProperty("path", "")));
                 addSubtitleConfigurations();
                 if (pendingSeekPositionMs != C.TIME_UNSET) {
+                    seekPositionState.begin(pendingSeekPositionMs, SystemClock.elapsedRealtime());
                     seekMpv(pendingSeekPositionMs);
                     pendingSeekPositionMs = C.TIME_UNSET;
                 }
@@ -1854,6 +1862,7 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
         videoSize = VideoSize.UNKNOWN;
         playerError = null;
         pendingSeekPositionMs = C.TIME_UNSET;
+        seekPositionState.clear();
         idleActive = false;
         currentPlayableUri = null;
         closeIsoSession();
@@ -2358,7 +2367,14 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
     }
 
     private long positionMs() {
-        if (initialized) cachedPositionMs = Math.max(0, doublePropertyMs("time-pos/full", doublePropertyMs("time-pos", cachedPositionMs)));
+        if (initialized) {
+            long observedPositionMs = Math.max(0, doublePropertyMs("time-pos/full", doublePropertyMs("time-pos", cachedPositionMs)));
+            long resolvedPositionMs = seekPositionState.resolve(observedPositionMs, SystemClock.elapsedRealtime());
+            if (resolvedPositionMs != observedPositionMs && shouldCollectDebugDetails()) {
+                PlaybackTrace.log("mpv", playbackTraceId, "position latched to seek target=%d observed=%d", resolvedPositionMs, observedPositionMs);
+            }
+            cachedPositionMs = resolvedPositionMs;
+        }
         return cachedPositionMs;
     }
 
@@ -2384,7 +2400,7 @@ public final class MpvPlayer extends SimpleBasePlayer implements MPVLib.EventObs
     private void scheduleTrackRefresh() {
         if (released || trackRefreshScheduled) return;
         trackRefreshScheduled = true;
-        mainHandler.postDelayed(trackRefreshRunnable, TRACK_REFRESH_DEBOUNCE_MS);
+        mainHandler.postDelayed(trackRefreshRunnable, MpvTrackRefreshPolicy.delayMs(fileLoaded, fileLoadedAtElapsedRealtimeMs, SystemClock.elapsedRealtime()));
     }
 
     private void runScheduledTrackRefresh() {

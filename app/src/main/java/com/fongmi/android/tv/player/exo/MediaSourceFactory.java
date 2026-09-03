@@ -98,7 +98,9 @@ public class MediaSourceFactory implements MediaSource.Factory {
     }
 
     private CacheDataSource.Factory getCacheDataSource(DataSource.Factory upstreamFactory) {
-        return new CacheDataSource.Factory().setCache(getCache()).setUpstreamDataSourceFactory(upstreamFactory).setCacheWriteDataSinkFactory(null).setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
+        // Ported from webhtv: HTTP EOF recovery wrapper and cache read metrics.
+        DataSource.Factory recovered = new HttpEofRecoveryDataSource.Factory(upstreamFactory);
+        return new CacheDataSource.Factory().setCache(getCache()).setUpstreamDataSourceFactory(recovered).setCacheWriteDataSinkFactory(null).setEventListener(PlaybackCacheMetrics.listener()).setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
     }
 
     private HttpDataSource.Factory getHttpDataSourceFactory() {

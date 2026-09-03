@@ -202,6 +202,12 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         });
     });
 
+    private final ActivityResultLauncher<Intent> mKaraokeTrackFile = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) return;
+        String path = FileChooser.getPathFromUri(result.getData().getData());
+        if (mAudio != null) mAudio.onKaraokeTrackFilePicked(path);
+    });
+
     public static void push(FragmentActivity activity, String text) {
         if (FileChooser.isValid(activity, Uri.parse(text))) file(activity, FileChooser.getPathFromUri(Uri.parse(text)));
         else start(activity, Sniffer.getUrl(text));
@@ -496,6 +502,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             @Override public void playEpisode(Episode episode) { if (episode != null) VideoActivity.this.onItemClick(episode); }
             @Override public void playNext() { checkNext(); }
             @Override public void playPrev() { checkPrev(); }
+            @Override public void launchKaraokeTrackFileChooser() { FileChooser.from(mKaraokeTrackFile).show("*/*", new String[]{"text/plain", "audio/midi", "audio/x-midi", "application/octet-stream", "*/*"}); }
             @Override public void onStageVisibilityChanged(boolean visible) { }
         }, mBinding.audioStage, mBinding.lyrics);
         mBinding.control.action.immersiveAudio.setOnClickListener(view -> mAudio.toggleImmersiveAudioMode());

@@ -150,6 +150,7 @@ dependencies {
     implementation libs.newpipeextractor
     implementation libs.permissionx
     implementation libs.simple.xml
+    implementation libs.tensorflow.lite
     implementation libs.textdrawable
     leanbackImplementation libs.leanback
     leanbackImplementation libs.androidautosize

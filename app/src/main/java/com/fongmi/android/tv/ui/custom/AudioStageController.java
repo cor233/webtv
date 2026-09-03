@@ -15,14 +15,18 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 import androidx.media3.common.Player;
@@ -42,6 +46,10 @@ import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.databinding.ViewAudioStageBinding;
 import com.fongmi.android.tv.impl.CustomTarget;
 import com.fongmi.android.tv.player.PlayerManager;
+import com.fongmi.android.tv.player.karaoke.KaraokeController;
+import com.fongmi.android.tv.player.karaoke.KaraokePitchTrackGenerator;
+import com.fongmi.android.tv.player.karaoke.KaraokeResult;
+import com.fongmi.android.tv.player.karaoke.KaraokeTrackRepository;
 import com.fongmi.android.tv.player.lyrics.AudioPlaylistStore;
 import com.fongmi.android.tv.player.lyrics.LyricsController;
 import com.fongmi.android.tv.player.lyrics.LyricsLine;
@@ -59,6 +67,7 @@ import com.fongmi.android.tv.utils.Task;
 import com.fongmi.android.tv.utils.Util;
 import com.github.catvod.crawler.SpiderDebug;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -84,6 +93,11 @@ public class AudioStageController implements LyricsController.Listener {
     private TextView lyricsStatus;
     private BottomSheetDialog sheet;
     private BottomSheetDialog lyricsSheet;
+    private KaraokeController karaoke;
+    private boolean karaokeResultShown;
+    private BottomSheetDialog karaokePitchSheet;
+    private ProgressBar karaokePitchProgress;
+    private TextView karaokePitchMessage;
     private boolean stageVisible;
     private boolean seekAttached;
     private int artworkColor = Color.rgb(55, 45, 68);
@@ -133,6 +147,8 @@ public class AudioStageController implements LyricsController.Listener {
 
         void playPrev();
 
+        void launchKaraokeTrackFileChooser();
+
         void onStageVisibilityChanged(boolean visible);
     }
 
@@ -159,6 +175,7 @@ public class AudioStageController implements LyricsController.Listener {
         if (!stageVisible) return;
         checkAudioPlayImg(playing);
         updateLyrics(playing);
+        updateKaraoke();
     }
 
     public void onStateChanged(int state) {
@@ -166,12 +183,14 @@ public class AudioStageController implements LyricsController.Listener {
             refreshLyricsNow();
         } else if (state == Player.STATE_ENDED || state == Player.STATE_IDLE) {
             updateLyrics(false);
+            if (state == Player.STATE_ENDED) showKaraokeResultIfNeeded(null);
         }
     }
 
     public void onTimeChanged() {
         if (!stageVisible || !ready() || player().isEmpty()) return;
         lyrics.update(player());
+        updateKaraoke();
     }
 
     public void onTracksChanged() {
@@ -235,9 +254,11 @@ public class AudioStageController implements LyricsController.Listener {
         if (lyrics == null) return;
         if (!audioContent) {
             lyrics.refresh(player(), false);
+            refreshKaraoke(false);
             return;
         }
         lyrics.refresh(player(), true);
+        refreshKaraoke(true);
     }
 
     private void ensureLyrics() {
@@ -480,6 +501,11 @@ public class AudioStageController implements LyricsController.Listener {
     }
 
     public void release() {
+        if (karaoke != null) {
+            karaoke.setListener(null);
+            karaoke.release();
+            karaoke = null;
+        }
         if (lyrics != null) {
             lyrics.setListener(null);
             lyrics.release();
@@ -497,6 +523,12 @@ public class AudioStageController implements LyricsController.Listener {
         if (lyricsSheet != null) {
             lyricsSheet.dismiss();
             lyricsSheet = null;
+        }
+        if (karaokePitchSheet != null) {
+            karaokePitchSheet.dismiss();
+            karaokePitchSheet = null;
+            karaokePitchProgress = null;
+            karaokePitchMessage = null;
         }
     }
 
@@ -840,6 +872,7 @@ public class AudioStageController implements LyricsController.Listener {
             randomizeAudioBackgroundMix(true);
             dismissSheets();
         }), topParams(6, ResUtil.dp2px(48)));
+        root.addView(sheetRow(getString(R.string.player_karaoke_mode) + " " + getString(PlayerSetting.isKaraokeMode() ? R.string.player_karaoke_track_option_enabled : R.string.player_karaoke_track_option_disabled), this::showKaraokeSheet), topParams(6, ResUtil.dp2px(48)));
         root.addView(sheetRow(getString(R.string.player_lyrics_cache) + " " + getString(R.string.player_lyrics_cache_value, LyricsRepository.cacheCount()), () -> {
             LyricsRepository.clearCache();
             Notify.show(R.string.player_lyrics_cache_cleared);
@@ -880,6 +913,364 @@ public class AudioStageController implements LyricsController.Listener {
 
     private boolean canDrawOverlays() {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(activity);
+    }
+
+    private void ensureKaraoke() {
+        if (karaoke != null) return;
+        karaoke = new KaraokeController();
+        karaoke.setListener((status, track, sample, snapshot) -> {
+            boolean playing = ready() && !player().isEmpty() && player().isPlaying();
+            binding.audioKaraoke.setPlaying(playing);
+            binding.audioKaraoke.setState(status, track, sample, snapshot);
+        });
+    }
+
+    private void refreshKaraoke(boolean audioContent) {
+        ensureKaraoke();
+        karaoke.refresh(activity, player(), audioContent);
+    }
+
+    private void reloadKaraoke() {
+        if (karaoke == null || !ready()) return;
+        karaoke.reload(activity, player(), shouldUseImmersiveAudio());
+    }
+
+    private void updateKaraoke() {
+        if (karaoke == null || !ready() || player().isEmpty()) return;
+        long position = Math.max(0, player().getPosition() + PlayerSetting.getLyricsTimeOffsetMs());
+        binding.audioKaraoke.syncPosition(position, player().isPlaying());
+        karaoke.update(player(), lyrics == null ? null : lyrics.getLines());
+    }
+
+    public void onKaraokeModeChanged() {
+        karaokeResultShown = false;
+        if (PlayerSetting.isKaraokeMode()) refreshKaraoke(shouldUseImmersiveAudio());
+        else if (karaoke != null) karaoke.clear();
+    }
+
+    private void showKaraokeSheet() {
+        dismissSheets();
+        BottomSheetDialog dialog = new BottomSheetDialog(activity);
+        LinearLayout root = createSheetRoot();
+        root.addView(createSheetText(getString(R.string.player_karaoke_mode), 17, true), topParams(0, ResUtil.dp2px(40)));
+        root.addView(sheetRow(getString(R.string.player_karaoke_mode) + " " + getString(PlayerSetting.isKaraokeMode() ? R.string.player_karaoke_track_option_enabled : R.string.player_karaoke_track_option_disabled), () -> {
+            PlayerSetting.putKaraokeMode(!PlayerSetting.isKaraokeMode());
+            onKaraokeModeChanged();
+            showKaraokeSheet();
+        }), topParams(6, ResUtil.dp2px(48)));
+        root.addView(sheetRow(getString(R.string.player_karaoke_mic_delay) + " " + getString(R.string.player_lyrics_offset_value, PlayerSetting.getKaraokeMicDelayMs()), this::adjustKaraokeDelay), topParams(6, ResUtil.dp2px(48)));
+        root.addView(sheetRow(getString(R.string.player_karaoke_difficulty) + " " + karaokeDifficultyText(), this::showKaraokeDifficultySheet), topParams(6, ResUtil.dp2px(48)));
+        root.addView(sheetRow(getString(R.string.player_karaoke_track_generate_pitch), () -> {
+            dismissSheets();
+            generateKaraokePitchTrack();
+        }), topParams(6, ResUtil.dp2px(48)));
+        root.addView(sheetRow(getString(R.string.player_karaoke_track_search), this::showKaraokeTrackSearchSheet), topParams(6, ResUtil.dp2px(48)));
+        root.addView(sheetRow(getString(R.string.player_karaoke_track_import_file), () -> {
+            dismissSheets();
+            host.launchKaraokeTrackFileChooser();
+        }), topParams(6, ResUtil.dp2px(48)));
+        root.addView(sheetRow(getString(R.string.player_karaoke_track_import_url), this::showKaraokeTrackUrlSheet), topParams(6, ResUtil.dp2px(48)));
+        root.addView(sheetRow(getString(R.string.player_karaoke_track_sources), this::showKaraokeTrackSourcesSheet), topParams(6, ResUtil.dp2px(48)));
+        root.addView(sheetRow(basicPitchLabel(), () -> {
+            PlayerSetting.putKaraokeBasicPitchTflite(!PlayerSetting.isKaraokeBasicPitchTflite());
+            showKaraokeSheet();
+        }), topParams(6, ResUtil.dp2px(48)));
+        root.addView(sheetRow(getString(R.string.player_karaoke_track_clear), () -> {
+            boolean cleared = ready() && KaraokeTrackRepository.clearBinding(player());
+            Notify.show(cleared ? R.string.player_karaoke_track_cleared : R.string.player_karaoke_track_none);
+            if (cleared) applyKaraokeTrackChange(false);
+            showKaraokeSheet();
+        }), topParams(6, ResUtil.dp2px(48)));
+        dialog.setContentView(root);
+        dialog.setOnDismissListener(d -> {
+            if (sheet == dialog) sheet = null;
+        });
+        sheet = dialog;
+        dialog.show();
+    }
+
+    private void adjustKaraokeDelay() {
+        long current = PlayerSetting.getKaraokeMicDelayMs();
+        long next = current + 100 > 1000 ? -1000 : current + 100;
+        PlayerSetting.putKaraokeMicDelayMs(next);
+        Notify.show(getString(R.string.player_karaoke_mic_delay) + " " + getString(R.string.player_lyrics_offset_value, next));
+        reloadKaraoke();
+        showKaraokeSheet();
+    }
+
+    private String karaokeDifficultyText() {
+        String[] items = ResUtil.getStringArray(R.array.select_karaoke_difficulty);
+        return items[Math.min(PlayerSetting.getKaraokeDifficulty(), items.length - 1)];
+    }
+
+    private void showKaraokeDifficultySheet() {
+        String[] items = ResUtil.getStringArray(R.array.select_karaoke_difficulty);
+        showChoiceSheet(getString(R.string.player_karaoke_difficulty), items, PlayerSetting.getKaraokeDifficulty(), which -> {
+            PlayerSetting.putKaraokeDifficulty(which);
+            reloadKaraoke();
+            showKaraokeSheet();
+        });
+    }
+
+    private String basicPitchLabel() {
+        return getString(R.string.player_karaoke_track_basic_pitch_tflite, getString(PlayerSetting.isKaraokeBasicPitchTflite() ? R.string.player_karaoke_track_option_enabled : R.string.player_karaoke_track_option_disabled));
+    }
+
+    private void applyKaraokeTrackChange(boolean enableMode) {
+        if (enableMode && !PlayerSetting.isKaraokeMode()) {
+            PlayerSetting.putKaraokeMode(true);
+            onKaraokeModeChanged();
+            return;
+        }
+        reloadKaraoke();
+    }
+
+    private void generateKaraokePitchTrack() {
+        KaraokeTrackRepository.MediaInput input = ready() ? KaraokeTrackRepository.snapshot(player()) : null;
+        List<LyricsLine> lines = lyrics == null ? null : lyrics.getLines();
+        if (!KaraokeTrackRepository.canGeneratePitch(input, lines)) {
+            Notify.show(R.string.player_karaoke_track_generate_no_lyrics);
+            return;
+        }
+        showKaraokePitchProgress();
+        Task.execute(() -> {
+            KaraokeTrackRepository.ImportResult result = KaraokeTrackRepository.importGeneratedPitch(input, lines, (percent, stage, elapsedMs, remainingMs) -> App.post(() -> updateKaraokePitchProgress(percent, stage, remainingMs)));
+            App.post(() -> onKaraokePitchTrackGenerated(result));
+        });
+    }
+
+    private void onKaraokePitchTrackGenerated(KaraokeTrackRepository.ImportResult result) {
+        dismissKaraokePitchProgress();
+        if (result != null && result.isSuccess()) {
+            applyKaraokeTrackChange(true);
+            Notify.show(R.string.player_karaoke_track_generated_pitch);
+        } else if (result != null && KaraokeTrackRepository.isUnsupportedPitchSourceError(result.getError())) {
+            Notify.show(R.string.player_karaoke_track_generate_pitch_unsupported_source);
+        } else {
+            String error = result == null ? "" : result.getError();
+            Notify.show(getString(R.string.player_karaoke_track_generate_pitch_failed) + (TextUtils.isEmpty(error) ? "" : "\n" + error));
+        }
+    }
+
+    private void showKaraokePitchProgress() {
+        dismissKaraokePitchProgress();
+        BottomSheetDialog dialog = new BottomSheetDialog(activity);
+        LinearLayout root = createSheetRoot();
+        root.addView(createSheetText(getString(R.string.player_karaoke_track_generating_pitch), 16, true), topParams(0, ResUtil.dp2px(36)));
+        TextView message = createSheetText(getString(R.string.player_karaoke_track_generating_pitch_message), 13, false);
+        message.setTextColor(0xB8FFFFFF);
+        root.addView(message, topParams(4, ResUtil.dp2px(54)));
+        karaokePitchMessage = createSheetText("", 15, true);
+        root.addView(karaokePitchMessage, topParams(4, ResUtil.dp2px(36)));
+        karaokePitchProgress = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
+        karaokePitchProgress.setIndeterminate(false);
+        karaokePitchProgress.setMax(100);
+        karaokePitchProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(0xE6FFFFFF));
+        karaokePitchProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0x2AFFFFFF));
+        root.addView(karaokePitchProgress, topParams(6, ResUtil.dp2px(24)));
+        dialog.setContentView(root);
+        dialog.setOnDismissListener(d -> {
+            if (karaokePitchSheet == dialog) {
+                karaokePitchSheet = null;
+                karaokePitchProgress = null;
+                karaokePitchMessage = null;
+            }
+        });
+        karaokePitchSheet = dialog;
+        dialog.show();
+        updateKaraokePitchProgress(1, KaraokePitchTrackGenerator.STAGE_PREPARE, -1);
+    }
+
+    private void updateKaraokePitchProgress(int percent, int stage, long remainingMs) {
+        if (karaokePitchProgress == null || karaokePitchMessage == null) return;
+        int safePercent = Math.max(0, Math.min(100, percent));
+        karaokePitchProgress.setProgress(safePercent);
+        karaokePitchMessage.setText(getString(R.string.player_karaoke_track_generating_pitch_progress, safePercent, karaokePitchStageName(stage), formatKaraokePitchRemaining(remainingMs)));
+    }
+
+    private String karaokePitchStageName(int stage) {
+        if (stage == KaraokePitchTrackGenerator.STAGE_DECODE) return getString(R.string.player_karaoke_track_pitch_stage_decode);
+        if (stage == KaraokePitchTrackGenerator.STAGE_ANALYZE) return getString(R.string.player_karaoke_track_pitch_stage_analyze);
+        if (stage == KaraokePitchTrackGenerator.STAGE_WRITE) return getString(R.string.player_karaoke_track_pitch_stage_write);
+        if (stage == KaraokePitchTrackGenerator.STAGE_FINISH) return getString(R.string.player_karaoke_track_pitch_stage_finish);
+        return getString(R.string.player_karaoke_track_pitch_stage_prepare);
+    }
+
+    private String formatKaraokePitchRemaining(long remainingMs) {
+        if (remainingMs <= 0) return getString(R.string.player_karaoke_track_pitch_remaining_unknown);
+        long seconds = remainingMs / 1000;
+        if (seconds < 60) return getString(R.string.player_karaoke_track_pitch_remaining_seconds, seconds);
+        return getString(R.string.player_karaoke_track_pitch_remaining_minutes, seconds / 60, seconds % 60);
+    }
+
+    private void dismissKaraokePitchProgress() {
+        if (karaokePitchSheet != null) {
+            if (karaokePitchSheet.isShowing()) karaokePitchSheet.dismiss();
+            karaokePitchSheet = null;
+        }
+        karaokePitchProgress = null;
+        karaokePitchMessage = null;
+    }
+
+    private void showKaraokeTrackSearchSheet() {
+        dismissSheets();
+        showKaraokeTextInputSheet(getString(R.string.player_karaoke_track_search), getString(R.string.player_karaoke_track_keyword), ready() ? KaraokeTrackRepository.defaultKeyword(player()) : "", false, value -> searchKaraokeTrack(value));
+    }
+
+    private void searchKaraokeTrack(String keyword) {
+        if (!ready()) return;
+        Notify.show(R.string.player_karaoke_track_searching);
+        KaraokeTrackRepository.search(player(), keyword, results -> {
+            if (results == null || results.isEmpty()) {
+                Notify.show(R.string.player_karaoke_track_not_found);
+                return;
+            }
+            showKaraokeTrackResults(results);
+        });
+    }
+
+    private void showKaraokeTrackResults(List<KaraokeTrackRepository.SearchResult> results) {
+        dismissSheets();
+        BottomSheetDialog dialog = new BottomSheetDialog(activity);
+        LinearLayout root = createSheetRoot();
+        root.addView(createSheetText(getString(R.string.player_karaoke_track_select), 17, true), topParams(0, ResUtil.dp2px(40)));
+        ScrollView scroll = new ScrollView(activity);
+        LinearLayout content = new LinearLayout(activity);
+        content.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(content, new ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        for (int i = 0; i < results.size(); i++) {
+            KaraokeTrackRepository.SearchResult result = results.get(i);
+            String source = result.getSource() + (result.isLoginRequired() ? getString(R.string.player_karaoke_track_source_login) : "");
+            String label = getString(R.string.player_karaoke_track_result_item, source, result.getArtist(), result.getTitle(), result.getNote());
+            content.addView(createSheetItem(label, () -> importKaraokeTrackUrl(result.getUrl())), topParams(i == 0 ? 4 : 0, ResUtil.dp2px(64)));
+        }
+        root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (int) (ResUtil.getScreenHeight() * 0.5f)));
+        dialog.setContentView(root);
+        dialog.setOnDismissListener(d -> {
+            if (sheet == dialog) sheet = null;
+        });
+        sheet = dialog;
+        dialog.show();
+    }
+
+    private void showKaraokeTrackUrlSheet() {
+        dismissSheets();
+        showKaraokeTextInputSheet(getString(R.string.player_karaoke_track_import_url), getString(R.string.player_karaoke_track_url_hint), "", false, this::importKaraokeTrackUrl);
+    }
+
+    private void importKaraokeTrackUrl(String url) {
+        if (!ready() || TextUtils.isEmpty(url)) return;
+        KaraokeTrackRepository.importUrl(player(), url, this::onKaraokeTrackImported);
+    }
+
+    private void onKaraokeTrackImported(KaraokeTrackRepository.ImportResult result) {
+        if (result != null && result.isSuccess()) {
+            Notify.show(R.string.player_karaoke_track_imported);
+            applyKaraokeTrackChange(true);
+        } else {
+            String error = result == null ? "" : result.getError();
+            Notify.show(getString(R.string.player_karaoke_track_import_failed) + (TextUtils.isEmpty(error) ? "" : "\n" + error));
+        }
+    }
+
+    public void onKaraokeTrackFilePicked(String path) {
+        if (TextUtils.isEmpty(path)) {
+            Notify.show(R.string.player_karaoke_track_import_failed);
+            return;
+        }
+        Task.execute(() -> {
+            KaraokeTrackRepository.ImportResult imported;
+            try {
+                imported = karaoke == null || !ready() ? KaraokeTrackRepository.ImportResult.fail("empty player") : KaraokeTrackRepository.importFile(player(), new java.io.File(path));
+            } catch (Exception e) {
+                imported = KaraokeTrackRepository.ImportResult.fail(e.getMessage());
+            }
+            KaraokeTrackRepository.ImportResult finalImported = imported;
+            App.post(() -> onKaraokeTrackImported(finalImported));
+        });
+    }
+
+    private void showKaraokeTrackSourcesSheet() {
+        dismissSheets();
+        showKaraokeTextInputSheet(getString(R.string.player_karaoke_track_sources), getString(R.string.player_karaoke_track_sources_hint), PlayerSetting.getKaraokeGithubSources(), true, value -> {
+            PlayerSetting.putKaraokeGithubSources(value);
+            KaraokeTrackRepository.clearSearchCache();
+            Notify.show(R.string.player_karaoke_track_sources_saved);
+        });
+    }
+
+    private void showKaraokeTextInputSheet(String title, String hint, String initial, boolean multiline, InputCallback callback) {
+        BottomSheetDialog dialog = new BottomSheetDialog(activity);
+        LinearLayout root = createSheetRoot();
+        root.addView(createSheetText(title, 16, true), topParams(0, ResUtil.dp2px(40)));
+        TextInputLayout layout = new TextInputLayout(activity);
+        TextInputEditText input = new TextInputEditText(layout.getContext());
+        input.setHint(hint);
+        input.setText(initial);
+        input.setTextColor(Color.WHITE);
+        input.setHintTextColor(0x70FFFFFF);
+        if (multiline) {
+            input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+            input.setMinLines(3);
+            input.setMaxLines(6);
+            input.setGravity(Gravity.TOP);
+        } else {
+            input.setSingleLine(true);
+            input.setMaxLines(1);
+            input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_VARIATION_URI);
+        }
+        layout.addView(input, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(layout, topParams(8, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(createSheetButton(getString(R.string.dialog_positive), () -> {
+            String value = input.getText() == null ? "" : input.getText().toString().trim();
+            if (TextUtils.isEmpty(value)) {
+                input.setError(getString(R.string.player_lyrics_keyword_required));
+                return;
+            }
+            Util.hideKeyboard(input);
+            dialog.dismiss();
+            if (sheet == dialog) sheet = null;
+            callback.onInput(value);
+        }), topParams(8, ResUtil.dp2px(48)));
+        dialog.setContentView(root);
+        dialog.setOnDismissListener(d -> {
+            if (sheet == dialog) sheet = null;
+        });
+        sheet = dialog;
+        dialog.show();
+    }
+
+    private interface InputCallback {
+        void onInput(String value);
+    }
+
+    private boolean showKaraokeResultIfNeeded(Runnable after) {
+        if (karaoke == null || !karaoke.isActive() || karaokeResultShown || activity.isFinishing() || activity.isDestroyed()) return false;
+        KaraokeResult result = karaoke.getResult();
+        if (result == null) return false;
+        karaokeResultShown = true;
+        KaraokeResultView view = new KaraokeResultView(activity).setResult(result);
+        AlertDialog dialog = new MaterialAlertDialogBuilder(activity).setView(view).create();
+        view.setAction(() -> {
+            dialog.dismiss();
+            if (after != null) after.run();
+        });
+        dialog.setOnCancelListener(d -> {
+            if (after != null) after.run();
+        });
+        dialog.setOnShowListener(d -> {
+            Window window = dialog.getWindow();
+            if (window == null) return;
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+            WindowManager.LayoutParams params = window.getAttributes();
+            params.dimAmount = 0.62f;
+            params.gravity = Gravity.CENTER;
+            window.setAttributes(params);
+            window.setLayout(view.getPreferredDialogWidth(), WindowManager.LayoutParams.WRAP_CONTENT);
+            view.requestActionFocus();
+        });
+        dialog.show();
+        return true;
     }
 
     private void applyLyricsRuntimeSettings() {

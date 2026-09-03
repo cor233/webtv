@@ -60,6 +60,7 @@ import com.fongmi.android.tv.ui.custom.CustomRowPresenter;
 import com.fongmi.android.tv.ui.custom.CustomSelector;
 import com.fongmi.android.tv.ui.custom.CustomTitleView;
 import com.fongmi.android.tv.ui.dialog.SiteDialog;
+import com.fongmi.android.tv.ui.dialog.ExitConfirmDialog;
 import com.fongmi.android.tv.ui.presenter.FuncPresenter;
 import com.fongmi.android.tv.ui.presenter.HeaderPresenter;
 import com.fongmi.android.tv.ui.presenter.HistoryPresenter;
@@ -99,7 +100,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private SiteViewModel mViewModel;
     private TypeAdapter mTypeAdapter;
     private HomeWebController mWeb;
-    private AlertDialog exitDialog;
     private WebView mHomeWeb;
     private Result mResult;
     private Result mHomeResult;
@@ -712,15 +712,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     }
 
     private void showExitConfirmation() {
-        if (exitDialog != null && exitDialog.isShowing()) return;
-        exitDialog = new MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.exit_confirm_title)
-                .setMessage(R.string.exit_confirm_message)
-                .setNegativeButton(R.string.dialog_negative, null)
-                .setPositiveButton(R.string.exit_confirm_positive, (dialog, which) -> confirmExit())
-                .create();
-        exitDialog.setOnDismissListener(dialog -> exitDialog = null);
-        exitDialog.show();
+        ExitConfirmDialog.create(this::confirmExit).show(this);
     }
 
     private void confirmExit() {

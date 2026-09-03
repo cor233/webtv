@@ -83,23 +83,29 @@ public class MpvConfigDialog extends BaseAlertDialog implements MpvConfigProfile
     }
 
     private void showHistory() {
-        CharSequence[] labels = MpvConfigStore.historyLabels(target);
-        if (labels.length == 0) {
+        if (!MpvConfigStore.hasHistory(target)) {
             Notify.show(R.string.mpv_config_history_empty);
             return;
         }
         String selectedTarget = target;
-        new MaterialAlertDialogBuilder(requireActivity())
-                .setTitle(R.string.mpv_config_history)
-                .setNegativeButton(R.string.dialog_negative, null)
-                .setItems(labels, (dialog, which) -> runAsync(() -> {
-                    MpvConfigStore.applyHistory(selectedTarget, which);
+        MpvConfigHistoryDialog.show(getChildFragmentManager(), selectedTarget, new MpvConfigHistoryDialog.Listener() {
+            @Override
+            public void onHistoryClick(int position) {
+                runAsync(() -> {
+                    MpvConfigStore.applyHistory(selectedTarget, position);
                     return MpvConfigStore.summary(selectedTarget);
                 }, ignored -> {
                     if (TextUtils.equals(target, selectedTarget)) reload();
                     Notify.show(R.string.mpv_config_saved);
                     notifyChanged();
-                })).show();
+                });
+            }
+
+            @Override
+            public void onHistoryChanged() {
+                notifyChanged();
+            }
+        });
     }
 
     private void setupTabs() {

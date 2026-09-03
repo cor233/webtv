@@ -71,6 +71,7 @@ import com.fongmi.android.tv.player.lut.LutStore;
 import com.fongmi.android.tv.playback.PlaybackEventCollector;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.setting.DanmakuSetting;
+import com.fongmi.android.tv.setting.PlayerButtonSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.setting.Setting;
@@ -95,6 +96,7 @@ import com.fongmi.android.tv.ui.dialog.EpisodeGridDialog;
 import com.fongmi.android.tv.ui.dialog.EpisodeListDialog;
 import com.fongmi.android.tv.ui.dialog.InfoDialog;
 import com.fongmi.android.tv.ui.dialog.PlayerEngineDialog;
+import com.fongmi.android.tv.ui.dialog.QuickSearchDialog;
 import com.fongmi.android.tv.ui.dialog.ReceiveDialog;
 import com.fongmi.android.tv.ui.dialog.SpeedSettingDialog;
 import com.fongmi.android.tv.ui.dialog.ChapterDialog;
@@ -121,12 +123,17 @@ import org.greenrobot.eventbus.ThreadMode;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public class VideoActivity extends PlaybackActivity implements Clock.Callback, CustomKeyDown.Listener, TrackDialog.Listener, ControlDialog.Listener, FlagAdapter.OnClickListener, EpisodeAdapter.OnClickListener, QualityAdapter.OnClickListener, QuickAdapter.OnClickListener, ParseAdapter.OnClickListener, CastDialog.Listener, InfoDialog.Listener {
 
     private ActivityVideoBinding mBinding;
     private PlayerOsdController mOsd;
+    private Map<String, View> mActionButtons;
+    private QuickSearchDialog mQuickSearchDialog;
+    private String mQuickSearchKeyword;
     private ViewGroup.LayoutParams mFrameParams;
     private Observer<Result> mObserveDetail;
     private Observer<Result> mObservePlayer;
@@ -408,6 +415,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.action.audio.setOnClickListener(this::onTrack);
         mBinding.control.action.video.setOnClickListener(this::onTrack);
         mBinding.control.action.scale.setOnClickListener(view -> onScale());
+        setupActionButtons();
         mBinding.control.action.lut.setOnClickListener(view -> onLut());
         mBinding.control.action.speed.setOnClickListener(view -> SpeedSettingDialog.show(this, player()));
         mBinding.control.action.reset.setOnClickListener(view -> onReset());
@@ -868,8 +876,23 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     private void onName() {
         String name = mBinding.name.getText().toString();
-        Notify.show(getString(R.string.detail_search, name));
+        showQuickSearch(name);
         initSearch(name, false);
+    }
+
+    private void showQuickSearch(String keyword) {
+        mQuickSearchKeyword = TextUtils.isEmpty(mQuickSearchKeyword) ? keyword : mQuickSearchKeyword;
+        mQuickSearchDialog = QuickSearchDialog.create()
+                .title(getString(R.string.detail_search, mQuickSearchKeyword))
+                .keyword(mQuickSearchKeyword)
+                .listener(this)
+                .searchListener(this::onQuickSearch)
+                .items(mQuickAdapter.getItems());
+        mQuickSearchDialog.show(this);
+    }
+
+    private void onQuickSearch(String keyword) {
+        initSearch(keyword, false);
     }
 
     private void onMore() {
@@ -1007,6 +1030,30 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     @Override
     public void onRepeatModeChanged(int repeatMode) {
         mBinding.control.action.repeat.setSelected(player().isRepeatOne());
+    }
+
+    private void setupActionButtons() {
+        mActionButtons = new HashMap<>();
+        addActionButton(PlayerButtonSetting.PLAYER, mBinding.control.action.player);
+        addActionButton(PlayerButtonSetting.DECODE, mBinding.control.action.decode);
+        addActionButton(PlayerButtonSetting.SPEED, mBinding.control.action.speed);
+        addActionButton(PlayerButtonSetting.SCALE, mBinding.control.action.scale);
+        addActionButton(PlayerButtonSetting.LUT, mBinding.control.action.lut);
+        addActionButton(PlayerButtonSetting.TEXT, mBinding.control.action.text);
+        addActionButton(PlayerButtonSetting.AUDIO, mBinding.control.action.audio);
+        addActionButton(PlayerButtonSetting.VIDEO, mBinding.control.action.video);
+        addActionButton(PlayerButtonSetting.OPENING, mBinding.control.action.opening);
+        addActionButton(PlayerButtonSetting.ENDING, mBinding.control.action.ending);
+        addActionButton(PlayerButtonSetting.DANMAKU, mBinding.control.action.danmaku);
+        addActionButton(PlayerButtonSetting.CHAPTER, mBinding.control.action.chapter);
+        addActionButton(PlayerButtonSetting.TITLE, mBinding.control.action.title);
+        addActionButton(PlayerButtonSetting.REPEAT, mBinding.control.action.repeat);
+        addActionButton(PlayerButtonSetting.REPLAY, mBinding.control.action.replay);
+        PlayerButtonSetting.applyVisibility(mActionButtons);
+    }
+
+    private void addActionButton(String id, View view) {
+        mActionButtons.put(id, view);
     }
 
     private void onScale() {
@@ -1690,8 +1737,14 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         return item.isSearchable();
     }
 
+    private boolean isQuickSearchVisible() {
+        return mQuickSearchDialog != null && mQuickSearchDialog.isActive();
+    }
+
     private void startSearch(String keyword) {
+        mQuickSearchKeyword = keyword;
         mQuickAdapter.clear();
+        if (isQuickSearchVisible()) mQuickSearchDialog.clear();
         List<Site> sites = new ArrayList<>();
         for (Site item : VodConfig.get().getSites()) if (isPass(item)) sites.add(item);
         SiteHealthStore.sortSites(sites);
@@ -1703,6 +1756,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         items.removeIf(this::mismatch);
         mBinding.quick.setVisibility(View.VISIBLE);
         mQuickAdapter.addAll(items);
+        if (isQuickSearchVisible()) mQuickSearchDialog.addAll(items);
         if (isInitAuto()) nextSite();
         if (items.isEmpty()) return;
         App.removeCallbacks(mR4);

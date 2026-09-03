@@ -18,6 +18,7 @@ import androidx.fragment.app.FragmentActivity;
 import androidx.viewbinding.ViewBinding;
 
 import com.fongmi.android.tv.event.RefreshEvent;
+import com.fongmi.android.tv.server.process.ApkUrlPush;
 import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.ui.custom.CustomWallView;
 import com.fongmi.android.tv.utils.ResUtil;
@@ -44,6 +45,12 @@ public abstract class BaseActivity extends AppCompatActivity {
         initView(savedInstanceState);
         setBackCallback();
         initEvent();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ApkUrlPush.get().resume(this);
     }
 
     @Override

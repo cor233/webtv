@@ -19,6 +19,7 @@ import com.fongmi.android.tv.bean.Word;
 import com.fongmi.android.tv.databinding.ActivitySearchBinding;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.setting.Setting;
+import com.fongmi.android.tv.ui.adapter.HotWordAdapter;
 import com.fongmi.android.tv.ui.adapter.RecordAdapter;
 import com.fongmi.android.tv.ui.adapter.WordAdapter;
 import com.fongmi.android.tv.ui.base.BaseActivity;
@@ -50,6 +51,10 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
     private List<Word.Data> mIqiyiWords = new ArrayList<>();
     private List<Word.Data> mTencentWords = new ArrayList<>();
     private int mSuggestSeq;
+    private static final int HOT_LIMIT = 10;
+    private HotWordAdapter mHotTvAdapter;
+    private HotWordAdapter mHotMovieAdapter;
+    private HotWordAdapter mHotVarietyAdapter;
 
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, SearchActivity.class));
@@ -119,13 +124,27 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
     }
 
     private void setRecyclerView() {
-        mBinding.wordRecycler.setItemAnimator(null);
-        mBinding.wordRecycler.setHasFixedSize(false);
-        mBinding.wordRecycler.setLayoutManager(new FlexboxLayoutManager(this, FlexDirection.ROW));
-        mBinding.wordRecycler.setAdapter(mWordAdapter = new WordAdapter(this));
+        setWordRecycler(mBinding.wordRecycler, mWordAdapter = new WordAdapter(this));
+        setHotRecycler(mBinding.hotTvRecycler, mHotTvAdapter = new HotWordAdapter(this));
+        setHotRecycler(mBinding.hotMovieRecycler, mHotMovieAdapter = new HotWordAdapter(this));
+        setHotRecycler(mBinding.hotVarietyRecycler, mHotVarietyAdapter = new HotWordAdapter(this));
         mBinding.recordRecycler.setHasFixedSize(false);
         mBinding.recordRecycler.setLayoutManager(new FlexboxLayoutManager(this, FlexDirection.ROW));
         mBinding.recordRecycler.setAdapter(mRecordAdapter = new RecordAdapter(this));
+    }
+
+    private void setWordRecycler(RecyclerView recyclerView, WordAdapter adapter) {
+        recyclerView.setItemAnimator(null);
+        recyclerView.setHasFixedSize(false);
+        recyclerView.setLayoutManager(new FlexboxLayoutManager(this, FlexDirection.ROW));
+        recyclerView.setAdapter(adapter);
+    }
+
+    private void setHotRecycler(RecyclerView recyclerView, HotWordAdapter adapter) {
+        recyclerView.setItemAnimator(null);
+        recyclerView.setHasFixedSize(false);
+        recyclerView.setLayoutManager(new FlexboxLayoutManager(this, FlexDirection.ROW));
+        recyclerView.setAdapter(adapter);
     }
 
     private void checkKeyword() {
@@ -144,12 +163,33 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
     }
 
     private void getHot() {
-        mBinding.word.setText(R.string.search_hot);
-        mWordAdapter.setItems(Word.objectFrom(Setting.getHot()).getData());
-        OkHttp.newCall("https://api.web.360kan.com/v1/rank?cat=1", Map.of(HttpHeaders.REFERER, "https://www.360kan.com/rank/general")).enqueue(getCallback(true));
+        mSuggestSeq++;
+        showHot(true);
+        mHotTvAdapter.setItems(hotItems(Setting.getHotTv()));
+        mHotMovieAdapter.setItems(hotItems(Setting.getHotMovie()));
+        mHotVarietyAdapter.setItems(hotItems(Setting.getHotVariety()));
+        OkHttp.newCall(rankUrl(3), Map.of(HttpHeaders.REFERER, "https://www.360kan.com/rank/general")).enqueue(getHotCallback(mHotTvAdapter, Setting::putHotTv));
+        OkHttp.newCall(rankUrl(2), Map.of(HttpHeaders.REFERER, "https://www.360kan.com/rank/general")).enqueue(getHotCallback(mHotMovieAdapter, Setting::putHotMovie));
+        OkHttp.newCall(rankUrl(4), Map.of(HttpHeaders.REFERER, "https://www.360kan.com/rank/general")).enqueue(getHotCallback(mHotVarietyAdapter, Setting::putHotVariety));
+    }
+
+    private String rankUrl(int cat) {
+        return "https://api.web.360kan.com/v1/rank?cat=" + cat;
+    }
+
+    private void showHot(boolean show) {
+        mBinding.word.setVisibility(show ? View.GONE : View.VISIBLE);
+        mBinding.wordRecycler.setVisibility(show ? View.GONE : View.VISIBLE);
+        mBinding.hotGroup.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    private List<Word.Data> hotItems(String result) {
+        List<Word.Data> data = Word.objectFrom(result).getData();
+        return new ArrayList<>(data.subList(0, Math.min(data.size(), HOT_LIMIT)));
     }
 
     private void getSuggest(String text) {
+        showHot(false);
         mBinding.word.setText(R.string.search_suggest);
         int seq = ++mSuggestSeq;
         mIqiyiWords = new ArrayList<>();
@@ -159,21 +199,26 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
         OkHttp.newCall(SearchSuggest.tencentUrl(keyword)).enqueue(getSuggestCallback(seq, true));
     }
 
-    private Callback getCallback(boolean hot) {
+    private Callback getHotCallback(HotWordAdapter adapter, HotSaver saver) {
         return new Callback() {
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                 String result = response.body().string();
                 if (TextUtils.isEmpty(result)) return;
-                App.post(() -> setAdapter(result, hot));
+                App.post(() -> setHotAdapter(adapter, saver, result));
             }
         };
     }
 
-    private void setAdapter(String result, boolean save) {
-        if (!save && empty()) return;
-        if (save) Setting.putHot(result);
-        mWordAdapter.setItems(Word.objectFrom(result).getData());
+    private void setHotAdapter(HotWordAdapter adapter, HotSaver saver, String result) {
+        if (!empty()) return;
+        saver.save(result);
+        adapter.setItems(hotItems(result));
+    }
+
+    private interface HotSaver {
+
+        void save(String result);
     }
 
     private Callback getSuggestCallback(int seq, boolean tencent) {
@@ -203,7 +248,7 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
     @Override
     public void onDataChanged(int size) {
         mBinding.recordLayout.setVisibility(size == 0 ? View.GONE : View.VISIBLE);
-        if (size == 0) focusFirst(mBinding.wordRecycler);
+        if (size == 0) focusFirstWord();
     }
 
     @Override
@@ -238,7 +283,9 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
         View inKeyboard = mBinding.keyboard.findContainingItemView(current);
         View inWord = mBinding.wordRecycler.findContainingItemView(current);
         View inRecord = mBinding.recordRecycler.findContainingItemView(current);
+        RecyclerView inHot = findHotRecycler(current);
         if (inKeyboard != null) return handleKeyboardKey(event, inKeyboard);
+        if (inHot != null) return handleHotWordKey(event, inHot, inHot.findContainingItemView(current));
         if (inRecord != null) return handleRecordKey(event, inRecord);
         if (inWord != null) return handleWordKey(event, inWord);
         return false;
@@ -296,7 +343,7 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
         if (!KeyUtil.isRightKey(event)) return false;
         if (mBinding.keyword.getSelectionEnd() < mBinding.keyword.getText().length()) return false;
         boolean hasRecord = mBinding.recordLayout.getVisibility() == View.VISIBLE;
-        return focusFirst(hasRecord ? mBinding.recordRecycler : mBinding.wordRecycler);
+        return hasRecord ? focusFirst(mBinding.recordRecycler) : focusFirstWord();
     }
 
     private boolean handleKeyboardKey(KeyEvent event, View item) {
@@ -328,7 +375,66 @@ public class SearchActivity extends BaseActivity implements WordAdapter.OnClickL
     private boolean handleRecordKey(KeyEvent event, View item) {
         if (KeyUtil.isRightKey(event)) return isLastInRow(mBinding.recordRecycler, item);
         if (KeyUtil.isUpKey(event)) return isFirstRow(mBinding.recordRecycler, item);
-        if (KeyUtil.isDownKey(event) && isLastRow(mBinding.recordRecycler, item)) return focusFirst(mBinding.wordRecycler);
+        if (KeyUtil.isDownKey(event) && isLastRow(mBinding.recordRecycler, item)) return focusFirstWord();
+        return false;
+    }
+
+    private boolean handleHotWordKey(KeyEvent event, RecyclerView recyclerView, View item) {
+        if (KeyUtil.isRightKey(event)) return isLastInRow(recyclerView, item);
+        if (KeyUtil.isDownKey(event) && isLastRow(recyclerView, item)) {
+            RecyclerView next = findHotRecycler(recyclerView, 1);
+            return next == null || focusFirst(next);
+        }
+        if (KeyUtil.isUpKey(event) && isFirstRow(recyclerView, item)) {
+            RecyclerView prev = findHotRecycler(recyclerView, -1);
+            if (prev != null) {
+                View child = findNearestInLastRow(prev, item.getLeft());
+                if (child != null) {
+                    child.requestFocus();
+                    return true;
+                }
+                return focusFirst(prev);
+            }
+            if (mBinding.recordLayout.getVisibility() == View.VISIBLE) {
+                View child = findNearestInLastRow(mBinding.recordRecycler, item.getLeft());
+                if (child != null) {
+                    mBinding.scroll.smoothScrollTo(0, 0);
+                    child.requestFocus();
+                    return true;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private RecyclerView findHotRecycler(View current) {
+        for (RecyclerView recyclerView : getHotRecyclers()) {
+            if (recyclerView.findContainingItemView(current) != null) return recyclerView;
+        }
+        return null;
+    }
+
+    private RecyclerView findHotRecycler(RecyclerView current, int direction) {
+        RecyclerView[] recyclers = getHotRecyclers();
+        for (int i = 0; i < recyclers.length; i++) {
+            if (recyclers[i] != current) continue;
+            for (int j = i + direction; j >= 0 && j < recyclers.length; j += direction) {
+                if (recyclers[j].getChildCount() > 0) return recyclers[j];
+            }
+        }
+        return null;
+    }
+
+    private RecyclerView[] getHotRecyclers() {
+        return new RecyclerView[]{mBinding.hotTvRecycler, mBinding.hotMovieRecycler, mBinding.hotVarietyRecycler};
+    }
+
+    private boolean focusFirstWord() {
+        if (mBinding.hotGroup.getVisibility() != View.VISIBLE) return focusFirst(mBinding.wordRecycler);
+        for (RecyclerView recyclerView : getHotRecyclers()) {
+            if (focusFirst(recyclerView)) return true;
+        }
         return false;
     }
 

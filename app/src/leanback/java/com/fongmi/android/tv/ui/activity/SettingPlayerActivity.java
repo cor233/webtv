@@ -15,6 +15,7 @@ import com.fongmi.android.tv.impl.SpeedListener;
 import com.fongmi.android.tv.impl.UaListener;
 import com.fongmi.android.tv.player.mpv.MpvConfigStore;
 import com.fongmi.android.tv.setting.PlaybackPerformanceSetting;
+import com.fongmi.android.tv.setting.PlayerButtonSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.setting.Setting;
@@ -22,6 +23,8 @@ import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.ui.dialog.BufferDialog;
 import com.fongmi.android.tv.ui.dialog.MpvConfigDialog;
 import com.fongmi.android.tv.ui.dialog.PlaybackPerformanceDialog;
+import com.fongmi.android.tv.ui.dialog.PlayerButtonConfigDialog;
+import com.fongmi.android.tv.ui.dialog.PlayerOsdDialog;
 import com.fongmi.android.tv.ui.dialog.PreloadDialog;
 import com.fongmi.android.tv.ui.dialog.SpeedDialog;
 import com.fongmi.android.tv.ui.dialog.UaDialog;
@@ -59,7 +62,8 @@ public class SettingPlayerActivity extends BaseActivity implements UaListener, B
         format = new DecimalFormat("0.#");
         mBinding.kernel.requestFocus();
         mBinding.uaText.setText(Setting.getUa());
-        mBinding.osdText.setText(getOsdSummary());
+        mBinding.osdText.setText(getOsdText(ResUtil.getStringArray(R.array.select_player_osd)));
+        mBinding.playerButtonsText.setText(getString(R.string.player_button_config_summary, PlayerButtonSetting.getVisibleCount(), PlayerButtonSetting.getTotalCount()));
         mBinding.aacText.setText(getSwitch(PlayerSetting.isPreferAAC()));
         mBinding.tunnelText.setText(getSwitch(PlayerSetting.isTunnel()));
         mBinding.adblockText.setText(getSwitch(Setting.isAdblock()));
@@ -85,6 +89,7 @@ public class SettingPlayerActivity extends BaseActivity implements UaListener, B
     @Override
     protected void initEvent() {
         mBinding.osd.setOnClickListener(this::onOsd);
+        mBinding.playerButtons.setOnClickListener(view -> PlayerButtonConfigDialog.show(this, this::setPlayerButtonsText));
         mBinding.mpvConfig.setOnClickListener(view -> MpvConfigDialog.show(this, () -> mBinding.mpvConfigText.setText(MpvConfigStore.summary())));
         mBinding.kernel.setOnClickListener(this::setKernel);
         mBinding.ua.setOnClickListener(this::onUa);
@@ -123,24 +128,39 @@ public class SettingPlayerActivity extends BaseActivity implements UaListener, B
 
     private void onOsd(View view) {
         String[] items = ResUtil.getStringArray(R.array.select_player_osd);
-        boolean[] checked = {PlayerSetting.isOsdTitle(), PlayerSetting.isOsdResolution(), PlayerSetting.isOsdTime(), PlayerSetting.isOsdProgress(), PlayerSetting.isOsdTraffic(), PlayerSetting.isOsdMini()};
-        new MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.player_osd)
-                .setMultiChoiceItems(items, checked, (dialog, which, value) -> checked[which] = value)
-                .setNegativeButton(R.string.dialog_negative, null)
-                .setPositiveButton(R.string.dialog_positive, (dialog, which) -> {
-                    PlayerSetting.putOsdTitle(checked[0]);
-                    PlayerSetting.putOsdResolution(checked[1]);
-                    PlayerSetting.putOsdTime(checked[2]);
-                    PlayerSetting.putOsdProgress(checked[3]);
-                    PlayerSetting.putOsdTraffic(checked[4]);
-                    PlayerSetting.putOsdMini(checked[5]);
-                    mBinding.osdText.setText(getOsdSummary());
-                }).show();
+        PlayerOsdDialog.show(this, items, getOsdChecked(), checked -> {
+            setOsdChecked(checked);
+            mBinding.osdText.setText(getOsdText(items));
+        });
     }
 
-    private String getOsdSummary() {
-        return getSwitch(PlayerSetting.isOsdEnabled());
+    private boolean[] getOsdChecked() {
+        return new boolean[]{PlayerSetting.isOsdTitle(), PlayerSetting.isOsdResolution(), PlayerSetting.isOsdTime(), PlayerSetting.isOsdProgress(), PlayerSetting.isOsdTraffic(), PlayerSetting.isOsdMini(), PlayerSetting.isOsdDiagnostics()};
+    }
+
+    private void setOsdChecked(boolean[] checked) {
+        PlayerSetting.putOsdTitle(checked[0]);
+        PlayerSetting.putOsdResolution(checked[1]);
+        PlayerSetting.putOsdTime(checked[2]);
+        PlayerSetting.putOsdProgress(checked[3]);
+        PlayerSetting.putOsdTraffic(checked[4]);
+        PlayerSetting.putOsdMini(checked[5]);
+        PlayerSetting.putOsdDiagnostics(checked[6]);
+    }
+
+    private void setPlayerButtonsText() {
+        mBinding.playerButtonsText.setText(getString(R.string.player_button_config_summary, PlayerButtonSetting.getVisibleCount(), PlayerButtonSetting.getTotalCount()));
+    }
+
+    private String getOsdText(String[] items) {
+        boolean[] checked = getOsdChecked();
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < checked.length; i++) {
+            if (!checked[i]) continue;
+            if (builder.length() > 0) builder.append(" / ");
+            builder.append(items[i]);
+        }
+        return builder.length() == 0 ? getString(R.string.setting_off) : builder.toString();
     }
 
     private void setKernel(View view) {

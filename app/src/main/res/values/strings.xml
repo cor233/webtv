@@ -953,6 +953,7 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
         <item>Progress</item>
         <item>App network traffic</item>
         <item>Mini progress</item>
+        <item>Playback params</item>
     </string-array>
     <string name="setting_tab_offset">Offset</string>
     <string name="setting_viewing_record_sync">Viewing record sync</string>
@@ -1063,4 +1064,76 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
     <string name="player_performance_help_close">Close</string>
     <string name="player_performance_help_intro">Current player engine: %1$s. Most users should leave the profile on Auto. Light targets lower-end devices, combines stability choices from the former Compatible profile with lower fixed resource budgets, and replaces that separate profile. Engine-specific decode, output, and protocol controls remain available below for unusual devices and create a Custom profile when changed. Most low-level changes take effect after playback restarts or the player is rebuilt.</string>
     <string name="player_performance_common_section">Common settings</string>
+    <string name="apk_push_url_cancel">Cancel download</string>
+    <string name="apk_push_url_canceled">APK download canceled</string>
+    <string name="apk_push_url_download_failed">APK link download failed: %1$s</string>
+    <string name="apk_push_url_install_ready">APK downloaded. Confirm installation.</string>
+    <string name="apk_push_url_progress_detail">%1$s/s · %2$s elapsed</string>
+    <string name="apk_push_url_progress_detail_remaining">%1$s/s · %2$s left · %3$s elapsed</string>
+    <string name="apk_push_url_progress_hint">Downloading the APK sent over your LAN. Android will still ask you to confirm installation.</string>
+    <string name="apk_push_url_progress_known">Receiving %1$d%% · %2$s / %3$s</string>
+    <string name="apk_push_url_progress_title">Receiving APK</string>
+    <string name="apk_push_url_progress_unknown">Received %1$s</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="pan_diagnostic_entry">Link test</string>
+    <string name="pan_diagnostic_title">Playback link diagnostics</string>
+    <string name="play_search">Search</string>
+    <string name="player_button_config">Player buttons</string>
+    <string name="player_button_config_summary">%1$d/%2$d shown</string>
+    <string name="player_button_down">Down</string>
+    <string name="player_button_up">Up</string>
+    <string name="remote_trust_push_url">Push URL</string>
+    <string name="remote_trust_send_push">Push playback</string>
+    <string name="search_loading">Searching...</string>
+    <string name="search_no_result">No results</string>
+    <string name="search_progress">(%1$d/%2$d)</string>
+    <string name="setting_hide">Hide</string>
+    <string name="setting_show">Show</string>
+    <string name="search_hot_tv">TV</string>
+    <string name="search_hot_movie">Movie</string>
+    <string name="search_hot_variety">Variety</string>
+    <string name="apk_push_url_busy">Another APK link download is already active</string>
+    <string name="apk_push_url_schedule_failed">Unable to start the APK link download</string>
+    <string name="apk_push_failed">APK push failed: %1$s</string>
+    <string name="apk_push_invalid">Select a valid APK file</string>
+    <string name="apk_push_method_link">Push by link</string>
+    <string name="apk_push_method_local">Choose local APK</string>
+    <string name="apk_push_method_target">Target: %1$s</string>
+    <string name="apk_push_method_title">Push APK</string>
+    <string name="apk_push_no_space">Not enough storage to prepare the APK</string>
+    <string name="apk_push_preparing">Preparing APK...</string>
+    <string name="apk_push_progress">Pushing APK · %1$d%% · %2$s / %3$s</string>
+    <string name="apk_push_read_failed">Unable to read the selected APK</string>
+    <string name="apk_push_ready">Push APK · %1$s · %2$s</string>
+    <string name="apk_push_receiver_unsupported">The receiving device does not support APK push. Update WebHTV first.</string>
+    <string name="apk_push_select_device">Push APK · Select receiving device</string>
+    <string name="apk_push_success">APK sent. Confirm installation on the receiving device.</string>
+    <string name="apk_push_url_failed">APK link push failed</string>
+    <string name="apk_push_url_failed_reason">APK link push failed: %1$s</string>
+    <string name="apk_push_url_hint">HTTPS APK link</string>
+    <string name="apk_push_url_invalid">Enter a valid HTTPS APK link without credentials</string>
+    <string name="apk_push_url_required">Enter an HTTPS APK link</string>
+    <string name="apk_push_url_send">Send link</string>
+    <string name="apk_push_url_sent">Link sent. The TV is downloading the APK.</string>
+    <string name="apk_push_url_target">Push APK link · %1$s</string>
+    <string name="apk_push_url_unsupported">The receiving device does not support APK link push. Update WebHTV first.</string>
+    <string name="control_scale">Scale</string>
+    <string name="control_speed">Speed</string>
+    <string name="control_track">Track</string>
+    <string name="detail_search">Searching <xliff:g name="name">%s</xliff:g></string>
+    <string name="push_play_failed">Playback push failed</string>
+    <string name="push_play_failed_reason">Playback push failed: %1$s</string>
+    <string name="push_play_select_device">Push playback · Select receiving device</string>
+    <string name="push_play_success">Playback URL sent</string>
+    <string name="push_play_target">Push playback · %1$s</string>
+    <string name="push_play_url_required">Enter a playback URL</string>
+    <string name="timer_15">15 minutes</string>
+    <string name="timer_30">30 minutes</string>
+    <string name="timer_5">5 minutes</string>
+    <string name="timer_60">1 hour</string>
+    <string name="timer_cancel">Cancel timer</string>
+    <string name="timer_delay">Delay 5 minutes</string>
+    <string name="menu_push_apk">Push APK</string>
+    <string name="menu_push_play">Push playback</string>
+    <string name="play_share">Share</string>
 </resources>

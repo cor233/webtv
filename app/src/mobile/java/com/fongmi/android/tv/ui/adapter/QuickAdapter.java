@@ -28,6 +28,10 @@ public class QuickAdapter extends RecyclerView.Adapter<QuickAdapter.ViewHolder> 
         void onItemClick(Vod item);
     }
 
+    public List<Vod> getItems() {
+        return new ArrayList<>(mItems);
+    }
+
     public void clear() {
         mItems.clear();
         notifyDataSetChanged();

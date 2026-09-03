@@ -19,6 +19,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,6 +37,7 @@ public class SiteViewModel extends ViewModel {
     private final MutableLiveData<Result> player;
     private final MutableLiveData<Result> preload;
     private final MutableLiveData<Result> search;
+    private final MutableLiveData<SearchProgress> searchProgress;
     private final MutableLiveData<Result> action;
 
     private final Map<TaskType, ListenableFuture<?>> futures;
@@ -48,6 +50,7 @@ public class SiteViewModel extends ViewModel {
         player = new MutableLiveData<>();
         preload = new MutableLiveData<>();
         search = new MutableLiveData<>();
+        searchProgress = new MutableLiveData<>();
         action = new MutableLiveData<>();
         searchEpoch = new AtomicInteger(0);
         searchFuture = new CopyOnWriteArrayList<>();
@@ -72,12 +75,17 @@ public class SiteViewModel extends ViewModel {
         return search;
     }
 
+    public LiveData<SearchProgress> getSearchProgress() {
+        return searchProgress;
+    }
+
     public LiveData<Result> getAction() {
         return action;
     }
 
     public SiteViewModel init() {
         search.setValue(null);
+        searchProgress.setValue(null);
         result.setValue(null);
         player.setValue(null);
         preload.setValue(null);
@@ -126,8 +134,15 @@ public class SiteViewModel extends ViewModel {
 
     public void searchContent(List<Site> sites, String keyword, boolean quick) {
         int epoch = stopSearch();
+        List<Site> tasks = new ArrayList<>();
         for (Site site : sites) {
             if (quick && !site.isQuickSearch()) continue;
+            tasks.add(site);
+        }
+        int total = tasks.size();
+        AtomicInteger completed = new AtomicInteger();
+        searchProgress.postValue(SearchProgress.start(total));
+        for (Site site : tasks) {
             long start = System.currentTimeMillis();
             FluentFuture<Result> future = FluentFuture.from(Task.largeExecutor().submit(SearchTask.create(site, keyword, quick))).withTimeout(Constant.TIMEOUT_SEARCH, TimeUnit.MILLISECONDS, Task.scheduler());
             searchFuture.add(future);
@@ -135,16 +150,29 @@ public class SiteViewModel extends ViewModel {
                     result -> {
                         if (searchEpoch.get() != epoch) return;
                         SiteHealthStore.recordSearch(site, true, result.getList().size(), System.currentTimeMillis() - start, "");
-                        App.post(() -> { if (searchEpoch.get() == epoch) search.setValue(result); });
+                        postSearchResult(epoch, result);
+                        postSearchProgress(epoch, completed, total);
                     },
                     error -> {
                         if (searchEpoch.get() != epoch) return;
                         if (error instanceof CancellationException) return;
                         SiteHealthStore.recordSearch(site, false, 0, System.currentTimeMillis() - start, error.getMessage());
+                        postSearchProgress(epoch, completed, total);
                         error.printStackTrace();
                     }
             ), MoreExecutors.directExecutor());
         }
+    }
+
+    private void postSearchResult(int epoch, Result result) {
+        App.post(() -> {
+            if (searchEpoch.get() == epoch) search.setValue(result);
+        });
+    }
+
+    private void postSearchProgress(int epoch, AtomicInteger completed, int total) {
+        if (searchEpoch.get() != epoch) return;
+        searchProgress.postValue(SearchProgress.of(completed.incrementAndGet(), total));
     }
 
     private void execute(TaskType type, MutableLiveData<Result> liveData, Callable<Result> callable) {

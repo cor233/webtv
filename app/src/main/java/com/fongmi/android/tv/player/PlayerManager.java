@@ -96,6 +96,9 @@ public class PlayerManager implements ParseCallback {
     private float networkProtectionSupportedSpeed = 1f;
     private long networkProtectionMediaBitrate;
     private int networkProtectionRebufferCount;
+    private int rebufferCount;
+    private long rebufferTotalMs;
+    private long rebufferStart;
 
     public PlayerManager(Callback callback) {
         this.runnable = () -> callback.onError(ResUtil.getString(R.string.error_play_timeout));
@@ -226,6 +229,45 @@ public class PlayerManager implements ParseCallback {
 
     public int getVideoHeight() {
         return videoSize == null ? 0 : videoSize.height;
+    }
+
+    public Format getVideoFormat() {
+        try {
+            Tracks tracks = player == null ? null : player.getCurrentTracks();
+            if (tracks != null) {
+                for (Tracks.Group group : tracks.getGroups()) {
+                    if (group.getType() != C.TRACK_TYPE_VIDEO) continue;
+                    for (int i = 0; i < group.length; i++) {
+                        if (!group.isTrackSelected(i)) continue;
+                        return group.getTrackFormat(i);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    public long getDroppedFrames() {
+        return engine == null ? 0 : engine.getDroppedFrames();
+    }
+
+    public int getRebufferCount() {
+        return rebufferCount;
+    }
+
+    public long getRebufferTotalMs() {
+        return rebufferTotalMs;
+    }
+
+    private void trackRebuffer(int state) {
+        if (lastListenerState == Player.STATE_READY && state == Player.STATE_BUFFERING) {
+            rebufferCount++;
+            rebufferStart = System.currentTimeMillis();
+        } else if (state != Player.STATE_BUFFERING && rebufferStart > 0) {
+            rebufferTotalMs += Math.max(0, System.currentTimeMillis() - rebufferStart);
+            rebufferStart = 0;
+        }
     }
 
     public long getPosition() {
@@ -919,8 +961,17 @@ public class PlayerManager implements ParseCallback {
         public void onPlaybackStateChanged(int state) {
             if (state != Player.STATE_IDLE) App.removeCallbacks(runnable);
             if (lastListenerState == Player.STATE_READY && state == Player.STATE_BUFFERING) networkProtectionRebufferCount++;
+            trackRebuffer(state);
             lastListenerState = state;
             SpiderDebug.log("player", "state=%s spec=%s", stateName(state), debugSpec());
+        }
+
+        @Override
+        public void onIsPlayingChanged(boolean isPlaying) {
+            if (isPlaying && rebufferStart > 0) {
+                rebufferTotalMs += Math.max(0, System.currentTimeMillis() - rebufferStart);
+                rebufferStart = 0;
+            }
         }
 
         @Override

@@ -20,6 +20,7 @@ import com.fongmi.android.tv.setting.Setting;
 import com.fongmi.android.tv.utils.LocalNetworkPermission;
 import com.fongmi.android.tv.utils.NsdDeviceDiscovery;
 import com.fongmi.android.tv.utils.Notify;
+import com.fongmi.android.tv.utils.PreviousProcessExitLogger;
 import com.fongmi.android.tv.utils.EpgReminder;
 import com.fongmi.hook.Hook;
 import com.github.catvod.crawler.DebugLogStore;
@@ -99,7 +100,10 @@ public class App extends Application implements Application.ActivityLifecycleCal
         Setting.restoreClassicGreenWall();
         Setting.applyLanguage();
         DebugLogStore.restoreEnabled();
-        if (DebugLogStore.isEnabled()) Setting.logDebugEnvironment("restore");
+        if (DebugLogStore.isEnabled()) {
+            Setting.logDebugEnvironment("restore");
+            PreviousProcessExitLogger.log(this);
+        }
         Notify.createChannel();
         ProxySetting.apply();
         registerActivityLifecycleCallbacks(this);

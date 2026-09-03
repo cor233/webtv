@@ -19,10 +19,13 @@
     <color name="black_80">#CC000000</color>
     <color name="black_90">#E6000000</color>
     <color name="white">#FFFFFF</color>
+    <color name="exit_confirm_secondary_text">#99FFFFFF</color>
     <color name="white_05">#0DFFFFFF</color>
     <color name="white_15">#26FFFFFF</color>
     <color name="white_10">#1AFFFFFF</color>
     <color name="white_20">#33FFFFFF</color>
+    <color name="selector_button">#1AFFFFFF</color>
+    <color name="selector_stroke">#33FFFFFF</color>
     <color name="white_30">#4DFFFFFF</color>
     <color name="white_40">#66FFFFFF</color>
     <color name="white_50">#80FFFFFF</color>

@@ -54,6 +54,7 @@ import com.fongmi.android.tv.databinding.ActivityVideoBinding;
 import com.fongmi.android.tv.db.AppDatabase;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.impl.CustomTarget;
+import com.fongmi.android.tv.model.SearchProgress;
 import com.fongmi.android.tv.model.SiteViewModel;
 import com.fongmi.android.tv.player.PlayerHelper;
 import com.fongmi.android.tv.player.PlayerManager;
@@ -62,6 +63,7 @@ import com.fongmi.android.tv.player.lut.LutStore;
 import com.fongmi.android.tv.playback.PlaybackEventCollector;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.setting.DanmakuSetting;
+import com.fongmi.android.tv.setting.PlayerButtonSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.setting.Setting;
@@ -79,8 +81,10 @@ import com.fongmi.android.tv.ui.custom.CustomKeyDownVod;
 import com.fongmi.android.tv.ui.custom.CustomMovement;
 import com.fongmi.android.tv.ui.custom.CustomSeekView;
 import com.fongmi.android.tv.ui.dialog.ContentDialog;
+import com.fongmi.android.tv.ui.dialog.ControlDialog;
 import com.fongmi.android.tv.ui.dialog.DanmakuDialog;
 import com.fongmi.android.tv.ui.dialog.PlayerEngineDialog;
+import com.fongmi.android.tv.ui.dialog.QuickSearchDialog;
 import com.fongmi.android.tv.ui.dialog.SpeedSettingDialog;
 import com.fongmi.android.tv.ui.dialog.ChapterDialog;
 import com.fongmi.android.tv.ui.dialog.SubtitleSettingDialog;
@@ -106,9 +110,11 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
-public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.Listener, TrackDialog.Listener, ArrayAdapter.OnClickListener, FlagAdapter.OnClickListener, EpisodeAdapter.OnClickListener, QualityAdapter.OnClickListener, QuickAdapter.OnClickListener, ParseAdapter.OnClickListener, Clock.Callback {
+public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.Listener, TrackDialog.Listener, ControlDialog.Listener, ArrayAdapter.OnClickListener, FlagAdapter.OnClickListener, EpisodeAdapter.OnClickListener, QualityAdapter.OnClickListener, QuickAdapter.OnClickListener, ParseAdapter.OnClickListener, Clock.Callback {
 
     private ActivityVideoBinding mBinding;
     private PlayerOsdController mOsd;
@@ -148,6 +154,9 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     private long detailStartTime;
     private long playerStartTime;
     private boolean pendingLutImport;
+    private Map<String, View> mActionButtons;
+    private QuickSearchDialog mQuickSearchDialog;
+    private boolean quickSearchDialogClosed;
 
     private final ActivityResultLauncher<Intent> mLutDir = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
         if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) return;
@@ -410,6 +419,9 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         mBinding.control.action.prev.setOnClickListener(view -> checkPrev());
         mBinding.control.action.scale.setOnClickListener(view -> onScale());
         mBinding.control.action.lut.setOnClickListener(view -> onLut());
+        mBinding.control.action.share.setOnClickListener(view -> onShare());
+        mBinding.control.action.panel.setOnClickListener(view -> onControlPanel());
+        setupActionButtons();
         mBinding.control.action.speed.setOnClickListener(view -> SpeedSettingDialog.show(this, player()));
         mBinding.control.action.reset.setOnClickListener(view -> onReset());
         mBinding.control.action.title.setOnClickListener(view -> onTitle());
@@ -500,6 +512,75 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         setLut();
     }
 
+    private void onShare() {
+        PlayerHelper.share(this, player().getUrl(), player().getHeaders(), mBinding.name.getText());
+        setRedirect(true);
+    }
+
+    private void onControlPanel() {
+        ControlDialog.create().parent(mBinding).history(mHistory).parse(isUseParse()).player(player()).show(this);
+    }
+
+    @Override
+    public void onScale(int tag) {
+        setScale(tag);
+    }
+
+    @Override
+    public void onParse(Parse item) {
+        onItemClick(item);
+    }
+
+    @Override
+    public void onLutPanel() {
+        onLut();
+    }
+
+    @Override
+    public void onTrackPanel(int type) {
+        TrackDialog.create().type(type).player(player()).show(this);
+    }
+
+    @Override
+    public void onTitlePanel() {
+        onTitle();
+    }
+
+    @Override
+    public void onDanmakuPanel() {
+        onDanmaku();
+    }
+
+    private void setupActionButtons() {
+        mActionButtons = new HashMap<>();
+        addActionButton(PlayerButtonSetting.NEXT, mBinding.control.action.next);
+        addActionButton(PlayerButtonSetting.PREV, mBinding.control.action.prev);
+        addActionButton(PlayerButtonSetting.RESET, mBinding.control.action.reset);
+        addActionButton(PlayerButtonSetting.REPLAY, mBinding.control.action.replay);
+        addActionButton(PlayerButtonSetting.CHANGE, mBinding.control.action.change2);
+        addActionButton(PlayerButtonSetting.FULLSCREEN, mBinding.control.action.fullscreen);
+        addActionButton(PlayerButtonSetting.PLAYER, mBinding.control.action.player);
+        addActionButton(PlayerButtonSetting.DECODE, mBinding.control.action.decode);
+        addActionButton(PlayerButtonSetting.SPEED, mBinding.control.action.speed);
+        addActionButton(PlayerButtonSetting.SCALE, mBinding.control.action.scale);
+        addActionButton(PlayerButtonSetting.LUT, mBinding.control.action.lut);
+        addActionButton(PlayerButtonSetting.SHARE, mBinding.control.action.share);
+        addActionButton(PlayerButtonSetting.TEXT, mBinding.control.action.text);
+        addActionButton(PlayerButtonSetting.AUDIO, mBinding.control.action.audio);
+        addActionButton(PlayerButtonSetting.VIDEO, mBinding.control.action.video);
+        addActionButton(PlayerButtonSetting.OPENING, mBinding.control.action.opening);
+        addActionButton(PlayerButtonSetting.ENDING, mBinding.control.action.ending);
+        addActionButton(PlayerButtonSetting.DANMAKU, mBinding.control.action.danmaku);
+        addActionButton(PlayerButtonSetting.CHAPTER, mBinding.control.action.chapter);
+        addActionButton(PlayerButtonSetting.TITLE, mBinding.control.action.title);
+        addActionButton(PlayerButtonSetting.REPEAT, mBinding.control.action.repeat);
+        PlayerButtonSetting.applyOrder(mBinding.control.action.container, mActionButtons);
+    }
+
+    private void addActionButton(String id, View view) {
+        mActionButtons.put(id, view);
+    }
+
     private void onLut() {
         mBinding.lutQuick.toggle(player(), mBinding.exo, this::onLutChanged, new com.fongmi.android.tv.ui.custom.LutQuickPanel.ImportCallback() {
             @Override
@@ -564,6 +645,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         mViewModel.getPlayer().observe(this, mObservePlayer);
         mViewModel.getPreload().observe(this, this::setPreload);
         mViewModel.getSearch().observe(this, mObserveSearch);
+        mViewModel.getSearchProgress().observe(this, this::setSearchProgress);
     }
 
     private void checkCast() {
@@ -1662,6 +1744,9 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
 
     private void startSearch(String keyword) {
         mQuickAdapter.clear();
+        dismissQuickSearchDialog();
+        quickSearchDialogClosed = false;
+        if (!isInitAuto()) showQuickSearchDialog(new ArrayList<>());
         List<Site> sites = new ArrayList<>();
         for (Site site : VodConfig.get().getSites()) if (isPass(site)) sites.add(site);
         SiteHealthStore.sortSites(sites);
@@ -1673,9 +1758,38 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         items.removeIf(this::mismatch);
         mQuickAdapter.addAll(items);
         mBinding.quick.setVisibility(View.GONE);
+        if (!isInitAuto() && !items.isEmpty()) showQuickSearchDialog(items);
         if (isInitAuto()) nextSite();
         if (items.isEmpty()) return;
         App.removeCallbacks(mR4);
+    }
+
+    private void setSearchProgress(SearchProgress progress) {
+        if (progress == null || isInitAuto()) return;
+        showQuickSearchDialog(new ArrayList<>());
+        if (mQuickSearchDialog != null) mQuickSearchDialog.setProgress(progress.current(), progress.total(), progress.finished());
+    }
+
+    private void showQuickSearchDialog(List<Vod> items) {
+        if (quickSearchDialogClosed) return;
+        if (mQuickSearchDialog != null) {
+            mQuickSearchDialog.addAll(items);
+            return;
+        }
+        QuickSearchDialog dialog = QuickSearchDialog.create().listener(this).items(items);
+        dialog.dismissListener(d -> {
+            if (mQuickSearchDialog != dialog) return;
+            mQuickSearchDialog = null;
+            quickSearchDialogClosed = true;
+        });
+        mQuickSearchDialog = dialog;
+        dialog.show(this);
+    }
+
+    private void dismissQuickSearchDialog() {
+        QuickSearchDialog dialog = mQuickSearchDialog;
+        mQuickSearchDialog = null;
+        if (dialog != null) dialog.dismissAllowingStateLoss();
     }
 
     @Override

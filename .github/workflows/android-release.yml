@@ -98,18 +98,24 @@ jobs:
           find app/build/outputs/apk -name "*.apk" -type f -exec cp -v {} dist/ \;
           ls -la dist/
 
-      - name: Check APK sizes (CNB raw limit is 100 MiB)
+      - name: Check APK sizes (CNB raw limit is 100 MB decimal)
         run: |
-          LIMIT=$((100 * 1024 * 1024))
+          # CNB counts in decimal MB and refuses raw access to files it deems
+          # over 100 MB even when the git push itself succeeds.
+          LIMIT=$((100000000))
+          MARGIN=$((99500000))
+          : > dist/cnb_skip.txt
           for apk in dist/*.apk; do
             size=$(stat -c %s "$apk")
-            miB=$((size / 1024 / 1024))
-            if [ "$size" -gt "$LIMIT" ]; then
-              echo "::warning::$(basename "$apk") is ${miB} MiB — exceeds CNB raw 100 MiB limit"
+            mb=$((size / 1000000))
+            if [ "$size" -gt "$MARGIN" ]; then
+              basename "$apk" >> dist/cnb_skip.txt
+              echo "::warning::$(basename "$apk") is ${mb} MB — exceeds CNB raw 100 MB limit, excluded from mirror sync (in-app update falls back to GitHub)"
             else
-              echo "OK $(basename "$apk") ${miB} MiB"
+              echo "OK $(basename "$apk") ${mb} MB (CNB mirror eligible)"
             fi
           done
+          cat dist/cnb_skip.txt
 
       - name: Generate update JSON manifests
         if: startsWith(github.ref, 'refs/tags/v')
@@ -121,6 +127,8 @@ jobs:
             base=$(basename "$apk" .apk)
             SIZE=$(stat -c %s "$apk")
             SHA=$(sha256sum "$apk" | awk '{print $1}')
+            CNB=true
+            if grep -qx "$base.apk" dist/cnb_skip.txt; then CNB=false; fi
             cat > "dist/${base}.json" << JSONEOF
           {
             "name": "${{ github.ref_name }}",
@@ -129,10 +137,11 @@ jobs:
             "code": $VERSION_CODE,
             "apk": "${base}.apk",
             "size": $SIZE,
-            "sha256": "$SHA"
+            "sha256": "$SHA",
+            "cnb": $CNB
           }
           JSONEOF
-            echo "Generated dist/${base}.json code=$VERSION_CODE size=$SIZE"
+            echo "Generated dist/${base}.json code=$VERSION_CODE size=$SIZE cnb=$CNB"
           done
 
       - name: Write release notes
@@ -218,7 +227,16 @@ jobs:
           git rm -rf --cached -q . 2>/dev/null || true
           rm -rf apk .gitattributes
           mkdir -p apk
-          if ! cp ../dist/*.apk apk/ 2>/dev/null; then
+          copied=0
+          for apk in ../dist/*.apk; do
+            base=$(basename "$apk")
+            if grep -qx "$base" ../dist/cnb_skip.txt 2>/dev/null; then
+              echo "- CNB APK mirror: skipping $base (over CNB raw 100 MB limit)" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            cp "$apk" apk/ && copied=$((copied + 1))
+          done
+          if [ "$copied" -eq 0 ]; then
             echo "- CNB APK mirror: no APK files, skipped" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi

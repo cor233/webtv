@@ -20,6 +20,7 @@ public class Update {
     public String sha256;
     public int code;
     public long size;
+    public boolean cnb = true;
 
     public static Update empty(String channel) {
         Update update = new Update();

@@ -112,6 +112,7 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
         update.apk = object.optString("apk", getFlavor() + ".apk");
         update.size = object.optLong("size");
         update.sha256 = object.optString("sha256");
+        update.cnb = object.optBoolean("cnb", true);
         String apk = TextUtils.isEmpty(update.apk) ? getFlavor() + ".apk" : update.apk;
         update.githubUrl = GITHUB_RELEASE + "/" + fileName(apk);
         update.cnbUrl = CNB_RELEASE + "/" + fileName(apk);
@@ -172,7 +173,7 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
                 }
             }
             result.add(primary);
-            if (update != null && !TextUtils.isEmpty(update.cnbUrl)) result.add(update.cnbUrl);
+            if (update != null && update.cnb && !TextUtils.isEmpty(update.cnbUrl)) result.add(update.cnbUrl);
         } catch (Exception e) {
             SpiderDebug.log(e);
         }

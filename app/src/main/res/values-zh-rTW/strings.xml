@@ -563,6 +563,9 @@ WebHomeTV 是播放器外殼，不內建內容源，請使用合法設定。</st
     <string name="update_settings_save">儲存</string>
     <string name="update_settings_saved">更新設定已儲存</string>
     <string name="update_github_proxy">GitHub 下載代理</string>
+    <string name="update_source">下載源</string>
+    <string name="update_source_auto">自動（推薦）</string>
+    <string name="update_source_server">伺服器鏡像</string>
     <string name="update_proxy_direct">直連</string>
     <string name="update_proxy_custom">自訂</string>
     <string name="update_proxy_custom_hint">自訂代理源（https://…）</string>

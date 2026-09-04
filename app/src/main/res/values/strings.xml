@@ -646,6 +646,9 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
     <string name="update_settings_save">Save</string>
     <string name="update_settings_saved">Update settings saved</string>
     <string name="update_github_proxy">GitHub download proxy</string>
+    <string name="update_source">Download source</string>
+    <string name="update_source_auto">Auto (recommended)</string>
+    <string name="update_source_server">Server mirror</string>
     <string name="update_proxy_direct">Direct</string>
     <string name="update_proxy_custom">Custom</string>
     <string name="update_proxy_custom_hint">Custom proxy origin (https://…)</string>

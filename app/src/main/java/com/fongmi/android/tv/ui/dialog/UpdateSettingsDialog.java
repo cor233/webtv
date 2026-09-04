@@ -24,11 +24,30 @@ public final class UpdateSettingsDialog {
         DialogUpdateSettingsBinding binding = DialogUpdateSettingsBinding.inflate(LayoutInflater.from(activity));
         Dialog dialog = LightDialog.create(activity, activity.getString(R.string.update_settings), binding.getRoot());
         String proxy = Setting.getUpdateGithubProxy();
+        binding.mirrorSource.setOnClickListener(view -> chooseMirror(activity, binding));
         binding.githubProxy.setOnClickListener(view -> chooseGithub(activity, binding));
         binding.save.setOnClickListener(view -> save(activity, dialog, binding));
+        renderMirror(activity, binding, Setting.getMirror());
         renderGithub(activity, binding, proxy);
         dialog.setCanceledOnTouchOutside(false);
         dialog.show();
+    }
+
+    private static void chooseMirror(FragmentActivity activity, DialogUpdateSettingsBinding binding) {
+        String[] ids = {"auto", "server", "github", "cnb"};
+        CharSequence[] labels = {activity.getString(R.string.update_source_auto), activity.getString(R.string.update_source_server), activity.getString(R.string.update_github), activity.getString(R.string.update_cnb)};
+        String current = Setting.getMirror();
+        int selected = 0;
+        for (int i = 0; i < ids.length; i++) if (ids[i].equals(current)) selected = i;
+        ChoiceDialog.showSingle(activity, R.string.update_source, labels, selected, which -> {
+            Setting.putMirror(ids[which]);
+            renderMirror(activity, binding, ids[which]);
+        });
+    }
+
+    private static void renderMirror(FragmentActivity activity, DialogUpdateSettingsBinding binding, String mirror) {
+        int label = "server".equals(mirror) ? R.string.update_source_server : "github".equals(mirror) ? R.string.update_github : "cnb".equals(mirror) ? R.string.update_cnb : R.string.update_source_auto;
+        binding.mirrorSource.setText(label);
     }
 
     private static void chooseGithub(FragmentActivity activity, DialogUpdateSettingsBinding binding) {

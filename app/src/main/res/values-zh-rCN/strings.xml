@@ -564,6 +564,9 @@ WebHomeTV 是播放器壳子，不内置内容源，请使用合法配置。</st
     <string name="update_settings_save">保存</string>
     <string name="update_settings_saved">更新设置已保存</string>
     <string name="update_github_proxy">GitHub 下载代理</string>
+    <string name="update_source">下载源</string>
+    <string name="update_source_auto">自动（推荐）</string>
+    <string name="update_source_server">服务器镜像</string>
     <string name="update_proxy_direct">直连</string>
     <string name="update_proxy_custom">自定义</string>
     <string name="update_proxy_custom_hint">自定义代理源（https://…）</string>

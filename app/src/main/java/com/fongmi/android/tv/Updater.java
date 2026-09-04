@@ -103,20 +103,29 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
     }
 
     private Update fetchUpdate() throws Exception {
-        JSONObject object = new JSONObject(OkHttp.string(Github.getJson(getFlavor())));
-        Update update = Update.empty(Update.CHANNEL_STABLE);
-        update.name = object.optString("name");
-        update.versionName = object.optString("versionName");
-        update.desc = object.optString("desc");
-        update.code = object.optInt("code");
-        update.apk = object.optString("apk", getFlavor() + ".apk");
-        update.size = object.optLong("size");
-        update.sha256 = object.optString("sha256");
-        update.cnb = object.optBoolean("cnb", true);
-        String apk = TextUtils.isEmpty(update.apk) ? getFlavor() + ".apk" : update.apk;
-        update.githubUrl = GITHUB_RELEASE + "/" + fileName(apk);
-        update.cnbUrl = CNB_RELEASE + "/" + fileName(apk);
-        return update;
+        Exception last = null;
+        for (String url : Github.getJsonCandidates(getFlavor())) {
+            try {
+                JSONObject object = new JSONObject(OkHttp.string(url));
+                Update update = Update.empty(Update.CHANNEL_STABLE);
+                update.name = object.optString("name");
+                update.versionName = object.optString("versionName");
+                update.desc = object.optString("desc");
+                update.code = object.optInt("code");
+                update.apk = object.optString("apk", getFlavor() + ".apk");
+                update.size = object.optLong("size");
+                update.sha256 = object.optString("sha256");
+                update.cnb = object.optBoolean("cnb", true);
+                String apk = TextUtils.isEmpty(update.apk) ? getFlavor() + ".apk" : update.apk;
+                update.githubUrl = GITHUB_RELEASE + "/" + fileName(apk);
+                update.cnbUrl = CNB_RELEASE + "/" + fileName(apk);
+                return update;
+            } catch (Exception e) {
+                SpiderDebug.log(e);
+                last = e;
+            }
+        }
+        throw last != null ? last : new IllegalStateException("No update source reachable");
     }
 
     private String fileName(String apk) {
@@ -164,6 +173,9 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
     private List<String> buildRoutes(Update update) {
         Set<String> result = new LinkedHashSet<>();
         try {
+            String serverUrl = Github.getServerApk(fileName(update == null || TextUtils.isEmpty(update.apk) ? getFlavor() + ".apk" : update.apk));
+            boolean serverFirst = "server".equals(Github.getMirror()) || "auto".equals(Github.getMirror());
+            if (serverFirst) result.add(serverUrl);
             GithubProxy.Config proxy = GithubProxy.resolve(Setting.getUpdateGithubProxy(), Setting.getUpdateGithubProxyUrl(), Setting.getUpdateGithubProxyMode());
             String primary = update == null || TextUtils.isEmpty(update.githubUrl) ? Github.getApk(getFlavor()) : update.githubUrl;
             if (proxy != null && !GithubProxy.DIRECT.equals(proxy.id)) {
@@ -173,6 +185,7 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
                 }
             }
             result.add(primary);
+            if (!serverFirst) result.add(serverUrl);
             if (update != null && update.cnb && !TextUtils.isEmpty(update.cnbUrl)) result.add(update.cnbUrl);
         } catch (Exception e) {
             SpiderDebug.log(e);

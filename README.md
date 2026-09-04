@@ -72,7 +72,7 @@
 
 ## 下载安装
 
-最新版本：**v5.10.1**
+最新版本：**v5.10.2**
 
 项目主页（GitHub Pages）：https://motao123.github.io/webtv/
 

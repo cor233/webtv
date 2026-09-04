@@ -6,8 +6,12 @@ import com.github.catvod.utils.Prefers;
 
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Github {
 
+    private static final String SERVER = "https://pan.imotao.com/file";
     private static final String GITHUB = "https://github.com/motao123/webtv/releases/latest/download";
     private static final String CNB = "https://cnb.cool/code_free/webtv/-/git/raw/main";
     private static final String GEO_URL = "https://ip-api.com/json?fields=countryCode";
@@ -22,7 +26,8 @@ public class Github {
 
     public static void setMirror(String mirror) {
         Prefers.put(PREF_MIRROR, mirror);
-        if ("github".equals(mirror)) baseUrl = GITHUB;
+        if ("server".equals(mirror)) baseUrl = SERVER;
+        else if ("github".equals(mirror)) baseUrl = GITHUB;
         else if ("cnb".equals(mirror)) baseUrl = CNB;
         else baseUrl = null;
     }
@@ -33,9 +38,10 @@ public class Github {
 
     private static String resolveBase() {
         String mirror = getMirror();
+        if ("server".equals(mirror)) return SERVER;
         if ("github".equals(mirror)) return GITHUB;
         if ("cnb".equals(mirror)) return CNB;
-        if (isChina()) return CNB;
+        if (isChina()) return SERVER;
         return GITHUB;
     }
 
@@ -76,4 +82,24 @@ public class Github {
         return getUrl(name + ".apk");
     }
 
+    public static String getServerApk(String name) {
+        return SERVER + "/apk/" + name;
+    }
+
+    public static String getServerJson(String name) {
+        return SERVER + "/apk/" + name + ".json";
+    }
+
+    public static List<String> getJsonCandidates(String name) {
+        List<String> result = new ArrayList<>();
+        result.add(getUrl(name + ".json"));
+        result.add(SERVER + "/apk/" + name + ".json");
+        result.add(GITHUB + "/" + name + ".json");
+        result.add(CNB + "/apk/" + name + ".json");
+        return result.stream().distinct().collect(java.util.stream.Collectors.toList());
+    }
+
+    public static String getBase() {
+        return getUrl();
+    }
 }

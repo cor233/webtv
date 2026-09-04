@@ -204,7 +204,7 @@ jobs:
             echo "CNB_TOKEN configured, mirror sync will run."
           fi
 
-      - name: Sync to mirror
+      - name: Sync to CNB git repo (server pulls from here)
         if: startsWith(github.ref, 'refs/tags/v') && env.CNB_TOKEN != ''
         continue-on-error: true
         env:
@@ -220,46 +220,26 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # Rebuild the mirror history from scratch on every release: an orphan
           # branch containing only the latest APKs/JSONs keeps the repo small.
-          # Appending APKs to git history previously grew the mirror to ~10 GiB.
+          # Git blobs have no size limit here — oversized APKs (>100 MB) are
+          # unreachable via CNB *raw* but the self-hosted mirror pulls them
+          # via git, so ALL APKs are committed. Raw remains usable for files
+          # under the limit; manifests carry "cnb": false for oversized ones
+          # so the app never routes those downloads through raw.
           # APKs must be git blobs (CNB raw returns a 134-byte LFS pointer for
           # LFS-tracked files, which would break the in-app download).
           git checkout --orphan apk-main
           git rm -rf --cached -q . 2>/dev/null || true
           rm -rf apk .gitattributes
           mkdir -p apk
-          copied=0
-          for apk in ../dist/*.apk; do
-            base=$(basename "$apk")
-            if grep -qx "$base" ../dist/cnb_skip.txt 2>/dev/null; then
-              echo "- CNB APK mirror: skipping $base (over CNB raw 100 MB limit)" >> "$GITHUB_STEP_SUMMARY"
-              continue
-            fi
-            cp "$apk" apk/ && copied=$((copied + 1))
-          done
-          if [ "$copied" -eq 0 ]; then
-            echo "- CNB APK mirror: no APK files, skipped" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
+          cp ../dist/*.apk apk/ || true
           cp ../dist/*.json apk/ 2>/dev/null || true
           git add apk/
           git commit -m "${{ github.ref_name }}"
           if git push --force origin apk-main:main 2>&1; then
-            echo "- CNB APK mirror: history rebuilt (latest only)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- CNB APK mirror: history rebuilt (all APKs, latest only)" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "- CNB APK mirror: force push failed (kept previous history)" >> "$GITHUB_STEP_SUMMARY"
           fi
-
-      - name: Sync to self-hosted mirror (pan.imotao.com)
-        if: startsWith(github.ref, 'refs/tags/v')
-        continue-on-error: true
-        env:
-          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          rsync -avz --delete --chmod=D755,F644 -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" dist/*.apk dist/*.json root@58.49.150.222:/www/wwwroot/pan.imotao.com/file/apk/
-          echo "- Self-hosted mirror: synced APKs + manifests to pan.imotao.com/file/apk" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Sync TV source
         if: startsWith(github.ref, 'refs/tags/v') && env.CNB_TOKEN != ''

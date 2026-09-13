@@ -90,7 +90,7 @@ public class CustomKeyDown extends GestureDetector.SimpleOnGestureListener imple
     }
 
     private boolean isSide(MotionEvent e) {
-        int four = ResUtil.getScreenWidth(activity) / 4;
+        int four = videoView.getRootView().getWidth() / 4;
         return !(e.getX() > four) || !(e.getX() < four * 3);
     }
 
@@ -171,13 +171,15 @@ public class CustomKeyDown extends GestureDetector.SimpleOnGestureListener imple
     }
 
     private void checkSide(MotionEvent e2) {
-        int half = ResUtil.getScreenWidth(activity) / 2;
+        // Touch coordinates are in the video view's space; the root view shares that space and
+        // always reflects the live window size, unlike screen metrics during rotation lag.
+        int half = videoView.getRootView().getWidth() / 2;
         if (e2.getX() > half) changeVolume = true;
         else changeBright = true;
     }
 
     private void setBright(float deltaY) {
-        int height = videoView.getMeasuredHeight();
+        int height = videoView.getRootView().getHeight();
         float brightness = deltaY * 2.0f / height + bright;
         if (brightness < 0) brightness = 0f;
         if (brightness > 1.0f) brightness = 1.0f;
@@ -188,7 +190,7 @@ public class CustomKeyDown extends GestureDetector.SimpleOnGestureListener imple
     }
 
     private void setVolume(float deltaY) {
-        int height = videoView.getMeasuredHeight();
+        int height = videoView.getRootView().getHeight();
         int maxVolume = manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
         float deltaV = deltaY * 2.0f / height * maxVolume;
         float index = volume + deltaV;

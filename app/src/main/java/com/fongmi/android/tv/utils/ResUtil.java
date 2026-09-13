@@ -45,8 +45,8 @@ public class ResUtil {
         if (windowManager == null) {
             return getDisplayMetrics(context).widthPixels;
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Rect rect = windowManager.getCurrentWindowMetrics().getBounds();
-            return isLand(context) ? Math.max(rect.width(), rect.height()) : Math.min(rect.width(), rect.height());
+            // See getScreenHeight: window bounds, never derived from the configuration.
+            return windowManager.getCurrentWindowMetrics().getBounds().width();
         } else {
             DisplayMetrics displayMetrics = new DisplayMetrics();
             windowManager.getDefaultDisplay().getMetrics(displayMetrics);
@@ -63,8 +63,9 @@ public class ResUtil {
         if (windowManager == null) {
             return getDisplayMetrics(context).heightPixels;
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Rect rect = windowManager.getCurrentWindowMetrics().getBounds();
-            return isLand(context) ? Math.min(rect.width(), rect.height()) : Math.max(rect.width(), rect.height());
+            // The window bounds are the authoritative current size; deriving them from the
+            // configuration orientation lags behind during rotation and returns the wrong edge.
+            return windowManager.getCurrentWindowMetrics().getBounds().height();
         } else {
             DisplayMetrics displayMetrics = new DisplayMetrics();
             windowManager.getDefaultDisplay().getMetrics(displayMetrics);
@@ -72,12 +73,25 @@ public class ResUtil {
         }
     }
 
+    /**
+     * The orientation to lock, derived purely from the display rotation. The configuration
+     * orientation lags behind the actual rotation after setRequestedOrientation(), so callers
+     * locking the screen during that window would silently rotate the player back to portrait.
+     */
     public static int getScreenOrientation(Context context) {
-        int orientation = context.getResources().getConfiguration().orientation;
-        int rotation = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
-        if (orientation == Configuration.ORIENTATION_PORTRAIT) return ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-        if (orientation == Configuration.ORIENTATION_LANDSCAPE) return rotation == Surface.ROTATION_90 ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
-        return ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+        WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        Display display = windowManager == null ? null : windowManager.getDefaultDisplay();
+        int rotation = display == null ? Surface.ROTATION_0 : display.getRotation();
+        switch (rotation) {
+            case Surface.ROTATION_90:
+                return ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+            case Surface.ROTATION_270:
+                return ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
+            case Surface.ROTATION_180:
+                return ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT;
+            default:
+                return ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+        }
     }
 
     public static boolean isEdge(Context context, MotionEvent e, int edge) {

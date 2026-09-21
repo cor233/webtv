@@ -14,8 +14,8 @@ if (gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
     throw new GradleException('Release signing is required for release builds')
 }
 
-// Crash reports arrive as "versionName + APK file", which is not enough to locate the
-// commit that produced a shipped build, so the APK itself carries the provenance.
+// A crash report only carries the version and the shipped file, which is not enough to
+// locate the commit that produced that build, so the APK now records its own provenance.
 def gitOutput = { List<String> args ->
     try {
         def process = args.execute(null, rootProject.file('.'))

@@ -37,19 +37,19 @@ jobs:
       - name: Write local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-      - name: Install host Python 3.10 (Chaquopy v17 buildPython)
+      # Same host Python Chaquopy needs, without the deadsnakes PPA: its Launchpad
+      # signing key can be unavailable for hours and would redden main for no reason.
+      - name: Set up host Python 3.10 (Chaquopy v17 buildPython)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Expose python3.10 for Chaquopy buildPython
         run: |
-          sudo apt-get update
-          sudo apt-get install -y software-properties-common
-          # Launchpad intermittently fails to serve the deadsnakes signing key, which
-          # would otherwise turn a healthy main branch red at random.
-          for i in 1 2 3 4 5; do
-            if sudo add-apt-repository -y ppa:deadsnakes/ppa; then break; fi
-            echo "deadsnakes PPA unavailable (attempt $i/5), retrying in $((i * 20))s"
-            sleep $((i * 20))
-          done
-          sudo apt-get update
-          sudo apt-get install -y python3.10 python3.10-venv python3.10-dev
+          PYTHON_DIR="$(dirname "$(command -v python)")"
+          command -v python3.10 >/dev/null || ln -sf "$(command -v python)" "$PYTHON_DIR/python3.10"
+          python3.10 --version
+          python3.10 -m venv --help >/dev/null
 
       - name: Make gradlew executable
         run: chmod +x gradlew

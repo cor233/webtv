@@ -103,20 +103,18 @@ jobs:
       - name: List build variants
         run: ./gradlew :app:tasks --all 2>&1 | grep -E "assemble.*Release$" | head -20
 
-      - name: Install host Python 3.10 (Chaquopy v17 buildPython)
+      # Chaquopy 17 needs a host Python 3.10 on PATH. This used to come from the
+      # deadsnakes PPA, whose Launchpad signing key can fail to resolve for hours and
+      # take the entire release down; GitHub-hosted Python builds have no such dependency.
+      - name: Set up host Python 3.10 (Chaquopy v17 buildPython)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Expose python3.10 for Chaquopy buildPython
         run: |
-          sudo apt-get update
-          sudo apt-get install -y software-properties-common
-          # Launchpad intermittently answers for the deadsnakes signing key with
-          # GPGKeyTemporarilyNotFoundError, which used to abort a release over a
-          # transient upstream hiccup.
-          for i in 1 2 3 4 5; do
-            if sudo add-apt-repository -y ppa:deadsnakes/ppa; then break; fi
-            echo "deadsnakes PPA unavailable (attempt $i/5), retrying in $((i * 20))s"
-            sleep $((i * 20))
-          done
-          sudo apt-get update
-          sudo apt-get install -y python3.10 python3.10-venv python3.10-distutils
+          PYTHON_DIR="$(dirname "$(command -v python)")"
+          command -v python3.10 >/dev/null || ln -sf "$(command -v python)" "$PYTHON_DIR/python3.10"
           python3.10 --version
           python3.10 -m venv --help >/dev/null
 

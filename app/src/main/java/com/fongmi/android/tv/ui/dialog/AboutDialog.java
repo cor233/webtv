@@ -12,7 +12,8 @@ public final class AboutDialog {
     }
 
     public static void show(FragmentActivity activity, Runnable updateAction) {
-        String message = activity.getString(R.string.about_message, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.FLAVOR_mode, BuildConfig.FLAVOR_abi);
+        String revision = "unknown".equals(BuildConfig.GIT_REVISION) ? "" : "\n" + BuildConfig.GIT_REVISION + " · " + BuildConfig.GIT_STATE + " · " + BuildConfig.BUILD_TIME;
+        String message = activity.getString(R.string.about_message, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.FLAVOR_mode, BuildConfig.FLAVOR_abi) + revision;
         new MaterialAlertDialogBuilder(activity)
                 .setTitle(R.string.app_name)
                 .setMessage(message)

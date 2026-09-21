@@ -1,14 +1,11 @@
 # Changelog
 
-## 5.12.1 — 修复更新清单版本字段（覆盖失效的 5.12.0） (2026-09-21)
+## 5.12.2 — 修复应用内更新不可用，并把 CI 的宿主 Python 依赖从 Launchpad 摘掉 (2026-09-21)
 
-5.12.0 的应用内更新不可用：CI 生成更新清单时用 `grep -m1 'versionName' app/build.gradle` 取第一个匹配行，而 5.12.0 新增的一行解释注释里带有 `versionName` 字样且位置更靠前，导致六个清单的 `versionName` 被写成注释文本。`Updater` 会把清单的 `versionName` 与已下载 APK 的实际版本比对，不一致即判定更新无效，因此所有变体的更新都被这个字段卡死。
+本版取代 v5.12.0（其更新清单损坏，见下），功能改动与 5.12.0 完全相同。v5.12.1 因构建基础设施故障两次未产出产物，从未发布，仅留下一个空 tag。
 
-- 版本提取改为锚定到声明行（`^[[:space:]]*versionName[[:space:]]+"`），不再受文件里任何注释或后出现的同名字段影响；`versionCode` 同样锚定。
-- 触发问题的注释去掉裸字段名，避免其它按关键词取值的脚本重蹈覆辙。
-- 发版 preflight 里的版本提取本来就是锚定的，所以 tag 与 versionName 校验通过、只有清单坏掉——这也说明两处独立实现同一件解析工作有漂移风险，本版未新增第二处。
-
-除上述构建产物元数据外，本版本代码内容与 5.12.0 一致（EPG 节目提醒、播放链路崩溃与远程接口加固、CI 门禁与 APK 溯源，详见 5.12.0 章节）。
+- **修复应用内更新被判无效**：v5.12.0 的六份更新清单里 `versionName` 是注释文本而非版本号。清单生成用 `grep -m1 'versionName' app/build.gradle` 取第一个匹配行，而 5.12.0 在 `app/build.gradle` 第 17 行新增的解释注释里带有 `versionName` 字样且位置更靠前，于是抢先命中。`Updater` 会把清单 `versionName` 与下载到的 APK 实际版本比对（`Updater.java:320`），不一致即判定更新无效，六个变体的更新因此全部卡死。现改为锚定到声明行提取（`versionCode` 同步处理），并把触发问题的注释去掉裸字段名。发版 preflight 里的提取本来就是锚定的，所以 tag 校验通过、只有清单坏掉。
+- **CI 宿主 Python 改由 `actions/setup-python` 提供**：Chaquopy v17 只需要 PATH 上有一个宿主 `python3.10`，此前靠 deadsnakes PPA 安装，而它的 Launchpad 签名密钥会整段无法解析（`GPGKeyTemporarilyNotFoundError`），使发版与主干同时变红——v5.12.1 的两次构建即因此失败。改为 GitHub 侧 Python 发行版，并在其未暴露 `python3.10` 这个名字时按同一 bin 目录补软链；CI 与发版两条流水线同改。
 
 ## 5.12.0 — EPG 节目提醒上线 + 播放链路崩溃与远程接口加固 (2026-09-21)
 

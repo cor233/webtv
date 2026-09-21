@@ -17,6 +17,9 @@ public abstract class EpgReminderDao {
     @Query("SELECT * FROM EpgReminderRecord WHERE triggerAtMillis > :now")
     public abstract List<EpgReminderRecord> findPending(long now);
 
+    @Query("SELECT EXISTS(SELECT 1 FROM EpgReminderRecord WHERE programTitle = :title)")
+    public abstract boolean exists(String title);
+
     @Insert
     public abstract void insert(EpgReminderRecord record);
 

@@ -768,6 +768,11 @@ WebHomeTV 是播放器壳子，不内置内容源，请使用合法配置。</st
 <string name="lut_import">导入</string>
 <string name="lut_import_failed">LUT 导入失败</string>
 <string name="lut_imported">LUT 预设已导入</string>
+<string name="epg_reminder_added">已设置节目提醒</string>
+<string name="epg_reminder_cancelled">已取消节目提醒</string>
+<string name="epg_reminder_too_late">距离开播太近，无法设置提醒</string>
+<string name="epg_reminder_no_permission">请在系统设置中允许「闹钟与提醒」后重试</string>
+<string name="epg_reminder_failed">无法设置节目提醒</string>
 <string name="lut_local">本地</string>
 <string name="lut_missing">预设不存在</string>
 <string name="lut_original">原色</string>

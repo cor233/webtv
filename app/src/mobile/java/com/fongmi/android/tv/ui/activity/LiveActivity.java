@@ -71,6 +71,7 @@ import com.fongmi.android.tv.ui.dialog.SubtitleDialog;
 import com.fongmi.android.tv.ui.dialog.TrackDialog;
 import com.fongmi.android.tv.utils.Biometric;
 import com.fongmi.android.tv.utils.ImgUtil;
+import com.fongmi.android.tv.utils.EpgReminder;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.PiP;
 import com.fongmi.android.tv.utils.ResUtil;
@@ -729,6 +730,12 @@ public class LiveActivity extends PlaybackActivity implements CustomKeyDown.List
             mEpgDataAdapter.setSelected(item);
             fetch(item);
         }
+    }
+
+    @Override
+    public void onReminderClick(EpgData item) {
+        if (mChannel == null) return;
+        Notify.show(EpgReminder.toggle(mChannel.getName(), item));
     }
 
     private void addKeep(Channel item) {

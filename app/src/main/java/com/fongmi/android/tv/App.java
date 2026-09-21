@@ -105,6 +105,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
             PreviousProcessExitLogger.log(this);
         }
         Notify.createChannel();
+        EpgReminder.createChannel();
         ProxySetting.apply();
         registerActivityLifecycleCallbacks(this);
         post(this::startBackgroundServices, 1200);

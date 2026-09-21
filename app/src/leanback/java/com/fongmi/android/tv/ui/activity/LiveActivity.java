@@ -66,6 +66,7 @@ import com.fongmi.android.tv.ui.dialog.SubtitleDialog;
 import com.fongmi.android.tv.ui.dialog.TrackDialog;
 import com.fongmi.android.tv.utils.Clock;
 import com.fongmi.android.tv.utils.ImgUtil;
+import com.fongmi.android.tv.utils.EpgReminder;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Traffic;
@@ -740,6 +741,12 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
             setSelected(item);
             fetch(item);
         }
+    }
+
+    @Override
+    public void onReminderClick(EpgData item) {
+        if (mChannel == null) return;
+        Notify.show(EpgReminder.toggle(mChannel.getName(), item));
     }
 
     private void addKeep(Channel item) {

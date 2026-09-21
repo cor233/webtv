@@ -26,6 +26,8 @@ public class EpgDataAdapter extends RecyclerView.Adapter<EpgDataAdapter.ViewHold
     public interface OnClickListener {
 
         void onItemClick(EpgData item);
+
+        void onReminderClick(EpgData item);
     }
 
     public interface OnLongClickListener {
@@ -75,7 +77,8 @@ public class EpgDataAdapter extends RecyclerView.Adapter<EpgDataAdapter.ViewHold
         holder.binding.title.setText(item.getTitle());
         holder.binding.getRoot().setSelected(item.isSelected());
         holder.binding.getRoot().setOnClickListener(view -> {
-            if (!item.isFuture()) listener.onItemClick(item);
+            if (item.isFuture()) listener.onReminderClick(item);
+            else listener.onItemClick(item);
         });
         holder.binding.getRoot().setOnLongClickListener(view -> longClickListener != null && longClickListener.onItemLongClick(item));
     }

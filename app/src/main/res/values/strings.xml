@@ -857,6 +857,11 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
 <string name="lut_import">Import</string>
 <string name="lut_import_failed">LUT import failed</string>
 <string name="lut_imported">LUT preset imported</string>
+<string name="epg_reminder_added">Reminder set for this program</string>
+<string name="epg_reminder_cancelled">Reminder cancelled</string>
+<string name="epg_reminder_too_late">Too close to the start time to set a reminder</string>
+<string name="epg_reminder_no_permission">Allow exact alarms before setting a reminder</string>
+<string name="epg_reminder_failed">Could not set the reminder</string>
 <string name="lut_local">Local</string>
 <string name="lut_missing">Preset missing</string>
 <string name="lut_original">Original</string>

@@ -61,7 +61,8 @@ public class EpgDataAdapter extends RecyclerView.Adapter<EpgDataAdapter.ViewHold
         holder.binding.getRoot().setSelected(item.isSelected());
         holder.binding.getRoot().setLeftListener(mListener::hideEpg);
         holder.binding.getRoot().setOnClickListener(v -> {
-            if (!item.isFuture()) mListener.onItemClick(item);
+            if (item.isFuture()) mListener.onReminderClick(item);
+            else mListener.onItemClick(item);
         });
     }
 
@@ -70,6 +71,8 @@ public class EpgDataAdapter extends RecyclerView.Adapter<EpgDataAdapter.ViewHold
         void hideEpg();
 
         void onItemClick(EpgData item);
+
+        void onReminderClick(EpgData item);
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

@@ -41,7 +41,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y software-properties-common
-          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          # Launchpad intermittently fails to serve the deadsnakes signing key, which
+          # would otherwise turn a healthy main branch red at random.
+          for i in 1 2 3 4 5; do
+            if sudo add-apt-repository -y ppa:deadsnakes/ppa; then break; fi
+            echo "deadsnakes PPA unavailable (attempt $i/5), retrying in $((i * 20))s"
+            sleep $((i * 20))
+          done
           sudo apt-get update
           sudo apt-get install -y python3.10 python3.10-venv python3.10-dev
 

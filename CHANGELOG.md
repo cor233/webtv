@@ -1,5 +1,30 @@
 # Changelog
 
+## 5.12.0 — EPG 节目提醒上线 + 播放链路崩溃与远程接口加固 (2026-09-21)
+
+### 新增
+
+- **EPG 节目提醒**：直播节目单里点击**未开播**的节目即可预约提醒（提前 5 分钟通知），再次点击取消；预约状态持久化在数据库，重启后 `rebuildFromStorage()` 自动重挂闹钟。此前表结构、DAO、`BroadcastReceiver`、`AlarmManager` 逻辑与开机自启全部已存在，但没有任何 UI 入口调用，属于用户按不到的死代码，本版接通。
+  - 补充 `SCHEDULE_EXACT_ALARM` 权限与独立通知渠道 `epg_reminder`（此前 `EpgReminder.createChannel()` 从未被调用，通知无渠道可用）。
+  - 无精确闹钟权限时不再静默失败：直接跳系统「闹钟与提醒」授权页并给出提示；三语文案（en / zh-rCN / zh-rTW）。
+  - 改用 `AlarmManagerCompat.canScheduleExactAlarms()`：原代码直接调用 API 31 才有的方法，而 `minSdk = 24`，在接通 UI 后会让 Android 7–11 设备在预约与开机重建时抛 `NoSuchMethodError`（外层只 `catch (Exception)`，拦不住 `Error`）。
+
+### 修复
+
+- 修复电视端切换线路可能崩溃：`mBinding.flag` 的选中回调在 Leanback 布局过程中直接执行整条换源链路（`onItemClick` → `seamless`），且未校验页面是否已销毁。现改为上游同款 `FlagSelectionListener`——`post` 到布局完成后执行、校验视图仍附着且选中项未被更新列表顶替，`onItemClick` 增加 `isFinishing()/isDestroyed()` 守卫；顺带修掉选中位置为 `-1` 时 `get(position)` 越界的隐患。
+- 修复缺少 `AndroidKeyStore` provider 的设备上云备份 token 无法保存：`key()` 直接抛异常导致整条 GitCloud 备份不可用。现回退到 `noBackupFilesDir` 下的本机 AES 密钥（`local-v1:` 前缀标识），旧密文仍可正常解密，且密钥落盘后会回读校验，校验不过宁可不保存。
+- 修复三处播放页生命周期空指针：`PlaybackActivity.seekTo()` 只判了 `mController` 却经 `player()` 解引用可能已解绑的 `mService`；手机端与电视端导入 LUT 预设时在工作线程读文件后 `App.post` 回来使用 `player()`/`mBinding`，期间退出页面即崩（与 5.10.6 同型）；`onActivityResult` 用 `service()::dispatchNext` 形式传入方法引用，接收者在调用点求值，外部播放器返回时服务未绑定或控制器构建失败（5.11.1 起为受支持状态）即 NPE。
+- 修复远程控制与网页桥接在播放器释放后调用：`/action` 控制指令与 WebHome `control` 都在工作线程判空后把 service 捕获进 `App.post`，而 `PlaybackService.onDestroy()` 会先 `player.release()` 再清空引用，落到主线程时可能对已释放的播放器下指令。现统一在主线程重新获取 service 并判空。
+- 修复 `/media` 端点可能永久占用工作线程：等待主线程快照的 `future.get()` 没有超时，主线程繁忙时连接与线程都不回收，改为 2 秒超时返回空对象。
+- 修复自更新镜像自适应失效：`Updater.copyAndOpen()` 的 CNB 可达性探测是同步网络请求，而三个调用点全在主线程回调里，`NetworkOnMainThreadException` 被吞成「探测失败」后恒定丢弃 CNB 直链、退回 GitHub 下载地址——对 GitHub 不通的网络正好拿到不可用链接。现把探测移到工作线程，结果回主线程再拉起安装器。
+
+### 工程
+
+- 新增 `CI` 工作流：main 分支 push 与 PR 编译电视端/手机端 Debug 并跑单元测试（此前仓库全部 12 个 variant 的构建与测试只在打 tag 时执行，主干腐化要等到发版才暴露）。
+- 发版工作流增加 `preflight` 前置校验：tag 与 `versionName` 不一致直接失败（应用内更新按「所有源取最高版本」选择，tag 超前会向全部用户推送一个不存在的版本）、Release 构建缺少签名 secrets 立即失败而不是等完整编译后在 Gradle 抛错。
+- APK 现在自带溯源信息：`BuildConfig` 新增 `GIT_REVISION`/`GIT_STATE`/`BUILD_TIME`，并显示在「关于」弹窗，用于定位用户反馈对应哪个提交打出的包。
+- 删除 `webhome-devkit/skills/upstream-integration-governor/SKILL.md`：该文件与上游 `.codex/` 下的副本逐字节相同，但引用的 `task_guard.sh`、`verify_upstream_checkpoint.sh`、依赖合并评估文档四个路径在本仓库全部不存在，会误导加载它的 agent。
+
 ## 5.11.2 — 修复横屏手势分区与锁屏方向 (2026-09-09)
 
 - 修复横屏下「左侧亮度 / 右侧音量」手势分区仍按竖屏尺寸划分：手势分区改用播放窗口自身尺寸计算（与触摸坐标同一空间，旋转即时生效），不再依赖系统方向配置；亮度/音量的滑动行程同步统一为当前窗口高度，横竖屏手感一致。

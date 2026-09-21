@@ -192,6 +192,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             try {
                 LutPreset preset = LutStore.importFile(path);
                 App.post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
                     Notify.show(R.string.lut_imported);
                     if (isFullscreen() && mBinding.lutQuick != null) mBinding.lutQuick.selectImported(preset, player(), mBinding.exo, this::onLutChanged);
                     else onLutSelected(preset);
@@ -2029,7 +2030,11 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK && requestCode == 1001) PlayerHelper.onExternalResult(data, service()::dispatchNext, controller()::seekTo);
+        if (resultCode != RESULT_OK || requestCode != 1001) return;
+        PlaybackService service = service();
+        var controller = controller();
+        if (service == null || controller == null) return;
+        PlayerHelper.onExternalResult(data, service::dispatchNext, controller::seekTo);
     }
 
     @Override

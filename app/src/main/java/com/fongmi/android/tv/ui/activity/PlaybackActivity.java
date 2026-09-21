@@ -155,7 +155,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     }
 
     protected void seekTo(long time) {
-        if (mController == null) return;
+        if (mController == null || mService == null) return;
         mController.seekTo(player().getPosition() + time);
         mController.play();
     }

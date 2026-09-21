@@ -232,17 +232,22 @@ public class Action implements Process {
 
     private void onControl(Map<String, String> params) {
         String type = params.get("type");
-        PlaybackService service = Server.get().getService();
-        if (service == null || TextUtils.isEmpty(type)) return;
-        switch (type) {
-            case "play" -> App.post(() -> service.player().play());
-            case "pause" -> App.post(() -> service.player().pause());
-            case "stop" -> App.post(service::dispatchStop);
-            case "prev" -> App.post(service::dispatchPrev);
-            case "next" -> App.post(service::dispatchNext);
-            case "repeat" -> App.post(service::dispatchRepeat);
-            case "replay" -> App.post(service::dispatchReplay);
-        }
+        if (TextUtils.isEmpty(type)) return;
+        App.post(() -> {
+            // The service may be destroyed between the request thread and here, so the
+            // reference has to be taken on the main thread or it points at a released player.
+            PlaybackService service = Server.get().getService();
+            if (service == null) return;
+            switch (type) {
+                case "play" -> service.player().play();
+                case "pause" -> service.player().pause();
+                case "stop" -> service.dispatchStop();
+                case "prev" -> service.dispatchPrev();
+                case "next" -> service.dispatchNext();
+                case "repeat" -> service.dispatchRepeat();
+                case "replay" -> service.dispatchReplay();
+            }
+        });
     }
 
     private void onDanmaku(Map<String, String> params) {

@@ -373,7 +373,20 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
     private void copyAndOpen(String primary, String fallback) {
         // CNB raw refuses files >100 MiB (HTTP 413). If the primary mirror is
         // CNB and the APK is unavailable there, fall back to GitHub releases.
-        String url = isCnb(primary) && !reachable(primary) ? fallback : primary;
+        // The probe cannot run here: all callers are main-thread callbacks, and a
+        // synchronous request on that thread fails outright, which reads as
+        // "mirror unreachable" and would always discard a perfectly good CNB link.
+        if (!isCnb(primary)) {
+            openUrl(primary);
+            return;
+        }
+        Task.submit(() -> {
+            boolean available = reachable(primary);
+            App.post(() -> openUrl(available ? primary : fallback));
+        });
+    }
+
+    private void openUrl(String url) {
         try {
             ClipboardManager cm = (ClipboardManager) App.get().getSystemService(Context.CLIPBOARD_SERVICE);
             cm.setPrimaryClip(ClipData.newPlainText("update", url));

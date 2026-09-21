@@ -82,6 +82,7 @@ import com.fongmi.android.tv.ui.custom.PlayerOsdController;
 import com.fongmi.android.tv.ui.custom.CustomKeyDownVod;
 import com.fongmi.android.tv.ui.custom.CustomMovement;
 import com.fongmi.android.tv.ui.custom.CustomSeekView;
+import com.fongmi.android.tv.ui.custom.FlagSelectionListener;
 import com.fongmi.android.tv.ui.dialog.ContentDialog;
 import com.fongmi.android.tv.ui.dialog.ControlDialog;
 import com.fongmi.android.tv.ui.dialog.DanmakuDialog;
@@ -183,6 +184,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
             try {
                 LutPreset preset = LutStore.importFile(path);
                 App.post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
                     Notify.show(R.string.lut_imported);
                     mBinding.lutQuick.selectImported(preset, player(), mBinding.exo, this::onLutChanged);
                 });
@@ -451,12 +453,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         mBinding.control.action.ending.setOnLongClickListener(view -> onEndingReset());
         mBinding.control.action.opening.setOnLongClickListener(view -> onOpeningReset());
         mBinding.video.setOnTouchListener((view, event) -> mKeyDown.onTouchEvent(event));
-        mBinding.flag.addOnChildViewHolderSelectedListener(new OnChildViewHolderSelectedListener() {
-            @Override
-            public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
-                if (mFlagAdapter.getItemCount() > 0) onItemClick(mFlagAdapter.get(position));
-            }
-        });
+        mBinding.flag.addOnChildViewHolderSelectedListener(new FlagSelectionListener(mBinding.flag, mFlagAdapter, this));
         mBinding.episode.addOnChildViewHolderSelectedListener(new OnChildViewHolderSelectedListener() {
             @Override
             public void onChildViewHolderSelected(@NonNull RecyclerView parent, @Nullable RecyclerView.ViewHolder child, int position, int subposition) {
@@ -905,6 +902,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
 
     @Override
     public void onItemClick(Flag item) {
+        if (isFinishing() || isDestroyed()) return;
         if (mFlagAdapter.getItemCount() == 0 || item.isSelected()) return;
         mFlagAdapter.setSelected(item);
         mBinding.flag.setSelectedPosition(mFlagAdapter.indexOf(item));
@@ -2037,7 +2035,11 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK && requestCode == 1001) PlayerHelper.onExternalResult(data, service()::dispatchNext, controller()::seekTo);
+        if (resultCode != RESULT_OK || requestCode != 1001) return;
+        PlaybackService service = service();
+        var controller = controller();
+        if (service == null || controller == null) return;
+        PlayerHelper.onExternalResult(data, service::dispatchNext, controller::seekTo);
     }
 
     @Override

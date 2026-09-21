@@ -273,10 +273,12 @@ public class HomeWebBridge {
     }
 
     private String control(JsonObject payload) {
-        PlaybackService service = Server.get().getService();
         String action = Json.safeString(payload, "action");
-        if (service == null) return "{}";
         App.post(() -> {
+            // Same reason as Action.onControl: the player is released before the service
+            // reference is cleared, so both must be resolved on the main thread.
+            PlaybackService service = Server.get().getService();
+            if (service == null) return;
             if ("play".equals(action)) service.player().play();
             else if ("pause".equals(action)) service.player().pause();
             else if ("stop".equals(action)) service.dispatchStop();

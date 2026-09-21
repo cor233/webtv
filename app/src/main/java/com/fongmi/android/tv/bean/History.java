@@ -340,7 +340,8 @@ public class History implements Diffable<History> {
     }
 
     public String getVodId() {
-        return getKey().split(AppDatabase.SYMBOL)[1];
+        String[] parts = Objects.toString(getKey(), "").split(AppDatabase.SYMBOL);
+        return parts.length > 1 ? parts[1] : "";
     }
 
     public Flag getFlag() {
@@ -468,6 +469,8 @@ public class History implements Diffable<History> {
 
     @Override
     public boolean isSameContent(History other) {
-        return getVodName().equals(other.getVodName()) && getVodPic().equals(other.getVodPic()) && getCreateTime() == other.getCreateTime();
+        return getVodName().equals(other.getVodName()) && getVodPic().equals(other.getVodPic())
+                && getCreateTime() == other.getCreateTime() && getPosition() == other.getPosition()
+                && getDuration() == other.getDuration() && getVodRemarks().equals(other.getVodRemarks());
     }
 }

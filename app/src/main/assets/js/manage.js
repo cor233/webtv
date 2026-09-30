@@ -52,6 +52,12 @@ let configsLoadedKey = '';
 let configsData = [];
 let configFilter = 0;
 let editingConfig = null;
+let remoteMediaTimer = null;
+let remoteMediaRequest = null;
+let remoteMediaPending = false;
+let remoteMediaFailCount = 0;
+let remoteMediaGeneration = 0;
+let remoteMediaData = null;
 
 const REQUEST_TIMEOUT = 12000;
 const FILE_TIMEOUT = 15000;
@@ -68,7 +74,16 @@ function escPath(s) { return String(s || '').replace(/&/g, '&amp;').replace(/"/g
 function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function itemId(path) { return String(path || '').replace(/[^a-zA-Z0-9_-]/g, '_'); }
 const authToken = new URLSearchParams(location.search).get('token') || '';
-function authParams(extra = {}) { return authToken ? { ...extra, token: authToken } : extra; }
+function authParams(extra = {}) {
+    const params = { ...extra };
+    if (authToken) params.token = authToken;
+    return params;
+}
+function remoteAuthParams(extra = {}) {
+    const params = { ...extra };
+    if (authToken) params.token = authToken;
+    return params;
+}
 function authUrl(url) {
     if (!authToken || String(url || '').includes('token=')) return url;
     return url + (String(url).includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(authToken);
@@ -281,7 +296,80 @@ function postAction(url, data, done, failText = '操作失败') {
         .always(hideLoading);
 }
 
+function stopRemoteMediaPolling() {
+    if (remoteMediaTimer) clearTimeout(remoteMediaTimer);
+    remoteMediaTimer = null;
+    if (remoteMediaRequest) remoteMediaRequest.abort();
+    remoteMediaRequest = null;
+    remoteMediaPending = false;
+    remoteMediaGeneration++;
+}
+
+function scheduleRemoteMedia(delay = 3000) {
+    if (remoteMediaTimer) clearTimeout(remoteMediaTimer);
+    if (currentView !== 'remoteControl' || document.hidden || (mode === 'remote' && !target)) return;
+    const generation = remoteMediaGeneration;
+    remoteMediaTimer = setTimeout(() => {
+        if (generation === remoteMediaGeneration) loadRemoteMedia(false);
+    }, delay);
+}
+
+function loadRemoteMedia(force = false) {
+    if (currentView !== 'remoteControl' || document.hidden || (mode === 'remote' && !target)) return;
+    if (remoteMediaPending) {
+        if (!force) return;
+        if (remoteMediaRequest) remoteMediaRequest.abort();
+    }
+    const generation = remoteMediaGeneration;
+    remoteMediaPending = true;
+    const remote = mode === 'remote' && target;
+    const url = remote ? '/manage/remote/media?' + targetQuery() : authUrl('/media');
+    remoteMediaRequest = $.ajax({ url, timeout: 3000, cache: false })
+        .done(res => {
+            if (generation !== remoteMediaGeneration) return;
+            remoteMediaFailCount = 0;
+            remoteMediaData = parseJson(res) || {};
+            renderRemoteMedia(remoteMediaData, false);
+        })
+        .fail((xhr, status) => {
+            if (generation !== remoteMediaGeneration) return;
+            remoteMediaFailCount++;
+            renderRemoteMedia(null, true, requestError(xhr, status, remote ? '远端状态读取失败' : '本机状态读取失败'));
+        })
+        .always(() => {
+            if (generation !== remoteMediaGeneration) return;
+            remoteMediaPending = false;
+            remoteMediaRequest = null;
+            scheduleRemoteMedia(Math.min(15000, 3000 * Math.pow(2, Math.min(remoteMediaFailCount, 3))));
+        });
+}
+
+function renderRemoteMedia(data, failed, errorText = '') {
+    const hasPlayer = !!(data && (data.title || data.url || Number(data.duration) > 0 || Number(data.state) > 1));
+    const stateNames = { 1: '空闲', 2: '已就绪', 3: '播放中', 6: '缓冲中' };
+    $('#remoteMediaStatus').text(failed ? errorText : hasPlayer ? (stateNames[data.state] || '播放器状态') : '无播放器');
+    $('#remoteMediaTitle').text(hasPlayer ? (data.title || data.url || '未命名媒体') : '无播放器');
+    $('#remoteMediaMeta').text(hasPlayer ? `${stateNames[data.state] || '未知状态'} · ${Number(data.position || 0)} / ${Number(data.duration || 0)}` : (failed ? errorText : '当前没有可控制的播放会话'));
+}
+
+function remoteControl(type) {
+    if (mode === 'remote' && !ensureTarget()) return;
+    const data = mode === 'remote' ? { target, do: 'control', type } : { do: 'control', type };
+    postAction(mode === 'remote' ? '/manage/action' : '/action', data, res => {
+        let info = {};
+        try { info = parseJson(res); } catch (e) {}
+        warnToast(info.executed ? '已执行' : info.accepted ? '已接受，播放器未就绪' : '控制失败');
+        loadRemoteMedia(true);
+    }, '控制发送失败');
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopRemoteMediaPolling();
+    else if (currentView === 'remoteControl') loadRemoteMedia(true);
+});
+
 function setManageMode(next) {
+    stopRemoteMediaPolling();
     mode = next;
     const fallbackView = mode === 'local' && (currentView === 'push' || currentView === 'search');
     if (fallbackView) currentView = 'files';
@@ -326,6 +414,30 @@ function loadDevices(scan = false) {
     getJson('/manage/devices' + (scan ? '?scan=true' : ''), data => renderDevices(data.devices || []), '设备列表加载失败');
 }
 
+function pairManualDevice() {
+    stopRemoteMediaPolling();
+    const manualTarget = String($('#manualDeviceTarget').val() || '').trim().replace(/\/+$/, '');
+    const token = String($('#manualDeviceToken').val() || '').trim();
+    if (!manualTarget || !token) { warnToast('请输入地址和 Token'); return; }
+    showLoading();
+    $.ajax({ url: authUrl('/manage/remote/pair'), type: 'post', data: remoteAuthParams({ target: manualTarget, remoteToken: token }), timeout: 5000, cache: false })
+        .done(res => {
+            const device = parseJson(res) || {};
+            target = manualTarget;
+            targetName = device.name || manualTarget;
+            $('#manualDeviceToken').val('');
+            devicePanelOpen = false;
+            updateTargetText();
+            updateRemotePicker();
+            resetViewState();
+            loadDevices();
+            startRemoteHealth();
+            warnToast('配对成功，Token 已保存');
+        })
+        .fail((xhr, status) => warnToast(requestError(xhr, status, '配对失败')))
+        .always(hideLoading);
+}
+
 function scanDevices() {
     devicePanelOpen = true;
     updateRemotePicker();
@@ -346,6 +458,7 @@ function renderDevices(devices) {
 }
 
 function selectDevice(ip, name) {
+    stopRemoteMediaPolling();
     target = ip;
     targetName = name;
     devicePanelOpen = false;
@@ -372,11 +485,13 @@ function updateRemotePicker() {
 }
 
 function showManageView(view) {
+    stopRemoteMediaPolling();
     currentView = view;
     activateManageView(view);
     updateRemotePicker();
     if (currentView === 'sync') loadDevices();
     startRemoteHealth();
+    if (currentView === 'remoteControl') loadRemoteMedia(true);
     if (mode === 'remote' && currentView !== 'sync' && target) {
         if (isRemoteOffline(target)) {
             warnToast('远端设备离线，已停止加载');

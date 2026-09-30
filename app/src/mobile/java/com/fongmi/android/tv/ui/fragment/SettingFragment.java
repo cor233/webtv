@@ -25,6 +25,7 @@ import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.playback.ViewingRecordSyncStore;
+import com.fongmi.android.tv.remote.RemoteSettingsDialog;
 import com.fongmi.android.tv.impl.ConfigListener;
 import com.fongmi.android.tv.impl.LiveListener;
 import com.fongmi.android.tv.impl.SiteListener;
@@ -136,6 +137,7 @@ public class SettingFragment extends BaseFragment implements ConfigListener, Sit
         mBinding.player.setOnClickListener(this::onPlayer);
         mBinding.danmaku.setOnClickListener(this::onDanmaku);
         mBinding.recordSync.setOnClickListener(this::setRecordSync);
+        mBinding.remotePublic.setOnClickListener(view -> RemoteSettingsDialog.show(requireActivity()));
         mBinding.siteBlock.setOnClickListener(view -> SiteBlockDialog.show(requireActivity()));
         mBinding.codec.setOnClickListener(view -> CodecCapabilityDialog.show(requireActivity(), null));
         mBinding.about.setOnClickListener(view -> AboutDialog.show(requireActivity(), () -> Updater.create().force().start(requireActivity())));

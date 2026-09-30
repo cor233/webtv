@@ -165,29 +165,40 @@ jobs:
       - name: Generate update JSON manifests
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          VERSION_CODE="$(grep -m1 -E '^[[:space:]]*versionCode[[:space:]]+[0-9]+' app/build.gradle | awk '{print $2}')"
-          VERSION_NAME="$(grep -m1 -E '^[[:space:]]*versionName[[:space:]]+"' app/build.gradle | sed 's/.*"\(.*\)".*/\1/')"
-          SHORT_SHA="$(echo "${{ github.sha }}" | cut -c1-7)"
-          for apk in dist/*.apk; do
-            base=$(basename "$apk" .apk)
-            SIZE=$(stat -c %s "$apk")
-            SHA=$(sha256sum "$apk" | awk '{print $1}')
-            CNB=true
-            if grep -qx "$base.apk" dist/cnb_skip.txt; then CNB=false; fi
-            cat > "dist/${base}.json" << JSONEOF
-          {
-            "name": "${{ github.ref_name }}",
-            "versionName": "$VERSION_NAME",
-            "desc": "${{ github.ref_name }} — $SHORT_SHA",
-            "code": $VERSION_CODE,
-            "apk": "${base}.apk",
-            "size": $SIZE,
-            "sha256": "$SHA",
-            "cnb": $CNB
-          }
-          JSONEOF
-            echo "Generated dist/${base}.json code=$VERSION_CODE size=$SIZE cnb=$CNB"
-          done
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          gradle = Path('app/build.gradle').read_text(encoding='utf-8')
+          code = int(re.search(r'^\s*versionCode\s+(\d+)', gradle, re.M).group(1))
+          version = re.search(r'^\s*versionName\s+"([^"]+)"', gradle, re.M).group(1)
+          tag = os.environ['GITHUB_REF_NAME']
+          if tag != f'v{version}':
+              raise SystemExit('Tag/version mismatch')
+          changelog = Path('CHANGELOG.md').read_text(encoding='utf-8')
+          section = re.search(rf'^## {re.escape(version)}[^\n]*\n(.*?)(?=^## |\Z)', changelog, re.M | re.S)
+          if not section:
+              raise SystemExit('Missing changelog for release')
+          bullets = [re.sub(r'[*`]', '', line[2:]).strip() for line in section.group(1).splitlines() if line.startswith('- ')]
+          desc = f'{tag} — {os.environ["GITHUB_SHA"][:7]}' + '\n' + '\n'.join(bullets[:5])
+          skipped = set(Path('dist/cnb_skip.txt').read_text().splitlines())
+          apks = sorted(Path('dist').glob('*.apk'))
+          expected = {f'{mode}-{abi}.apk' for mode in ('leanback', 'mobile') for abi in ('universal', 'arm64_v8a', 'armeabi_v7a')}
+          if {p.name for p in apks} != expected:
+              raise SystemExit('Expected exactly six APK variants')
+          for apk in apks:
+              sha = hashlib.sha256()
+              with apk.open('rb') as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                      sha.update(chunk)
+              manifest = dict(name=tag, versionName=version, desc=desc[:1600], code=code,
+                              apk=apk.name, size=apk.stat().st_size, sha256=sha.hexdigest(), cnb=apk.name not in skipped)
+              apk.with_suffix('.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+              print(f'Generated {apk.stem}.json code={code} size={manifest["size"]}')
+          PY
 
       - name: Write release notes
         if: startsWith(github.ref, 'refs/tags/v')

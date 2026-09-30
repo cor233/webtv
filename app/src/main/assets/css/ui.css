@@ -1673,6 +1673,25 @@ body.manage-page {
     padding-top: 8px;
 }
 
+.manage-page .device-pair-form {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(140px, 1fr) auto;
+    gap: 8px;
+    padding-top: 8px;
+}
+
+.manage-page .remote-control-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+@media (max-width: 680px) {
+    .manage-page .device-pair-form { grid-template-columns: 1fr; }
+}
+
 .manage-page .device-item {
     position: relative;
     display: grid;

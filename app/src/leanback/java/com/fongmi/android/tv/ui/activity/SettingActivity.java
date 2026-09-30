@@ -24,6 +24,7 @@ import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.playback.ViewingRecordSyncStore;
+import com.fongmi.android.tv.remote.RemoteSettingsDialog;
 import com.fongmi.android.tv.impl.ConfigListener;
 import com.fongmi.android.tv.impl.LiveListener;
 import com.fongmi.android.tv.impl.SiteListener;
@@ -125,6 +126,7 @@ public class SettingActivity extends BaseActivity implements ConfigListener, Sit
         mBinding.player.setOnClickListener(this::onPlayer);
         mBinding.danmaku.setOnClickListener(this::onDanmaku);
         mBinding.recordSync.setOnClickListener(this::setRecordSync);
+        mBinding.remotePublic.setOnClickListener(view -> RemoteSettingsDialog.show(this));
         mBinding.siteBlock.setOnClickListener(view -> SiteBlockDialog.show(this));
         mBinding.codec.setOnClickListener(view -> CodecCapabilityDialog.show(this, null));
         mBinding.about.setOnClickListener(view -> AboutDialog.show(this, () -> Updater.create().force().start(this)));

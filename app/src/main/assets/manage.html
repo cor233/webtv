@@ -50,9 +50,32 @@
                 <button class="md-btn md-btn-tonal md-btn-compact" onclick="scanDevices()" type="button">发现</button>
             </div>
             <div id="deviceList" class="device-list"></div>
+            <div class="device-pair-form">
+                <input id="manualDeviceTarget" class="md-input" type="url" placeholder="http://192.168.1.10:9978" autocomplete="off">
+                <input id="manualDeviceToken" class="md-input" type="password" placeholder="配对 Token" autocomplete="off">
+                <button class="md-btn md-btn-tonal md-btn-compact" onclick="pairManualDevice()" type="button">配对并保存</button>
+            </div>
         </section>
 
         <main class="manage-body">
+            <section id="viewRemoteControl" class="manage-view">
+                <div class="workspace-panel">
+                    <div class="workspace-hero"><div><div class="manage-title">播放控制</div><div class="manage-subtitle" id="remoteMediaStatus">读取中</div></div><button class="md-btn md-btn-tonal md-btn-compact" onclick="loadRemoteMedia(true)" type="button">刷新</button></div>
+                    <div class="manage-card remote-control-card">
+                        <div id="remoteMediaTitle" class="manage-card-title">无播放器</div>
+                        <div id="remoteMediaMeta" class="manage-subtitle">请选择远端设备</div>
+                        <div class="remote-control-actions">
+                            <button class="md-btn md-btn-tonal md-btn-compact" onclick="remoteControl('prev')" type="button">上一集</button>
+                            <button class="md-btn md-btn-filled md-btn-compact" onclick="remoteControl('play')" type="button">播放</button>
+                            <button class="md-btn md-btn-tonal md-btn-compact" onclick="remoteControl('pause')" type="button">暂停</button>
+                            <button class="md-btn md-btn-tonal md-btn-compact" onclick="remoteControl('stop')" type="button">停止</button>
+                            <button class="md-btn md-btn-tonal md-btn-compact" onclick="remoteControl('next')" type="button">下一集</button>
+                            <button class="md-btn md-btn-tonal md-btn-compact" onclick="remoteControl('repeat')" type="button">重复</button>
+                            <button class="md-btn md-btn-tonal md-btn-compact" onclick="remoteControl('replay')" type="button">重播</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
             <section id="viewFiles" class="manage-view active">
                 <input type="file" id="file_uploader" onchange="onFileSelected()" multiple />
                 <div class="file-workspace">
@@ -345,6 +368,7 @@
 
         <nav class="md-nav-bar manage-nav">
             <button id="navFiles" class="md-nav-item active" onclick="showManageView('files')"><span class="md-nav-label">文件</span></button>
+            <button id="navRemoteControl" class="md-nav-item" onclick="showManageView('remoteControl')"><span class="md-nav-label">控制</span></button>
             <button id="navSync" class="md-nav-item" onclick="showManageView('sync')"><span class="md-nav-label">同步</span></button>
             <button id="navLoginState" class="md-nav-item" onclick="showManageView('loginState')"><span class="md-nav-label">登录态</span></button>
             <button id="navCsp" class="md-nav-item" onclick="showManageView('csp')"><span class="md-nav-label">站点</span></button>

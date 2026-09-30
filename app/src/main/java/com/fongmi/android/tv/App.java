@@ -14,6 +14,8 @@ import androidx.core.os.HandlerCompat;
 
 import com.fongmi.android.tv.bean.History;
 import com.fongmi.android.tv.playback.PlaybackRemoteSyncer;
+import com.fongmi.android.tv.remote.RemoteAgent;
+import com.fongmi.android.tv.remote.RemoteStore;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.setting.ProxySetting;
 import com.fongmi.android.tv.setting.Setting;
@@ -118,6 +120,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
         if (LocalNetworkPermission.isGranted(this)) NsdDeviceDiscovery.register();
         EpgReminder.rebuildFromStorage();
         PlaybackRemoteSyncer.start();
+        if (RemoteStore.get().enabled && !RemoteStore.get().serverUrl.isEmpty()) RemoteAgent.get().start();
         SpiderDebug.log("startup", "background services ready cost=%sms", System.currentTimeMillis() - time);
     }
 

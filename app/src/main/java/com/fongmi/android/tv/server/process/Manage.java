@@ -76,6 +76,8 @@ public class Manage implements Process {
             if (url.equals("/manage/background/settings")) return backgroundSettings(session);
             if (url.equals("/manage/devices")) return devices(session.getParms());
             if (url.equals("/manage/remote/ping")) return remotePing(session.getParms());
+            if (url.equals("/manage/remote/pair")) return remotePair(session.getParms());
+            if (url.equals("/manage/remote/media")) return remoteMedia(session.getParms());
             if (url.equals("/manage/action")) return forwardTo(session, "/action");
             if (url.equals("/manage/remote/file")) return remoteFile(session.getParms());
             if (url.equals("/manage/remote/archive")) return remoteArchive(session.getParms());
@@ -164,47 +166,105 @@ public class Manage implements Process {
             }
         }).start();
         JsonObject object = new JsonObject();
-        object.add("local", App.gson().toJsonTree(Device.get()));
+        object.add("local", publicDevice(Device.get()));
         JsonArray devices = new JsonArray();
-        for (Device device : Device.getAll()) if (device.isApp() && !Device.get().equals(device)) devices.add(App.gson().toJsonTree(device));
+        for (Device device : Device.getAll()) if (device.isApp() && !Device.get().equals(device)) devices.add(publicDevice(device));
         object.add("devices", devices);
         return json(object);
+    }
+
+    private JsonObject publicDevice(Device device) {
+        JsonObject object = new JsonObject();
+        object.addProperty("uuid", device.getUuid());
+        object.addProperty("name", device.getName());
+        object.addProperty("ip", device.getIp());
+        object.addProperty("type", device.getType());
+        return object;
+    }
+
+    private Response remotePair(Map<String, String> params) {
+        String target = stripQuery(params.get("target"));
+        String token = params.getOrDefault("remoteToken", "").trim();
+        if (!isValidTarget(target) || TextUtils.isEmpty(token)) return Nano.error(Status.BAD_REQUEST, "Invalid target or token");
+        try {
+            String text = remoteGet(target, "/device", token);
+            Device device = Device.objectFrom(text);
+            if (device == null || TextUtils.isEmpty(device.getUuid())) return Nano.error(Status.BAD_REQUEST, "Invalid device response");
+            device.setIp(target);
+            device.setToken(token);
+            device.save();
+            return json(publicDevice(device));
+        } catch (Exception e) {
+            return Nano.error(Status.UNAUTHORIZED, "Pairing failed");
+        }
     }
 
     private Response remotePing(Map<String, String> params) {
         String target = params.get("target");
         JsonObject object = new JsonObject();
-        object.addProperty("target", target == null ? "" : target);
+        object.addProperty("target", target == null ? "" : stripQuery(target));
         object.addProperty("time", System.currentTimeMillis());
-        if (TextUtils.isEmpty(target)) {
+        if (TextUtils.isEmpty(target) || !isValidTarget(target)) {
             object.addProperty("ok", false);
-            object.addProperty("message", "Missing target");
+            object.addProperty("message", "Invalid target");
             return json(object);
         }
-        String remote = remoteUrl(target, "/device");
-        try (okhttp3.Response response = OkHttp.client(1200).newCall(new Request.Builder().url(remote).build()).execute()) {
-            ResponseBody body = response.body();
-            String text = body == null ? "" : body.string();
-            object.addProperty("ok", response.isSuccessful() && !TextUtils.isEmpty(text));
-            if (!response.isSuccessful()) object.addProperty("message", "HTTP " + response.code());
-            else if (!TextUtils.isEmpty(text)) object.add("device", App.gson().toJsonTree(Device.objectFrom(text)));
+        try {
+            String text = remoteGet(stripQuery(target), "/device", remoteToken(target));
+            object.addProperty("ok", !TextUtils.isEmpty(text));
+            if (!TextUtils.isEmpty(text)) object.add("device", publicDevice(Device.objectFrom(text)));
         } catch (Exception e) {
             object.addProperty("ok", false);
-            object.addProperty("message", e.getClass().getSimpleName());
+            object.addProperty("message", e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
         }
         return json(object);
     }
 
+    private String remoteGet(String target, String path, String token) throws IOException {
+        if (TextUtils.isEmpty(token)) throw new IOException("Unauthorized");
+        okhttp3.OkHttpClient client = OkHttp.client(2500).newBuilder().followRedirects(false).followSslRedirects(false).build();
+        Request request = new Request.Builder().url(remoteUrl(target, path)).header("Authorization", "Bearer " + token).get().build();
+        try (okhttp3.Response response = client.newCall(request).execute()) {
+            ResponseBody body = response.body();
+            String text = body == null ? "" : body.string();
+            if (!response.isSuccessful()) throw new IOException("HTTP " + response.code());
+            return text;
+        }
+    }
+
+    private Response remoteMedia(Map<String, String> params) throws IOException {
+        String target = params.get("target");
+        if (TextUtils.isEmpty(target) || !isValidTarget(target)) return Nano.error(Status.BAD_REQUEST, "Invalid target");
+        String token = remoteToken(target);
+        if (TextUtils.isEmpty(token)) return Nano.error(Status.UNAUTHORIZED, "Remote token required");
+        String text;
+        try {
+            text = remoteGet(stripQuery(target), "/media", token);
+        } catch (IOException e) {
+            return Nano.error(Status.INTERNAL_ERROR, e.getMessage() == null ? "Remote media failed" : e.getMessage());
+        }
+        return NanoHTTPD.newFixedLengthResponse(Status.OK, "application/json; charset=utf-8", text);
+    }
+
     private Response forward(IHTTPSession session, String url) throws IOException {
+        if (!remoteForwardAllowed(url)) return null;
         return forwardTo(session, url);
+    }
+
+    private boolean remoteForwardAllowed(String url) {
+        return "/action".equals(url) || "/file".equals(url) || url.startsWith("/file/") || "/upload".equals(url) || "/newFolder".equals(url) || "/delFolder".equals(url) || "/delFile".equals(url) || "/manage/file/archive".equals(url);
     }
 
     private Response forwardTo(IHTTPSession session, String url) throws IOException {
         String target = session.getParms().get("target");
-        if (TextUtils.isEmpty(target)) return null;
-        String remote = remoteUrl(target, url);
+        if (TextUtils.isEmpty(target) || !remoteForwardAllowed(url)) return null;
+        String token = remoteToken(target);
+        if (TextUtils.isEmpty(token)) return Nano.error(Status.UNAUTHORIZED, "Remote token required");
+        String remote = remoteUrl(stripQuery(target), url);
         FormBody body = buildForwardBody(session.getParms());
-        try (okhttp3.Response response = OkHttp.client(5000).newCall(new Request.Builder().url(remote).post(body).build()).execute()) {
+        okhttp3.OkHttpClient client = OkHttp.client(5000).newBuilder().followRedirects(false).followSslRedirects(false).build();
+        Request request = new Request.Builder().url(remote).header("Authorization", "Bearer " + token).post(body).build();
+        try (okhttp3.Response response = client.newCall(request).execute()) {
             ResponseBody responseBody = response.body();
             String text = responseBody == null ? "" : responseBody.string();
             Status status = response.isSuccessful() ? Status.OK : Status.lookup(response.code());
@@ -216,8 +276,11 @@ public class Manage implements Process {
         String target = params.get("target");
         if (TextUtils.isEmpty(target)) return Nano.error(Status.BAD_REQUEST, "Missing target");
         String path = params.getOrDefault("path", "");
-        String remote = remoteUrl(target, "/file" + encodePath(path) + (bool(params.get("download"), false) ? "?download=1" : ""));
-        okhttp3.Response response = OkHttp.client(30000).newCall(new Request.Builder().url(remote).build()).execute();
+        String token = remoteToken(target);
+        if (TextUtils.isEmpty(token)) return Nano.error(Status.UNAUTHORIZED, "Remote token required");
+        String remote = remoteUrl(stripQuery(target), "/file" + encodePath(path) + (bool(params.get("download"), false) ? "?download=1" : ""));
+        okhttp3.OkHttpClient client = OkHttp.client(30000).newBuilder().followRedirects(false).followSslRedirects(false).build();
+        okhttp3.Response response = client.newCall(new Request.Builder().url(remote).header("Authorization", "Bearer " + token).build()).execute();
         ResponseBody responseBody = response.body();
         if (responseBody == null) return NanoHTTPD.newFixedLengthResponse(Status.INTERNAL_ERROR, "text/plain; charset=utf-8", "Empty response");
         Status status = response.isSuccessful() ? Status.OK : Status.lookup(response.code());
@@ -247,8 +310,11 @@ public class Manage implements Process {
             String name = params.getOrDefault(key, temp.getName());
             body.addFormDataPart(key, name, RequestBody.create(MediaType.parse("application/octet-stream"), temp));
         }
-        String remote = remoteUrl(target, "/upload");
-        try (okhttp3.Response response = OkHttp.client(30000).newCall(new Request.Builder().url(remote).post(body.build()).build()).execute()) {
+        String token = remoteToken(target);
+        if (TextUtils.isEmpty(token)) return Nano.error(Status.UNAUTHORIZED, "Remote token required");
+        String remote = remoteUrl(stripQuery(target), "/upload");
+        okhttp3.OkHttpClient client = OkHttp.client(30000).newBuilder().followRedirects(false).followSslRedirects(false).build();
+        try (okhttp3.Response response = client.newCall(new Request.Builder().url(remote).header("Authorization", "Bearer " + token).post(body.build()).build()).execute()) {
             ResponseBody responseBody = response.body();
             String text = responseBody == null ? "" : responseBody.string();
             Status status = response.isSuccessful() ? Status.OK : Status.lookup(response.code());
@@ -259,9 +325,12 @@ public class Manage implements Process {
     private Response remoteArchive(Map<String, String> params) throws IOException {
         String target = params.get("target");
         if (TextUtils.isEmpty(target)) return Nano.error(Status.BAD_REQUEST, "Missing target");
-        String remote = remoteUrl(target, "/manage/file/archive");
+        String token = remoteToken(target);
+        if (TextUtils.isEmpty(token)) return Nano.error(Status.UNAUTHORIZED, "Remote token required");
+        String remote = remoteUrl(stripQuery(target), "/manage/file/archive");
         FormBody body = buildForwardBody(params);
-        okhttp3.Response response = OkHttp.client(60000).newCall(new Request.Builder().url(remote).post(body).build()).execute();
+        okhttp3.OkHttpClient client = OkHttp.client(60000).newBuilder().followRedirects(false).followSslRedirects(false).build();
+        okhttp3.Response response = client.newCall(new Request.Builder().url(remote).header("Authorization", "Bearer " + token).post(body).build()).execute();
         ResponseBody responseBody = response.body();
         if (responseBody == null) return NanoHTTPD.newFixedLengthResponse(Status.INTERNAL_ERROR, "text/plain; charset=utf-8", "Empty response");
         Status status = response.isSuccessful() ? Status.OK : Status.lookup(response.code());
@@ -293,31 +362,40 @@ public class Manage implements Process {
     }
 
     private String remoteUrl(String target, String path) {
-        if (!isValidTarget(target)) throw new IllegalArgumentException("Invalid target host");
-        String base = target.replaceAll("/+$", "");
-        String token = remoteToken(base);
-        String cleanBase = stripQuery(base);
-        String remote = cleanBase + path;
-        if (TextUtils.isEmpty(token) || remote.contains("token=")) return remote;
-        return remote + (remote.contains("?") ? "&" : "?") + "token=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
+        String route = path;
+        int query = route.indexOf('?');
+        if (query >= 0) route = route.substring(0, query);
+        if (!isValidTarget(target) || !remoteForwardAllowed(route) && !"/device".equals(route) && !"/media".equals(route)) throw new IllegalArgumentException("Invalid target host or path");
+        String base = stripQuery(target);
+        return base + path;
     }
 
     private boolean isValidTarget(String target) {
         if (TextUtils.isEmpty(target)) return false;
         try {
-            URI uri = URI.create(target);
-            if (!"http".equals(uri.getScheme())) return false;
+            URI uri = URI.create(target.trim());
+            if (!"http".equalsIgnoreCase(uri.getScheme()) || uri.getUserInfo() != null) return false;
+            if (uri.getRawQuery() != null && !queryHasOnlyToken(uri.getRawQuery())) return false;
+            if (uri.getRawFragment() != null || uri.getPath() == null || (!uri.getPath().isEmpty() && !"/".equals(uri.getPath()))) return false;
             int port = uri.getPort();
             if (port < 9978 || port > 9999) return false;
             String host = uri.getHost();
             if (TextUtils.isEmpty(host)) return false;
-            for (java.net.InetAddress addr : java.net.InetAddress.getAllByName(host)) {
-                if (!addr.isSiteLocalAddress() && !addr.isLoopbackAddress() && !addr.isLinkLocalAddress()) return false;
+            for (InetAddress addr : InetAddress.getAllByName(host)) {
+                if (!addr.isSiteLocalAddress() && !addr.isLoopbackAddress()) return false;
             }
             return true;
         } catch (Throwable e) {
             return false;
         }
+    }
+
+    private boolean queryHasOnlyToken(String query) {
+        for (String item : query.split("&")) {
+            int idx = item.indexOf('=');
+            if (idx <= 0 || !"token".equals(item.substring(0, idx))) return false;
+        }
+        return true;
     }
 
     private String remoteToken(String target) {
@@ -335,7 +413,8 @@ public class Manage implements Process {
         // synced from the manage page without re-entering its token into the URL.
         String clean = stripQuery(target);
         for (Device device : Device.getAll()) {
-            if (!TextUtils.isEmpty(device.getToken()) && clean.startsWith(device.getIp())) return device.getToken();
+            if (TextUtils.isEmpty(device.getToken())) continue;
+            if (clean.equals(stripQuery(device.getIp()))) return device.getToken();
         }
         return "";
     }
@@ -621,9 +700,12 @@ public class Manage implements Process {
                 if (loginArchive != null) loginArchive = LoginStateSync.encrypt(loginArchive, remoteToken(device));
             }
             RequestBody body = buildSyncBody(pull, options, archive, loginArchive);
-            String remote = remoteUrl(device, "/action?do=sync&mode=" + (pull ? "2" : "1") + "&type=backup");
+            String token = remoteToken(device);
+            if (TextUtils.isEmpty(token)) return Nano.error(Status.UNAUTHORIZED, "Remote token required");
+            String remote = remoteUrl(stripQuery(device), "/action?do=sync&mode=" + (pull ? "2" : "1") + "&type=backup");
             SpiderDebug.log("sync", "manage start direction=%s device=%s options=%s archive=%s loginArchive=%s", pull ? "pull" : "push", device, options, archive == null ? "none" : archive.getFile().getAbsolutePath(), loginArchive == null ? "none" : loginArchive.getFile().getAbsolutePath());
-            try (okhttp3.Response response = OkHttp.client(Constant.TIMEOUT_SYNC_TRANSFER).newCall(new Request.Builder().url(remote).post(body).build()).execute()) {
+            okhttp3.OkHttpClient client = OkHttp.client(Constant.TIMEOUT_SYNC_TRANSFER).newBuilder().followRedirects(false).followSslRedirects(false).build();
+            try (okhttp3.Response response = client.newCall(new Request.Builder().url(remote).header("Authorization", "Bearer " + token).post(body).build()).execute()) {
                 if (!response.isSuccessful()) {
                     ResponseBody responseBody = response.body();
                     String text = responseBody == null ? response.message() : responseBody.string();

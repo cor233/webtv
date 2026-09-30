@@ -269,6 +269,7 @@
       <a href="#features">特性</a>
       <a href="#kernels">内核</a>
       <a href="#config">配置</a>
+      <a href="#remote">遥控</a>
       <a href="#download">下载</a>
       <a href="#security">安全</a>
     </div>
@@ -277,7 +278,7 @@
 
 <header class="hero" id="top">
   <div class="container">
-    <span class="sub">v5.12.3 · targetSdk 37 · 已发布</span>
+    <span class="sub">v5.13.0 · targetSdk 37 · 已发布</span>
     <h1>影视播放器壳子，把内容交给你。</h1>
     <p class="lead">基于 FongMi / CatVod 生态增强维护。源、站点、接口全由你掌控，壳子负责播放得流畅、管理得省心。</p>
     <div class="hero-actions">
@@ -384,11 +385,35 @@
   </div>
 </section>
 
+<section class="tile-dark" id="remote">
+  <div class="container">
+    <div class="sec-head">
+      <h2>手机打开网页，就能控制电视</h2>
+      <p class="sec-desc">同网段使用局域网管理页；跨网络使用你自己部署的 HTTPS 中转服务。两种方式都需要授权。</p>
+    </div>
+    <div class="kernels">
+      <div class="kernel">
+        <div class="k-name blue">01 · 连接</div>
+        <p>局域网复制 App 管理地址。公网遥控默认关闭，先部署服务，再在被控设备中配置并开启。</p>
+      </div>
+      <div class="kernel">
+        <div class="k-name">02 · 配对</div>
+        <p>公网控制台输入设备生成的限时单次配对码；设备授权可撤销，不公开本地管理端口。</p>
+      </div>
+      <div class="kernel">
+        <div class="k-name">03 · 控制</div>
+        <p>搜索、推送播放地址、暂停、上下集、重播及读取播放状态。设备必须在线且具备可用播放器。</p>
+      </div>
+    </div>
+    <p style="margin-top:24px;color:#ccc">不提供公共遥控服务器，不开放远程安装、文件访问或登录态提取。<a style="color:#8db9ff" href="https://github.com/motao123/webtv/tree/main/serverless/webtv-remote-go">查看自托管部署说明</a></p>
+  </div>
+</section>
+
 <section class="tile-parchment" id="download">
   <div class="container">
     <div class="sec-head">
       <h2>下载</h2>
-      <p class="sec-desc">最新版本 <strong style="color:var(--blue)">v5.12.3</strong> · 不确定 CPU 架构时优先选择 universal 通用包。</p>
+      <p class="sec-desc">最新版本 <strong style="color:var(--blue)">v5.13.0</strong> · 不确定 CPU 架构时优先选择 universal 通用包。</p>
     </div>
     <div class="dl-grid">
       <div class="dl-row">

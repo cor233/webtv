@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import fi.iki.elonen.NanoHTTPD;
 import fi.iki.elonen.NanoHTTPD.IHTTPSession;
 import fi.iki.elonen.NanoHTTPD.Response;
 import okhttp3.FormBody;
@@ -95,10 +96,7 @@ public class Action implements Process {
                 onRefresh(params);
                 yield Nano.ok();
             }
-            case "control" -> {
-                onControl(params);
-                yield Nano.ok();
-            }
+            case "control" -> onControl(params);
             case "danmaku" -> {
                 onDanmaku(params);
                 yield Nano.ok();
@@ -230,24 +228,56 @@ public class Action implements Process {
         }
     }
 
-    private void onControl(Map<String, String> params) {
-        String type = params.get("type");
-        if (TextUtils.isEmpty(type)) return;
-        App.post(() -> {
-            // The service may be destroyed between the request thread and here, so the
-            // reference has to be taken on the main thread or it points at a released player.
-            PlaybackService service = Server.get().getService();
-            if (service == null) return;
-            switch (type) {
-                case "play" -> service.player().play();
-                case "pause" -> service.player().pause();
-                case "stop" -> service.dispatchStop();
-                case "prev" -> service.dispatchPrev();
-                case "next" -> service.dispatchNext();
-                case "repeat" -> service.dispatchRepeat();
-                case "replay" -> service.dispatchReplay();
-            }
-        });
+    private Response onControl(Map<String, String> params) {
+        String requested = params.get("type");
+        if (TextUtils.isEmpty(requested)) return Nano.error(Response.Status.BAD_REQUEST, "Missing control type");
+        // Older clients used loop; keep it as an alias for the existing repeat command.
+        String type = "loop".equalsIgnoreCase(requested) ? "repeat" : requested.toLowerCase(Locale.ROOT);
+        if (!List.of("play", "pause", "stop", "prev", "next", "repeat", "replay").contains(type)) return Nano.error(Response.Status.BAD_REQUEST, "Unsupported control type");
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicBoolean executed = new java.util.concurrent.atomic.AtomicBoolean(false);
+        java.util.concurrent.atomic.AtomicBoolean failed = new java.util.concurrent.atomic.AtomicBoolean(false);
+        try {
+            App.post(() -> {
+                try {
+                    // The service may be destroyed between the request thread and here, so the
+                    // reference has to be taken on the main thread or it points at a released player.
+                    PlaybackService service = Server.get().getService();
+                    if (service != null && !service.player().isReleased()) {
+                        switch (type) {
+                            case "play" -> service.player().play();
+                            case "pause" -> service.player().pause();
+                            case "stop" -> service.dispatchStop();
+                            case "prev" -> service.dispatchPrev();
+                            case "next" -> service.dispatchNext();
+                            case "repeat" -> service.dispatchRepeat();
+                            case "replay" -> service.dispatchReplay();
+                        }
+                        executed.set(true);
+                    }
+                } catch (Throwable error) {
+                    failed.set(true);
+                    SpiderDebug.log("action", "control failed type=%s", type);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        } catch (Throwable error) {
+            failed.set(true);
+            latch.countDown();
+        }
+        boolean completed = false;
+        try {
+            completed = latch.await(1500, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+        }
+        com.google.gson.JsonObject result = new com.google.gson.JsonObject();
+        result.addProperty("accepted", !failed.get());
+        result.addProperty("executed", executed.get());
+        result.addProperty("pending", !completed && !failed.get());
+        result.addProperty("type", type);
+        return NanoHTTPD.newFixedLengthResponse(Response.Status.OK, "application/json; charset=utf-8", result.toString());
     }
 
     private void onDanmaku(Map<String, String> params) {

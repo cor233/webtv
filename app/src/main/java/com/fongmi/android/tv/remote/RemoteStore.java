@@ -3,6 +3,7 @@ package com.fongmi.android.tv.remote;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.BuildConfig;
@@ -13,9 +14,12 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -44,14 +48,16 @@ public final class RemoteStore {
                 cache = App.gson().fromJson(new String(clear, StandardCharsets.UTF_8), RemoteModels.Profile.class);
             }
         } catch (Throwable ignored) {
-            // A corrupt identity must not be silently recreated or sent to a new server.
             unreadableIdentity = file().isFile();
         }
         if (cache == null) cache = new RemoteModels.Profile();
         if (cache.groupIds == null) cache.groupIds = new ArrayList<>();
-        cache.groups = new ArrayList<>();
+        if (cache.groups == null) cache.groups = new ArrayList<>();
         return cache;
     }
+
+    /** Snapshot prevents a socket/client from observing mutable UI/store state. */
+    public static synchronized RemoteModels.Profile snapshot() { return get().copy(); }
 
     public static synchronized void save() {
         try {
@@ -65,10 +71,18 @@ public final class RemoteStore {
             System.arraycopy(encrypted, 0, output, iv.length, encrypted.length);
             File target = file();
             File temp = new File(target.getParentFile(), target.getName() + ".tmp");
-            try (FileOutputStream stream = new FileOutputStream(temp)) { stream.write(output); }
-            if (!temp.renameTo(target)) { if (target.exists()) target.delete(); temp.renameTo(target); }
-        } catch (Throwable ignored) {
-            // Do not fall back to backups or plaintext storage for credentials.
+            try (FileOutputStream stream = new FileOutputStream(temp)) {
+                stream.write(output);
+                stream.flush();
+                stream.getFD().sync();
+            }
+            try {
+                Files.move(temp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (Throwable atomicUnsupported) {
+                Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (Throwable error) {
+            Log.w("RemoteStore", "Unable to persist encrypted remote identity", error);
         }
     }
 
@@ -86,6 +100,7 @@ public final class RemoteStore {
         }
         p.serverUrl = normalized;
         p.enabled = enabled;
+        p.revision++;
         save();
         return changed;
     }
@@ -98,37 +113,40 @@ public final class RemoteStore {
     public static synchronized void applyRegistration(RemoteModels.RegisterResponse response) {
         if (response == null || TextUtils.isEmpty(response.deviceId) || TextUtils.isEmpty(response.deviceToken)) return;
         RemoteModels.Profile p = get();
+        List<String> groups = response.groupIds == null ? new ArrayList<>() : new ArrayList<>(response.groupIds);
+        if (Objects.equals(p.deviceId, response.deviceId) && Objects.equals(p.deviceToken, response.deviceToken) && Objects.equals(p.groupIds, groups)) return;
         p.deviceId = response.deviceId;
         p.deviceToken = response.deviceToken;
-        p.groupIds = response.groupIds == null ? new ArrayList<>() : new ArrayList<>(response.groupIds);
+        p.groupIds = groups;
+        p.revision++;
         save();
     }
 
     /** Poll/ready groupIds are authoritative for the device and never carry controller group tokens. */
     public static synchronized void applyGroups(List<String> ids) {
         RemoteModels.Profile p = get();
-        p.groupIds = ids == null ? new ArrayList<>() : new ArrayList<>(ids);
+        List<String> next = ids == null ? new ArrayList<>() : new ArrayList<>(ids);
+        if (Objects.equals(p.groupIds, next)) return;
+        p.groupIds = next;
+        p.revision++;
         save();
     }
 
-    /** Deliberately no addGroup: the device never stores group bearer credentials. */
     public static synchronized void revokeGroup(String id) {
         RemoteModels.Profile p = get();
-        p.groupIds.remove(id);
-        save();
+        if (p.groupIds.remove(id)) { p.revision++; save(); }
     }
 
     public static synchronized void clear() {
         cache = new RemoteModels.Profile();
         unreadableIdentity = false;
-        try { file().delete(); } catch (Throwable ignored) {}
+        try { Files.deleteIfExists(file().toPath()); } catch (Throwable ignored) {}
     }
 
     public static String deviceName() {
         String name = Device.get().getName();
         return TextUtils.isEmpty(name) ? BuildConfig.APPLICATION_ID : name;
     }
-
     public static String appVersion() { return BuildConfig.VERSION_NAME; }
 
     private static File file() {
@@ -136,18 +154,15 @@ public final class RemoteStore {
         if (!dir.exists()) dir.mkdirs();
         return new File(dir, FILE_NAME);
     }
-
     private static byte[] read(File source) throws Exception {
         if (!source.isFile() || source.length() < 13 || source.length() > 128 * 1024) return new byte[0];
         try (FileInputStream stream = new FileInputStream(source)) {
             byte[] bytes = new byte[(int) source.length()];
-            int offset = 0;
-            int read;
-            while (offset < bytes.length && (read = stream.read(bytes, offset, bytes.length - offset)) > 0) offset += read;
+            int offset = 0, count;
+            while (offset < bytes.length && (count = stream.read(bytes, offset, bytes.length - offset)) > 0) offset += count;
             return offset == bytes.length ? bytes : new byte[0];
         }
     }
-
     private static SecretKey key() throws Exception {
         KeyStore store = KeyStore.getInstance(KEYSTORE);
         store.load(null);
@@ -159,17 +174,13 @@ public final class RemoteStore {
         }
         return ((KeyStore.SecretKeyEntry) store.getEntry(KEY_ALIAS, null)).getSecretKey();
     }
-
-    private static String normalize(String value) {
-        String v = value == null ? "" : value.trim();
-        while (v.endsWith("/")) v = v.substring(0, v.length() - 1);
-        return v;
-    }
-
+    private static String normalize(String value) { String v = value == null ? "" : value.trim(); while (v.endsWith("/")) v = v.substring(0, v.length() - 1); return v; }
     private static boolean isHttpsOrigin(String value) {
         try {
             URI uri = URI.create(value);
-            return "https".equalsIgnoreCase(uri.getScheme()) && !TextUtils.isEmpty(uri.getHost()) && uri.getUserInfo() == null && uri.getRawQuery() == null && uri.getRawFragment() == null && (uri.getPath() == null || uri.getPath().isEmpty() || "/".equals(uri.getPath()));
+            return "https".equalsIgnoreCase(uri.getScheme()) && !TextUtils.isEmpty(uri.getHost()) && uri.getUserInfo() == null
+                    && uri.getRawQuery() == null && uri.getRawFragment() == null && (uri.getPath() == null || uri.getPath().isEmpty() || "/".equals(uri.getPath()))
+                    && uri.getPort() != 0 && uri.getPort() <= 65535;
         } catch (Throwable e) { return false; }
     }
 }

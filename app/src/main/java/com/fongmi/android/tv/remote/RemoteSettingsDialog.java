@@ -21,7 +21,7 @@ public final class RemoteSettingsDialog {
     private RemoteSettingsDialog() {}
 
     public static void show(FragmentActivity activity) {
-        RemoteModels.Profile profile = RemoteStore.get();
+        RemoteModels.Profile profile = RemoteStore.snapshot();
         LinearLayout root = new LinearLayout(activity);
         root.setOrientation(LinearLayout.VERTICAL);
         int pad = (int) (activity.getResources().getDisplayMetrics().density * 20);
@@ -38,12 +38,20 @@ public final class RemoteSettingsDialog {
         note.setText(R.string.remote_public_security_note);
         root.addView(note, new LinearLayout.LayoutParams(-1, -2));
 
+        TextView pairing = new TextView(activity);
+        pairing.setText(R.string.remote_public_pairing_empty);
+        pairing.setVisibility(View.GONE);
+        root.addView(pairing, new LinearLayout.LayoutParams(-1, -2));
+
         Button code = new Button(activity);
         code.setText(R.string.remote_public_pair_code);
         root.addView(code, new LinearLayout.LayoutParams(-1, -2));
         Button revoke = new Button(activity);
         revoke.setText(R.string.remote_public_revoke);
         root.addView(revoke, new LinearLayout.LayoutParams(-1, -2));
+        Button disable = new Button(activity);
+        disable.setText(R.string.remote_public_disable);
+        root.addView(disable, new LinearLayout.LayoutParams(-1, -2));
 
         var dialog = new MaterialAlertDialogBuilder(activity, R.style.ThemeOverlay_WebHTV_LightDialog)
                 .setTitle(R.string.remote_public_title).setView(root)
@@ -53,28 +61,49 @@ public final class RemoteSettingsDialog {
             if (!RemoteStore.hasIdentity()) { Notify.show(R.string.remote_public_register_first); return; }
             code.setEnabled(false);
             Task.execute(() -> {
-                String message;
                 try {
-                    RemoteModels.BindCodeResponse response = new RemoteClient(RemoteStore.get()).bindCode();
-                    message = response == null || TextUtils.isEmpty(response.code) ? activity.getString(R.string.remote_public_failed) : activity.getString(R.string.remote_public_code_value, response.code);
-                } catch (Throwable e) { message = activity.getString(R.string.remote_public_failed); }
-                String finalMessage = message;
-                App.post(() -> { code.setEnabled(true); Notify.show(finalMessage); });
+                    RemoteModels.BindCodeResponse response = new RemoteClient(RemoteStore.snapshot()).bindCode();
+                    App.post(() -> {
+                        code.setEnabled(true);
+                        if (response != null && !TextUtils.isEmpty(response.code)) {
+                            pairing.setVisibility(View.VISIBLE);
+                            pairing.setText(activity.getString(R.string.remote_public_code_value, response.code));
+                        } else Notify.show(R.string.remote_public_failed);
+                    });
+                } catch (Throwable e) {
+                    App.post(() -> { code.setEnabled(true); Notify.show(R.string.remote_public_failed); });
+                }
             });
         });
-        revoke.setOnClickListener(v -> {
-            Task.execute(() -> {
-                try { if (RemoteStore.hasIdentity()) new RemoteClient(RemoteStore.get()).revoke(); } catch (Throwable ignored) {}
-                RemoteAgent.get().stop();
-                RemoteStore.clear();
-                App.post(() -> Notify.show(R.string.remote_public_revoked));
+        revoke.setOnClickListener(v -> Task.execute(() -> {
+            boolean success = false;
+            try {
+                if (!RemoteStore.hasIdentity()) success = true;
+                else { new RemoteClient(RemoteStore.snapshot()).revoke(); success = true; }
+            } catch (Throwable ignored) {}
+            RemoteAgent.get().stop();
+            boolean revoked = success;
+            App.post(() -> {
+                if (revoked) {
+                    RemoteStore.clear();
+                    Notify.show(R.string.remote_public_revoked);
+                } else Notify.show(R.string.remote_public_revoke_failed);
             });
+        }));
+        disable.setOnClickListener(v -> {
+            RemoteAgent.get().stop();
+            try {
+                RemoteStore.configure(relay.getText() == null ? "" : relay.getText().toString(), false);
+                Notify.show(R.string.remote_public_disabled);
+            } catch (Throwable ignored) { Notify.show(R.string.remote_public_https_required); }
         });
         dialog.setOnShowListener(ignored -> dialog.getButton(-1).setOnClickListener(v -> {
             String url = relay.getText() == null ? "" : relay.getText().toString().trim();
             try {
-                if (TextUtils.isEmpty(url)) throw new IllegalArgumentException();
-                RemoteStore.configure(url, true);
+                String normalized = RemotePolicy.origin(url);
+                boolean changed = !TextUtils.equals(RemoteStore.snapshot().serverUrl, normalized);
+                if (changed) RemoteAgent.get().stop();
+                RemoteStore.configure(normalized, true);
                 RemoteAgent.get().start();
                 dialog.dismiss();
                 Notify.show(R.string.remote_public_enabled);

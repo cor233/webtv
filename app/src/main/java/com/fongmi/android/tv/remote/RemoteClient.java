@@ -31,7 +31,7 @@ public final class RemoteClient {
     private static final long MAX_RESPONSE_BYTES = 1024 * 1024;
     private final RemoteModels.Profile profile;
 
-    public RemoteClient(RemoteModels.Profile profile) { this.profile = profile; }
+    public RemoteClient(RemoteModels.Profile profile) { this.profile = profile == null ? new RemoteModels.Profile() : profile.copy(); }
 
     public RegisterResponse register() throws IOException {
         JsonObject body = new JsonObject();
@@ -130,8 +130,11 @@ public final class RemoteClient {
             if (!response.isSuccessful()) throw new IOException("HTTP " + response.code());
             if (body == null) return null;
             if (body.contentLength() > MAX_RESPONSE_BYTES) throw new IOException("Response too large");
-            String text = body.string();
-            if (text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_RESPONSE_BYTES) throw new IOException("Response too large");
+            byte[] bytes;
+            try (java.io.InputStream input = body.byteStream()) {
+                bytes = RemotePolicy.readBounded(input, (int) MAX_RESPONSE_BYTES);
+            }
+            String text = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
             if (TextUtils.isEmpty(text)) return null;
             T value = App.gson().fromJson(text, type);
             if (value == null) throw new IOException("Invalid response");

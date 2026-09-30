@@ -1120,7 +1120,11 @@ WebHomeTV is a player shell. It does not include content sources. Please use law
     <string name="remote_public_register_first">Registering device; try again shortly.</string>
     <string name="remote_public_failed">Remote operation failed</string>
     <string name="remote_public_code_value">Pairing code: %1$s (valid 5 minutes)</string>
+    <string name="remote_public_pairing_empty">No active pairing code</string>
     <string name="remote_public_revoked">Remote identity revoked</string>
+    <string name="remote_public_revoke_failed">Remote revoke failed; identity was kept</string>
+    <string name="remote_public_disable">Disable remote</string>
+    <string name="remote_public_disabled">Public remote disabled</string>
     <string name="remote_public_enabled">Public remote enabled</string>
     <string name="remote_public_https_required">Enter an HTTPS relay origin</string>
     <string name="search_loading">Searching...</string>

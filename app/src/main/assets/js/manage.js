@@ -79,11 +79,6 @@ function authParams(extra = {}) {
     if (authToken) params.token = authToken;
     return params;
 }
-function remoteAuthParams(extra = {}) {
-    const params = { ...extra };
-    if (authToken) params.token = authToken;
-    return params;
-}
 function authUrl(url) {
     if (!authToken || String(url || '').includes('token=')) return url;
     return url + (String(url).includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(authToken);
@@ -297,12 +292,13 @@ function postAction(url, data, done, failText = '操作失败') {
 }
 
 function stopRemoteMediaPolling() {
+    remoteMediaGeneration++;
     if (remoteMediaTimer) clearTimeout(remoteMediaTimer);
     remoteMediaTimer = null;
-    if (remoteMediaRequest) remoteMediaRequest.abort();
+    const request = remoteMediaRequest;
     remoteMediaRequest = null;
     remoteMediaPending = false;
-    remoteMediaGeneration++;
+    if (request) request.abort();
 }
 
 function scheduleRemoteMedia(delay = 3000) {
@@ -316,10 +312,8 @@ function scheduleRemoteMedia(delay = 3000) {
 
 function loadRemoteMedia(force = false) {
     if (currentView !== 'remoteControl' || document.hidden || (mode === 'remote' && !target)) return;
-    if (remoteMediaPending) {
-        if (!force) return;
-        if (remoteMediaRequest) remoteMediaRequest.abort();
-    }
+    if (remoteMediaPending && !force) return;
+    if (force) stopRemoteMediaPolling();
     const generation = remoteMediaGeneration;
     remoteMediaPending = true;
     const remote = mode === 'remote' && target;
@@ -420,7 +414,7 @@ function pairManualDevice() {
     const token = String($('#manualDeviceToken').val() || '').trim();
     if (!manualTarget || !token) { warnToast('请输入地址和 Token'); return; }
     showLoading();
-    $.ajax({ url: authUrl('/manage/remote/pair'), type: 'post', data: remoteAuthParams({ target: manualTarget, remoteToken: token }), timeout: 5000, cache: false })
+    $.ajax({ url: authUrl('/manage/remote/pair'), type: 'post', data: authParams({ target: manualTarget, remoteToken: token }), timeout: 5000, cache: false })
         .done(res => {
             const device = parseJson(res) || {};
             target = manualTarget;

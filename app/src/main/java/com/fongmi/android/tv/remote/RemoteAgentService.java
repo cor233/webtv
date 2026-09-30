@@ -23,14 +23,16 @@ public final class RemoteAgentService extends Service {
     private static final int NOTIFICATION_ID = 9531;
 
     public static void start(Context context) {
-        ContextCompat.startForegroundService(context, new Intent(context, RemoteAgentService.class).setAction(ACTION_START));
+        try { ContextCompat.startForegroundService(context, new Intent(context, RemoteAgentService.class).setAction(ACTION_START)); }
+        catch (Throwable ignored) { /* Agent remains functional through its scheduler if foreground start is unavailable. */ }
     }
 
     public static void stop(Context context) { context.stopService(new Intent(context, RemoteAgentService.class).setAction(ACTION_STOP)); }
 
     @Override public void onCreate() {
         super.onCreate();
-        startForeground(NOTIFICATION_ID, notification());
+        try { startForeground(NOTIFICATION_ID, notification()); }
+        catch (Throwable ignored) { stopSelf(); }
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
@@ -38,7 +40,10 @@ public final class RemoteAgentService extends Service {
         return START_NOT_STICKY;
     }
 
-    @Override public void onDestroy() { super.onDestroy(); }
+    @Override public void onDestroy() {
+        RemoteAgent.get().stop();
+        super.onDestroy();
+    }
     @Nullable @Override public IBinder onBind(Intent intent) { return null; }
 
     private Notification notification() {

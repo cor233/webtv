@@ -15,6 +15,24 @@ public final class RemoteModels {
         public String name = "";
         public List<String> groupIds = new ArrayList<>();
         public List<Group> groups = new ArrayList<>();
+        /** Monotonic local configuration generation; socket callbacks must match it. */
+        public long revision;
+
+        public Profile copy() {
+            Profile copy = new Profile();
+            copy.enabled = enabled;
+            copy.serverUrl = serverUrl;
+            copy.deviceId = deviceId;
+            copy.deviceToken = deviceToken;
+            copy.name = name;
+            copy.revision = revision;
+            copy.groupIds = groupIds == null ? new ArrayList<>() : new ArrayList<>(groupIds);
+            copy.groups = new ArrayList<>();
+            if (groups != null) for (Group group : groups) {
+                Group item = new Group(); item.groupId = group.groupId; item.groupToken = group.groupToken; copy.groups.add(item);
+            }
+            return copy;
+        }
     }
 
     public static final class Group {

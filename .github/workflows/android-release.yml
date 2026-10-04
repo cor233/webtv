@@ -200,6 +200,10 @@ jobs:
               print(f'Generated {apk.stem}.json code={code} size={manifest["size"]}')
           PY
 
+      - name: Write APK download index
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: python3 scripts/apk_index.py dist
+
       - name: Write release notes
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
@@ -247,7 +251,7 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             --title "${{ github.ref_name }}" \
             --notes-file dist/release-notes.md \
-            dist/*.apk dist/*.json
+            dist/*.apk dist/*.json dist/index.html
 
       - name: Check mirror availability
         if: startsWith(github.ref, 'refs/tags/v')
@@ -289,6 +293,7 @@ jobs:
           mkdir -p apk
           cp ../dist/*.apk apk/ || true
           cp ../dist/*.json apk/ 2>/dev/null || true
+          cp ../dist/index.html apk/ 2>/dev/null || true
           git add apk/
           git commit -m "${{ github.ref_name }}"
           if git push --force origin apk-main:main 2>&1; then

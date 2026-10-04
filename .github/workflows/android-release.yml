@@ -337,3 +337,15 @@ jobs:
           path: dist/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      # R8 naming is not reproducible across environments, so crash stacks from a
+      # release APK can only be retraced with the mapping produced in the same run.
+      # Keep one artifact per release covering all six variants.
+      - name: Upload R8 mappings as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webtv-mappings-${{ github.ref_name }}
+          path: app/build/outputs/mapping/*/mapping.txt
+          if-no-files-found: error
+          retention-days: 90

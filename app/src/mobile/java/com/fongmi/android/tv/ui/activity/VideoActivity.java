@@ -385,10 +385,15 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mPiP = new PiP();
         checkDanmakuImg();
         setRecyclerView();
-        mOsd = new PlayerOsdController(mBinding.osd.getRoot(), mBinding.osd.osdTopLeft, mBinding.osd.osdTopRight, mBinding.osd.osdBottomLeft, mBinding.osd.osdBottomRight, mBinding.osd.osdMiniProgress, new PlayerOsdController.Source() {
-            @Override public PlayerManager getPlayer() { return service() == null ? null : player(); }
-            @Override public String getTitle() { return mBinding.name.getText().toString(); }
-        });
+        // The OSD include binding can arrive null on a few devices (binding fields are
+        // not guaranteed by the release optimizer); degrade to no OSD instead of
+        // crashing the whole playback (issue #10). Every mOsd read is already guarded.
+        if (mBinding.osd != null) {
+            mOsd = new PlayerOsdController(mBinding.osd.getRoot(), mBinding.osd.osdTopLeft, mBinding.osd.osdTopRight, mBinding.osd.osdBottomLeft, mBinding.osd.osdBottomRight, mBinding.osd.osdMiniProgress, new PlayerOsdController.Source() {
+                @Override public PlayerManager getPlayer() { return service() == null ? null : player(); }
+                @Override public String getTitle() { return mBinding.name.getText().toString(); }
+            });
+        }
         setVideoView();
         setViewModel();
         if (hasInitialPreview()) showInitialPreview();
@@ -487,7 +492,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void setAudioStage() {
-        if (mAudio != null) return;
+        if (mAudio != null || mBinding.audioStage == null || mBinding.lyrics == null) return;
         mAudio = new AudioStageController(new AudioStageController.Host() {
             @Override public FragmentActivity activity() { return VideoActivity.this; }
             @Override public PlayerManager player() { return service() == null ? null : VideoActivity.this.player(); }
@@ -507,7 +512,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             @Override public void launchKaraokeTrackFileChooser() { FileChooser.from(mKaraokeTrackFile).show("*/*", new String[]{"text/plain", "audio/midi", "audio/x-midi", "application/octet-stream", "*/*"}); }
             @Override public void onStageVisibilityChanged(boolean visible) { }
         }, mBinding.audioStage, mBinding.lyrics);
-        mBinding.control.action.immersiveAudio.setOnClickListener(view -> mAudio.toggleImmersiveAudioMode());
+        mBinding.control.action.immersiveAudio.setOnClickListener(view -> { if (mAudio != null) mAudio.toggleImmersiveAudioMode(); });
     }
 
     private Flag safeFlag() {

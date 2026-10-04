@@ -396,10 +396,13 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         checkCast();
         SpiderDebug.log("video-flow", "initView preview ready cost=%dms", System.currentTimeMillis() - start);
         setRecyclerView();
-        mOsd = new PlayerOsdController(mBinding.osd.getRoot(), mBinding.osd.osdTopLeft, mBinding.osd.osdTopRight, mBinding.osd.osdBottomLeft, mBinding.osd.osdBottomRight, mBinding.osd.osdMiniProgress, new PlayerOsdController.Source() {
-            @Override public PlayerManager getPlayer() { return service() == null ? null : player(); }
-            @Override public String getTitle() { return mBinding.name.getText().toString(); }
-        });
+        // See the mobile counterpart: a null include binding must not crash playback.
+        if (mBinding.osd != null) {
+            mOsd = new PlayerOsdController(mBinding.osd.getRoot(), mBinding.osd.osdTopLeft, mBinding.osd.osdTopRight, mBinding.osd.osdBottomLeft, mBinding.osd.osdBottomRight, mBinding.osd.osdMiniProgress, new PlayerOsdController.Source() {
+                @Override public PlayerManager getPlayer() { return service() == null ? null : player(); }
+                @Override public String getTitle() { return mBinding.name.getText().toString(); }
+            });
+        }
         SpiderDebug.log("video-flow", "initView recycler ready cost=%dms", System.currentTimeMillis() - start);
         setVideoView();
         SpiderDebug.log("video-flow", "initView video view ready cost=%dms", System.currentTimeMillis() - start);
@@ -512,7 +515,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     }
 
     private void setAudioStage() {
-        if (mAudio != null) return;
+        if (mAudio != null || mBinding.audioStage == null || mBinding.lyrics == null) return;
         mAudio = new AudioStageController(new AudioStageController.Host() {
             @Override public FragmentActivity activity() { return VideoActivity.this; }
             @Override public PlayerManager player() { return service() == null ? null : VideoActivity.this.player(); }
@@ -532,7 +535,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
             @Override public void launchKaraokeTrackFileChooser() { FileChooser.from(mKaraokeTrackFile).show("*/*", new String[]{"text/plain", "audio/midi", "audio/x-midi", "application/octet-stream", "*/*"}); }
             @Override public void onStageVisibilityChanged(boolean visible) { if (!visible) mBinding.video.requestFocus(); }
         }, mBinding.audioStage, mBinding.lyrics);
-        mBinding.control.action.immersiveAudio.setOnClickListener(view -> mAudio.toggleImmersiveAudioMode());
+        mBinding.control.action.immersiveAudio.setOnClickListener(view -> { if (mAudio != null) mAudio.toggleImmersiveAudioMode(); });
     }
 
     private Flag safeFlag() {

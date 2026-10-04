@@ -73,3 +73,8 @@
 
 # Zxing
 -keep class com.google.zxing.** { *; }
+# ViewBinding classes must not be horizontally merged: the merged holder defers a
+# missing-view failure from bind() into a later field read and crashes playback
+# with an opaque NPE (issue #10). Keeping them intact also preserves the
+# generated "Missing required view with ID" error for diagnosis.
+-keep class * extends androidx.viewbinding.ViewBinding { *; }

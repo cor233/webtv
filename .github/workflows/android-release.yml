@@ -41,6 +41,27 @@ jobs:
             exit 1
           fi
 
+      # README and the Pages site carry literal "latest version" markers that no
+      # build step rewrites: v5.14.1 shipped with both still showing the
+      # previous version. Fail here (before the ~25 minute build) instead.
+      - name: Check version literals in README and docs
+        if: github.event_name == 'push'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          README_VER=$(sed -n 's/^最新版本：\*\*v\([0-9.]*\)\*\*.*/\1/p' README.md | head -1)
+          HERO_VER=$(sed -n 's/.*<span class="sub">v\([0-9.]*\).*/\1/p' docs/index.html | head -1)
+          DOWNLOAD_VER=$(sed -n 's/.*最新版本 <strong[^>]*>v\([0-9.]*\)<\/strong>.*/\1/p' docs/index.html | head -1)
+          echo "tag=$VERSION readme=$README_VER hero=$HERO_VER download=$DOWNLOAD_VER"
+          fail=0
+          for pair in "README.md 最新版本:$README_VER" "docs/index.html hero:$HERO_VER" "docs/index.html 下载区:$DOWNLOAD_VER"; do
+            name="${pair%%:*}"; value="${pair#*:}"
+            if [ "$value" != "$VERSION" ]; then
+              echo "::error::$name shows version \"$value\", expected $VERSION — bump it before tagging"
+              fail=1
+            fi
+          done
+          exit $fail
+
       # Gradle already rejects unsigned release builds, but only after a full compile.
       - name: Check signing secrets
         if: github.event.inputs.build_type != 'Debug'

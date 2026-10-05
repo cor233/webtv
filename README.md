@@ -73,7 +73,7 @@
 
 ## 下载安装
 
-最新版本：**v5.13.0**
+最新版本：**v5.14.1**
 
 项目主页（GitHub Pages）：https://motao123.github.io/webtv/
 
@@ -266,7 +266,7 @@ bash gradlew :app:assembleMobileLiteArm64_v8aRelease
 bash gradlew :app:assembleMobileLiteUniversalRelease
 ```
 
-GitHub Actions 支持手动触发，也会在推送 `v*` 标签时自动构建六个 APK 并创建 Release。
+GitHub Actions 支持手动触发，也会在推送 `v*` 标签时自动构建八个 APK 并创建 Release。
 
 ---
 

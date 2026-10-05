@@ -47,12 +47,16 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
 
     private static final String GITHUB_RELEASE = "https://github.com/motao123/webtv/releases/latest";
     private static final String CNB_RELEASE = "https://cnb.cool/code_free/webtv/-/git/raw/main/apk";
+    // A dead route is much rarer than a transient network error: retry the same
+    // source this many times (resuming from the partial file) before failing over.
+    private static final int MAX_ROUTE_ATTEMPTS = 3;
 
     private UpdateDialog dialog;
     private FragmentActivity activity;
     private Update update;
     private List<String> routes;
     private int routeIndex;
+    private int routeAttempt;
     private UpdateTransfer transfer;
     private boolean downloading;
     private boolean canceled;
@@ -174,9 +178,11 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
         canceled = false;
         routes = list;
         routeIndex = 0;
-        Path.clear(getFile());
+        routeAttempt = 1;
+        // Keep any partial update.apk: the transfer resumes it via HTTP Range
+        // instead of restarting the whole download from byte zero.
         progress(0, 0, update.size, 0, 0);
-        startNextDownload();
+        startTransfer();
     }
 
     private List<String> buildRoutes(Update update) {
@@ -202,18 +208,25 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
         return new ArrayList<>(result);
     }
 
-    private void startNextDownload() {
+    private void startTransfer() {
         if (routes == null || routeIndex >= routes.size()) return;
-        String url = routes.get(routeIndex++);
-        transfer = new HttpUpdateTransfer(url, getFile(), update == null ? 0 : update.size);
+        transfer = new HttpUpdateTransfer(routes.get(routeIndex), getFile(), update == null ? 0 : update.size);
         transfer.start(this);
     }
 
-    private boolean retryFallback() {
-        if (canceled || routes == null || routeIndex >= routes.size()) return false;
-        Path.clear(getFile());
-        progress(0, 0, update == null ? 0 : update.size, 0, 0);
-        startNextDownload();
+    private boolean retryDownload() {
+        if (canceled || routes == null) return false;
+        if (routeAttempt < MAX_ROUTE_ATTEMPTS) {
+            routeAttempt++;
+        } else if (routeIndex + 1 < routes.size()) {
+            // Move on to the next mirror but keep the partial file: all routes
+            // serve the same manifest-checked APK, so the resume carries over.
+            routeIndex++;
+            routeAttempt = 1;
+        } else {
+            return false;
+        }
+        startTransfer();
         return true;
     }
 
@@ -244,7 +257,7 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
     public void error(String msg) {
         if (canceled) return;
         transfer = null;
-        if (retryFallback()) return;
+        if (retryDownload()) return;
         downloading = false;
         routes = null;
         Notify.show(R.string.update_failed);
@@ -262,8 +275,10 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
             App.post(() -> {
                 if (canceled) return;
                 if (!TextUtils.isEmpty(error)) {
+                    // Validation failure means the partial file is corrupt:
+                    // delete it so the retry starts from a clean slate.
                     Path.clear(file);
-                    if (retryFallback()) return;
+                    if (retryDownload()) return;
                     downloading = false;
                     routes = null;
                     Notify.show(error);

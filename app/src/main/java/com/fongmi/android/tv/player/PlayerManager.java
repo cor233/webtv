@@ -499,6 +499,8 @@ public class PlayerManager implements ParseCallback {
     }
 
     private PlayerEngine buildEngine(int type, int decode) {
+        //lite 版无 mpv-libs 资产，MPV 请求回落到 EXO，避免运行期加载失败。
+        if (type == PlayerSetting.MPV && !PlayerSetting.hasMpv()) return new ExoPlayerEngine(decode, listener);
         return switch (type) {
             case PlayerSetting.IJK -> new IjkPlayerEngine(decode, listener);
             case PlayerSetting.MPV -> new MpvPlayerEngine(decode, listener, (w, h) -> videoSize = new VideoSize(w, h));

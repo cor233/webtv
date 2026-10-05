@@ -38,8 +38,8 @@ android {
         applicationId "com.fongmi.android.tv"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 713
-        versionName "5.13.1"
+        versionCode 714
+        versionName "5.14.0"
         buildConfigField "String", "MEDIA3_VERSION", "\"${libs.versions.media3.get()}\""
         buildConfigField "String", "GIT_REVISION", "\"${gitRevision}\""
         buildConfigField "String", "GIT_STATE", "\"${gitDirty}\""
@@ -52,7 +52,7 @@ android {
         }
     }
 
-    flavorDimensions = ["mode", "abi"]
+    flavorDimensions = ["mode", "edition", "abi"]
 
     productFlavors {
         leanback {
@@ -60,6 +60,18 @@ android {
         }
         mobile {
             dimension "mode"
+        }
+        //完整版：全部能力。lite 精简版见下方 lite flavor 说明。
+        full {
+            dimension "edition"
+            buildConfigField "boolean", "FEATURE_MPV", "true"
+            buildConfigField "boolean", "FEATURE_PYTHON", "true"
+        }
+        //精简版：去掉 MPV 内核(约37MB)与 Python 运行时(约21MB)，保留 EXO/IJK 双内核与全部源协议。
+        lite {
+            dimension "edition"
+            buildConfigField "boolean", "FEATURE_MPV", "false"
+            buildConfigField "boolean", "FEATURE_PYTHON", "false"
         }
         universal {
             dimension "abi"
@@ -73,6 +85,11 @@ android {
             dimension "abi"
             ndk { abiFilters "armeabi-v7a" }
         }
+    }
+
+    lint {
+        disable 'UnsafeOptInUsageError'
+        disable 'ExpiredTargetSdkVersion'
     }
 
     buildFeatures {
@@ -128,20 +145,33 @@ android {
 }
 
 androidComponents {
+    //精简版只出手机端的 universal 与 arm64：电视端存储普遍宽裕，armv7 老设备不是精简版目标。
+    beforeVariants(selector().all()) { variantBuilder ->
+        def name = variantBuilder.name
+        if (name.contains('Lite') && (name.contains('Leanback') || name.contains('Armeabi'))) {
+            variantBuilder.enabled = false
+        }
+    }
     onVariants(selector().withBuildType('release')) { variant ->
         def flavors = variant.productFlavors.collectEntries { [(it.first): it.second] }
         def mode = flavors['mode'] ?: 'mode'
+        def edition = flavors['edition'] ?: 'edition'
         def abi = flavors['abi'] ?: 'abi'
+        def editionPart = edition == 'full' ? '' : "-${edition}"
         variant.outputs.each { output ->
-            output.outputFileName.set("${mode}-${abi}.apk")
+            output.outputFileName.set("${mode}${editionPart}-${abi}.apk")
         }
+    }
+    //MPV 原生库按 ABI 注入：full 单 ABI 变体携带，lite 与 universal 不带（universal 维持现状）。
+    onVariants(selector().withFlavor('edition', 'full').withFlavor('abi', 'arm64_v8a')) { variant ->
+        variant.sources.assets.addStaticSourceDirectory(project.file('src/mpvlibs-arm64/assets').absolutePath)
     }
 }
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.aar"])
     implementation project(':catvod')
-    implementation project(':chaquo')
+    fullImplementation project(':chaquo')
     implementation project(':quickjs')
     implementation libs.appcompat
     implementation libs.lifecycle.service

@@ -34,6 +34,8 @@ public final class PlayerEngineDialog extends BaseBottomSheetDialog {
 
     @Override
     protected void initView() {
+        //lite 精简版无 MPV 内核，隐藏对应选项。
+        binding.mpv.setVisibility(PlayerSetting.hasMpv() ? View.VISIBLE : View.GONE);
         setSelected();
         getSelectedView().requestFocus();
     }

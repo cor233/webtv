@@ -59,12 +59,12 @@ jobs:
       - name: Compile TV and mobile
         run: |
           ./gradlew --no-daemon \
-            :app:compileLeanbackArm64_v8aDebugJavaWithJavac \
-            :app:compileMobileArm64_v8aDebugJavaWithJavac \
+            :app:compileLeanbackFullArm64_v8aDebugJavaWithJavac \
+            :app:compileMobileFullArm64_v8aDebugJavaWithJavac \
             :catvod:compileDebugJavaWithJavac
 
       - name: Run unit tests
-        run: ./gradlew --no-daemon :app:testLeanbackArm64_v8aDebugUnitTest :app:testMobileArm64_v8aDebugUnitTest
+        run: ./gradlew --no-daemon :app:testLeanbackFullArm64_v8aDebugUnitTest :app:testMobileFullArm64_v8aDebugUnitTest
 
       - name: Upload test reports
         if: failure()

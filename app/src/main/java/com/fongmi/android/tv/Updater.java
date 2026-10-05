@@ -69,7 +69,9 @@ public class Updater implements UpdateListener, UpdateTransfer.Callback {
     }
 
     private String getFlavor() {
-        return BuildConfig.FLAVOR_mode + "-" + BuildConfig.FLAVOR_abi;
+        //lite 精简版与完整版同包名，更新清单按 edition 区分，避免互相"升级"覆盖。
+        String edition = BuildConfig.FLAVOR_edition;
+        return BuildConfig.FLAVOR_mode + ("lite".equals(edition) ? "-lite" : "") + "-" + BuildConfig.FLAVOR_abi;
     }
 
     public Updater force() {

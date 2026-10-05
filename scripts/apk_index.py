@@ -15,11 +15,13 @@ DESCRIPTIONS = {
     'mobile-universal': 'Android 手机 · 不确定架构',
     'mobile-arm64_v8a': 'Android 手机 · 新设备',
     'mobile-armeabi_v7a': 'Android 手机 · 老设备',
+    'mobile-lite-universal': 'Android 手机 · 精简版 · 不确定架构',
+    'mobile-lite-arm64_v8a': 'Android 手机 · 精简版 · 新设备',
     'leanback-universal': 'Android TV · 不确定架构',
     'leanback-arm64_v8a': 'Android TV · 新电视盒子',
     'leanback-armeabi_v7a': 'Android TV · 老盒子',
 }
-ORDER = ['mobile-arm64_v8a', 'mobile-universal', 'leanback-arm64_v8a', 'leanback-universal', 'mobile-armeabi_v7a', 'leanback-armeabi_v7a']
+ORDER = ['mobile-arm64_v8a', 'mobile-universal', 'mobile-lite-arm64_v8a', 'mobile-lite-universal', 'leanback-arm64_v8a', 'leanback-universal', 'mobile-armeabi_v7a', 'leanback-armeabi_v7a']
 GITHUB = 'https://github.com/motao123/webtv'
 
 
@@ -84,8 +86,8 @@ def render(manifests: list) -> str:
 def main() -> None:
     dist = Path(sys.argv[1] if len(sys.argv) > 1 else 'dist')
     manifests = [json.loads(p.read_text(encoding='utf-8')) for p in sorted(dist.glob('*.json'))]
-    if len(manifests) != 6:
-        raise SystemExit(f'expected 6 manifests in {dist}, found {len(manifests)}')
+    if len(manifests) != 8:
+        raise SystemExit(f'expected 8 manifests in {dist}, found {len(manifests)}')
     out = dist / 'index.html'
     out.write_text(render(manifests), encoding='utf-8')
     print(f'wrote {out} ({out.stat().st_size} bytes)')

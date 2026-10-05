@@ -91,6 +91,8 @@
 | Android 手机 / 不确定架构 | `mobile-universal.apk` |
 | Android 手机 / 新设备 | `mobile-arm64_v8a.apk` |
 | Android 手机 / 老设备 | `mobile-armeabi_v7a.apk` |
+| Android 手机 · 精简版 / 不确定架构 | `mobile-lite-universal.apk` |
+| Android 手机 · 精简版 / 新设备 | `mobile-lite-arm64_v8a.apk` |
 
 > 不确定 CPU 架构时，优先下载对应设备的 `universal` 通用包。
 
@@ -254,12 +256,14 @@
 常用构建命令：
 
 ```bash
-bash gradlew :app:assembleMobileUniversalRelease
-bash gradlew :app:assembleMobileArm64_v8aRelease
-bash gradlew :app:assembleMobileArmeabi_v7aRelease
-bash gradlew :app:assembleLeanbackUniversalRelease
-bash gradlew :app:assembleLeanbackArm64_v8aRelease
-bash gradlew :app:assembleLeanbackArmeabi_v7aRelease
+bash gradlew :app:assembleMobileFullUniversalRelease
+bash gradlew :app:assembleMobileFullArm64_v8aRelease
+bash gradlew :app:assembleMobileFullArmeabi_v7aRelease
+bash gradlew :app:assembleLeanbackFullUniversalRelease
+bash gradlew :app:assembleLeanbackFullArm64_v8aRelease
+bash gradlew :app:assembleLeanbackFullArmeabi_v7aRelease
+bash gradlew :app:assembleMobileLiteArm64_v8aRelease
+bash gradlew :app:assembleMobileLiteUniversalRelease
 ```
 
 GitHub Actions 支持手动触发，也会在推送 `v*` 标签时自动构建六个 APK 并创建 Release。

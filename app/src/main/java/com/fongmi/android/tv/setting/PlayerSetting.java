@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.provider.Settings;
 
 import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.BuildConfig;
 import com.github.catvod.utils.Prefers;
 
 public class PlayerSetting {
@@ -95,12 +96,20 @@ public class PlayerSetting {
         return player == EXO || player == IJK || player == MPV;
     }
 
+    //lite 精简版不带 MPV 内核与 mpv-libs 资产，选择器隐藏并把存量偏好回落到 EXO/IJK。
+    public static boolean hasMpv() {
+        return BuildConfig.FEATURE_MPV;
+    }
+
     public static int sanitizePlayer(int player) {
+        if (player == MPV && !hasMpv()) return EXO;
         return player == IJK || player == MPV ? player : EXO;
     }
 
     public static int nextPlayer(int player) {
-        return switch (sanitizePlayer(player)) {
+        int current = sanitizePlayer(player);
+        if (!hasMpv()) return current == IJK ? EXO : IJK;
+        return switch (current) {
             case EXO -> IJK;
             case IJK -> MPV;
             default -> EXO;

@@ -28,6 +28,23 @@ if ! flock -n 9; then
 fi
 touch "$HEARTBEAT"
 
+# EPG data changes several times a day, independent of app releases: refresh it
+# on every run, BEFORE the APK version gate. Sourced from the CNB mirror (the
+# epg-sync workflow pushes it there), never from GitHub directly.
+EPG_TMP=$(mktemp -d)
+if curl -fsS --max-time 60 -o "$EPG_TMP/pl.xml.gz" \
+     "https://cnb.cool/code_free/webtv/-/git/raw/main/apk/epg/pl.xml.gz" \
+   && gzip -t "$EPG_TMP/pl.xml.gz"; then
+  mkdir -p "$DEST/epg"
+  if ! cmp -s "$EPG_TMP/pl.xml.gz" "$DEST/epg/pl.xml.gz"; then
+    install -m 644 "$EPG_TMP/pl.xml.gz" "$DEST/epg/pl.xml.gz"
+    echo "$(stamp) epg updated ($(stat -c%s "$DEST/epg/pl.xml.gz") bytes)" >> "$LOG"
+  fi
+else
+  echo "$(stamp) epg fetch failed, keeping current data" >&2
+fi
+rm -rf "$EPG_TMP"
+
 version_of() {
   sed -n 's/.*"versionName"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" 2>/dev/null | head -1
 }

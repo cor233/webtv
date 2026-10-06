@@ -1,0 +1,48 @@
+name: EPG sync
+
+# 上游 litiande03/epg 每天约 5 次自动更新节目单（多在 UTC 00/06/12/15/17/22 点附近）。
+# 本工作流每 4 小时拉一次最新 pl.xml.gz，推送到 pan.imotao.com 供电视端直连下载，
+# 避免播放器直连 GitHub 拉取失败。
+
+on:
+  schedule:
+    - cron: "20 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: epg-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch upstream EPG
+        run: |
+          curl -sSL --fail --retry 3 --max-time 180 \
+            -o pl.xml.gz \
+            "https://raw.githubusercontent.com/litiande03/epg/master/pl.xml.gz"
+          gzip -t pl.xml.gz
+          sha256sum pl.xml.gz
+
+      - name: Deploy to mirror host
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          install -m 600 /dev/null deploy_key <<< "$DEPLOY_SSH_KEY"
+          scp -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            pl.xml.gz root@58.49.150.222:/www/wwwroot/apkmirror/epg/pl.xml.gz
+          rm -f deploy_key
+
+      - name: Verify public URL
+        run: |
+          sleep 5
+          curl -sSL --fail --max-time 60 -o served.gz \
+            "https://pan.imotao.com/file/apk/epg/pl.xml.gz"
+          gzip -t served.gz
+          echo "公网 EPG 校验通过 $(stat -c %s served.gz) bytes"
+          rm -f served.gz

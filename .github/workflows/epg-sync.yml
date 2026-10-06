@@ -1,8 +1,9 @@
 name: EPG sync
 
 # 上游 litiande03/epg 每天约 5 次自动更新节目单（多在 UTC 00/06/12/15/17/22 点附近）。
-# 本工作流每 4 小时拉一次最新 pl.xml.gz，推送到 pan.imotao.com 供电视端直连下载，
-# 避免播放器直连 GitHub 拉取失败。
+# 本工作流每 4 小时拉一次最新 pl.xml.gz，推送到 CNB APK 镜像仓库的 apk/epg/ 子目录；
+# 宝塔服务器的 pull_apk.sh 每 20 分钟同步整个 apk/ 目录，电视端即可通过
+# https://pan.imotao.com/file/apk/epg/pl.xml.gz 直连下载，无需访问 GitHub。
 
 on:
   schedule:
@@ -29,20 +30,26 @@ jobs:
           gzip -t pl.xml.gz
           sha256sum pl.xml.gz
 
-      - name: Deploy to mirror host
+      - name: Push into CNB mirror repo
         env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
         run: |
-          install -m 600 /dev/null deploy_key <<< "$DEPLOY_SSH_KEY"
-          scp -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            pl.xml.gz root@58.49.150.222:/www/wwwroot/apkmirror/epg/pl.xml.gz
-          rm -f deploy_key
+          rm -rf cnb-mirror
+          git clone --depth 1 "https://cnb:$CNB_TOKEN@cnb.cool/code_free/webtv.git" cnb-mirror
+          cd cnb-mirror
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p apk/epg
+          cp ../pl.xml.gz apk/epg/pl.xml.gz
+          git add apk/epg/pl.xml.gz
+          if git diff --cached --quiet; then
+            echo "EPG 无变化，跳过推送"
+          else
+            git commit -m "epg sync $(date -u +%FT%TZ)"
+            git push origin HEAD:main
+            echo "EPG 已推送到 CNB 镜像"
+          fi
 
-      - name: Verify public URL
+      - name: Wait for mirror host pull and verify
         run: |
-          sleep 5
-          curl -sSL --fail --max-time 60 -o served.gz \
-            "https://pan.imotao.com/file/apk/epg/pl.xml.gz"
-          gzip -t served.gz
-          echo "公网 EPG 校验通过 $(stat -c %s served.gz) bytes"
-          rm -f served.gz
+          echo "等待宝塔 pull_apk.sh 定时拉取（最长约 21 分钟）后自动生效"

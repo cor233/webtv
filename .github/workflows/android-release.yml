@@ -324,6 +324,9 @@ jobs:
           cp ../dist/*.apk apk/ || true
           cp ../dist/*.json apk/ 2>/dev/null || true
           cp ../dist/index.html apk/ 2>/dev/null || true
+          #发版重建镜像会清掉定时任务推送的 EPG，这里重新抓一份最新数据补上
+          curl -sSL --fail --max-time 120 -o apk/epg-pl.xml.gz             "https://raw.githubusercontent.com/litiande03/epg/master/pl.xml.gz" || true
+          mkdir -p apk/epg && mv apk/epg-pl.xml.gz apk/epg/pl.xml.gz 2>/dev/null || true
           git add apk/
           git commit -m "${{ github.ref_name }}"
           if git push --force origin apk-main:main 2>&1; then

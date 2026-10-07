@@ -88,11 +88,21 @@ def render(manifests: list) -> str:
 def main() -> None:
     dist = Path(sys.argv[1] if len(sys.argv) > 1 else 'dist')
     manifests = [json.loads(p.read_text(encoding='utf-8')) for p in sorted(dist.glob('*.json'))]
-    if len(manifests) != 8:
-        raise SystemExit(f'expected 8 manifests in {dist}, found {len(manifests)}')
+    # Check against the flavor matrix instead of a manifest count: the count used
+    # to be hardcoded (it said 8 after the lite edition brought it to 8 and then
+    # broke the release once TV lite made it 10). This way a new variant only has
+    # to be added to DESCRIPTIONS/ORDER, and a missing or unexpected package fails
+    # the release loudly.
+    if set(ORDER) != set(DESCRIPTIONS):
+        raise SystemExit('ORDER and DESCRIPTIONS must list the same packages')
+    found = {Path(m['apk']).stem for m in manifests}
+    if found != set(DESCRIPTIONS):
+        missing = sorted(set(DESCRIPTIONS) - found)
+        unexpected = sorted(found - set(DESCRIPTIONS))
+        raise SystemExit(f'download page package mismatch: missing={missing} unexpected={unexpected}')
     out = dist / 'index.html'
     out.write_text(render(manifests), encoding='utf-8')
-    print(f'wrote {out} ({out.stat().st_size} bytes)')
+    print(f'wrote {out} ({out.stat().st_size} bytes), {len(manifests)} packages')
 
 
 if __name__ == '__main__':

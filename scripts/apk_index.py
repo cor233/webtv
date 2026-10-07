@@ -20,8 +20,10 @@ DESCRIPTIONS = {
     'leanback-universal': 'Android TV · 不确定架构',
     'leanback-arm64_v8a': 'Android TV · 新电视盒子',
     'leanback-armeabi_v7a': 'Android TV · 老盒子',
+    'leanback-lite-universal': 'Android TV · 精简版 · 不确定架构',
+    'leanback-lite-arm64_v8a': 'Android TV · 精简版 · 新电视盒子',
 }
-ORDER = ['mobile-arm64_v8a', 'mobile-universal', 'mobile-lite-arm64_v8a', 'mobile-lite-universal', 'leanback-arm64_v8a', 'leanback-universal', 'mobile-armeabi_v7a', 'leanback-armeabi_v7a']
+ORDER = ['mobile-arm64_v8a', 'mobile-universal', 'mobile-lite-arm64_v8a', 'mobile-lite-universal', 'leanback-arm64_v8a', 'leanback-universal', 'leanback-lite-arm64_v8a', 'leanback-lite-universal', 'mobile-armeabi_v7a', 'leanback-armeabi_v7a']
 GITHUB = 'https://github.com/motao123/webtv'
 
 

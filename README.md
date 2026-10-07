@@ -73,7 +73,7 @@
 
 ## 下载安装
 
-最新版本：**v5.14.1**
+最新版本：**v5.15.0**
 
 项目主页（GitHub Pages）：https://motao123.github.io/webtv/
 
@@ -93,8 +93,11 @@
 | Android 手机 / 老设备 | `mobile-armeabi_v7a.apk` |
 | Android 手机 · 精简版 / 不确定架构 | `mobile-lite-universal.apk` |
 | Android 手机 · 精简版 / 新设备 | `mobile-lite-arm64_v8a.apk` |
+| Android TV · 精简版 / 不确定架构 | `leanback-lite-universal.apk` |
+| Android TV · 精简版 / 新电视盒子 | `leanback-lite-arm64_v8a.apk` |
 
 > 不确定 CPU 架构时，优先下载对应设备的 `universal` 通用包。
+> 精简版不含 MPV 内核与 Python 运行时（Python 类型直播源不可用），体积约为完整版一半。
 
 ---
 
@@ -266,7 +269,7 @@ bash gradlew :app:assembleMobileLiteArm64_v8aRelease
 bash gradlew :app:assembleMobileLiteUniversalRelease
 ```
 
-GitHub Actions 支持手动触发，也会在推送 `v*` 标签时自动构建八个 APK 并创建 Release。
+GitHub Actions 支持手动触发，也会在推送 `v*` 标签时自动构建十个 APK 并创建 Release。
 
 ---
 

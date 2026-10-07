@@ -26,3 +26,10 @@ nostr_副本*.html
 *.log
 *-apkapp.txt
 third_party/sources/
+
+# 本地调试产物（截图 / logcat / UI dump / 工作区记忆）
+/logcat-*.txt
+/*.png
+/*-ui.xml
+/ui-*.xml
+/.workbuddy/

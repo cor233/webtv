@@ -163,6 +163,12 @@ jobs:
       - name: Build mobile-lite-universal
         run: ./gradlew :app:assembleMobileLiteUniversal${{ inputs.build_type || 'Release' }}
 
+      - name: Build leanback-lite-universal
+        run: ./gradlew :app:assembleLeanbackLiteUniversal${{ inputs.build_type || 'Release' }}
+
+      - name: Build leanback-lite-arm64
+        run: ./gradlew :app:assembleLeanbackLiteArm64_v8a${{ inputs.build_type || 'Release' }}
+
       - name: Collect APKs
         id: collect
         run: |
@@ -214,9 +220,9 @@ jobs:
           skipped = set(Path('dist/cnb_skip.txt').read_text().splitlines())
           apks = sorted(Path('dist').glob('*.apk'))
           expected = {f'{mode}-{abi}.apk' for mode in ('leanback', 'mobile') for abi in ('universal', 'arm64_v8a', 'armeabi_v7a')}
-          expected |= {f'mobile-lite-{abi}.apk' for abi in ('universal', 'arm64_v8a')}
+          expected |= {f'{mode}-lite-{abi}.apk' for mode in ('leanback', 'mobile') for abi in ('universal', 'arm64_v8a')}
           if {p.name for p in apks} != expected:
-              raise SystemExit('Expected exactly eight APK variants')
+              raise SystemExit('Expected exactly ten APK variants')
           for apk in apks:
               sha = hashlib.sha256()
               with apk.open('rb') as stream:
@@ -260,6 +266,8 @@ jobs:
           - `mobile-armeabi_v7a.apk` — 手机端 armv7
           - `mobile-lite-universal.apk` — 手机端精简版通用包（无 MPV 内核与 Python 源）
           - `mobile-lite-arm64_v8a.apk` — 手机端精简版 arm64 (v8a)
+          - `leanback-lite-universal.apk` — TV 端精简版通用包（无 MPV 内核与 Python 源）
+          - `leanback-lite-arm64_v8a.apk` — TV 端精简版 arm64 (v8a)
 
           ### 兼容性提示
 

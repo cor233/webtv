@@ -33,17 +33,27 @@ public class JsLoader {
     }
 
     public Spider getSpider(String key, String api, String ext, String jar) {
-        return spiders.computeIfAbsent(key, k -> {
-            try {
-                Spider spider = loader.spider(api, BaseLoader.get().dex(jar));
-                spider.siteKey = key;
-                spider.init(App.get(), ext);
-                return spider;
-            } catch (Throwable e) {
-                SpiderDebug.log(e);
-                return new SpiderNull();
-            }
-        });
+        Spider cached = spiders.get(key);
+        if (cached != null) return cached;
+        Spider spider = createSpider(key, api, ext, jar);
+        // Same rule as JarLoader: an unavailable spider is usually a transient state
+        // (the jar's remote-dependency confirmation had no Activity to show in), so
+        // never memoize the null — a later request must be able to ask again.
+        if (spider instanceof SpiderNull) return spider;
+        Spider existing = spiders.putIfAbsent(key, spider);
+        return existing != null ? existing : spider;
+    }
+
+    private Spider createSpider(String key, String api, String ext, String jar) {
+        try {
+            Spider spider = loader.spider(api, BaseLoader.get().dex(jar));
+            spider.siteKey = key;
+            spider.init(App.get(), ext);
+            return spider;
+        } catch (Throwable e) {
+            SpiderDebug.log(e);
+            return new SpiderNull();
+        }
     }
 
     public Object[] proxy(Map<String, String> params) throws Exception {

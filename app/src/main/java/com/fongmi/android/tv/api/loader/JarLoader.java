@@ -182,20 +182,38 @@ public class JarLoader {
     public Spider getSpider(String key, String api, String ext, String jar) {
         String jaKey = Util.md5(jar);
         String spKey = jaKey + key;
-        return spiders.computeIfAbsent(spKey, k -> {
-            try {
-                parseJar(jaKey, jar);
-                DexClassLoader loader = loaders.get(jaKey);
-                if (loader == null) return new SpiderNull();
-                Spider spider = (Spider) loader.loadClass("com.github.catvod.spider." + api.split("csp_")[1]).newInstance();
-                spider.siteKey = key;
-                spider.init(App.get(), ext);
-                return spider;
-            } catch (Throwable e) {
-                SpiderDebug.log(e);
-                return new SpiderNull();
-            }
-        });
+        Spider cached = spiders.get(spKey);
+        if (cached != null) return cached;
+        Object lock = locks.computeIfAbsent(spKey, k -> new Object());
+        synchronized (lock) {
+            cached = spiders.get(spKey);
+            if (cached != null) return cached;
+            Spider spider = createSpider(key, api, ext, jar, jaKey);
+            // Only memoize a live spider. A SpiderNull means the jar could not be used
+            // *yet* — most often the remote-dependency confirmation had no Activity to
+            // show in (cold start, or the first-run permission dialogs sending the user
+            // into Settings). Memoizing it kept the site dead for the whole process, so
+            // the home page stayed empty even after the user confirmed trust; leaving
+            // it uncached makes the next request ask again and recover.
+            if (spider instanceof SpiderNull) return spider;
+            spiders.put(spKey, spider);
+            return spider;
+        }
+    }
+
+    private Spider createSpider(String key, String api, String ext, String jar, String jaKey) {
+        try {
+            parseJar(jaKey, jar);
+            DexClassLoader loader = loaders.get(jaKey);
+            if (loader == null) return new SpiderNull();
+            Spider spider = (Spider) loader.loadClass("com.github.catvod.spider." + api.split("csp_")[1]).newInstance();
+            spider.siteKey = key;
+            spider.init(App.get(), ext);
+            return spider;
+        } catch (Throwable e) {
+            SpiderDebug.log(e);
+            return new SpiderNull();
+        }
     }
 
     private DexClassLoader requireRecentLoader() {

@@ -151,6 +151,8 @@
 <tr><th align="left">下载渠道</th><th align="left">地址</th></tr>
 <tr><td>GitHub Releases（主）</td><td><a href="https://github.com/motao123/webtv/releases">github.com/motao123/webtv/releases</a></td></tr>
 <tr><td>项目主页</td><td><a href="https://motao123.github.io/webtv/">motao123.github.io/webtv</a></td></tr>
+<tr><td>CNB 源码镜像（代码 · 评审）</td><td><a href="https://cnb.cool/code_free/webtv-coding">cnb.cool/code_free/webtv-coding</a></td></tr>
+<tr><td>CNB APK 镜像（产物 · 宝塔拉取源）</td><td><a href="https://cnb.cool/code_free/webtv">cnb.cool/code_free/webtv</a></td></tr>
 </table>
 
 | 设备 | 完整版 | 精简版 |
@@ -351,8 +353,13 @@ TV/
 ├── serverless/webtv-remote-go/ 自托管公网遥控中转（Go）
 ├── scripts/                    构建与发布脚本
 ├── third_party/                本地 Maven、依赖锁定与补丁源码
-└── .github/workflows/          CI · 发版 · EPG 同步 · Pages 部署
+├── .github/workflows/          GitHub 侧 CI · 发版 · EPG 同步 · Pages 部署 · 源码镜像
+└── .cnb.yml                    CNB 侧 PR 评审（npc:go）与编译门禁
 ```
+
+> **双仓库架构**：源码在本仓库（GitHub `motao123/webtv` ↦ CNB `code_free/webtv-coding`，由 `cnb-source-mirror.yml` 自动镜像）；
+> APK 产物镜像在 `code_free/webtv`，由发版流程重建，仓库里不需要任何源码。两边的路径别改混：
+> **代码路径指向源码仓，产物路径（App 内置更新源、宝塔 `pull_apk.sh`）始终指向 `code_free/webtv`。**
 
 ---
 
@@ -437,6 +444,8 @@ storePassword=your_store_password
 | `pages.yml` | push → main | 部署 GitHub Pages 下载站 |
 | `epg-sync.yml` | 每 4 小时 | 同步 EPG 数据 |
 | `remote-relay.yml` | push / PR | 中转服务测试 |
+| `cnb-source-mirror.yml` | push → main / `v*` 标签 / 每日兜底 | 全分支全标签镜像到 CNB `webtv-coding` |
+| `.cnb.yml`（CNB 侧） | PR / push → main | 编译 + 单测门禁，PR 自动代码评审（`npc:go`） |
 
 ---
 
@@ -482,6 +491,9 @@ v5.15.0 修复的已知问题——冷启动时若尚未拿到可用页面上下
 
 ```bash
 git clone https://github.com/motao123/webtv.git && cd webtv
+# 国内网络可改用 CNB 源码镜像（内容一致，由 cnb-source-mirror.yml 自动同步）
+# git clone https://cnb.cool/code_free/webtv-coding.git && cd webtv-coding
+
 git checkout -b fix/your-topic
 
 # 改完先本地编译，再推分支让 CI 验证

@@ -6,6 +6,7 @@
 
 - CNB 侧编译门禁此前声明 `cnbcool/android:latest`，但 CNB 的 `cnbcool` 命名空间下**并不存在该镜像**，流水线在 Prepare 阶段就以 `pull access denied` 失败（构建日志实测）。
 - 改为用 `ci/android.Dockerfile` 动态构建：Temurin JDK 21（jammy）+ 发行版 python3.10 + Android cmdline-tools / platform-37 / build-tools 37.0.0，并复制 Go 工具链以支撑 `serverless/webtv-remote-go` 的 `go test`。Dockerfile 有哈希缓存，仅在自身变更时重建。
+- `ci/android.Dockerfile` 里 SDK 平台包名原先写成 `platforms;android-37`，但 Google 仓库中**不存在该包**（只有 `android-37.0` / `37.1` / `37.2`），镜像构建在 `sdkmanager --install` 处以 `Warning: Failed to find package 'platforms;android-37'` 退出。现改为 `platforms;android-37.0`，与 `.github/workflows/*.yml` 中的声明保持一致。
 
 ### 说明
 

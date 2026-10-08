@@ -6,7 +6,9 @@
 # 显式指定 jammy：Ubuntu 22.04 自带 python3.10，满足 Chaquopy v17 的 buildPython。
 FROM eclipse-temurin:21-jdk-jammy
 
-ARG ANDROID_COMPILE_SDK=37
+# 注意包名要带小版本后缀：Google 仓库里只有 platforms;android-37.0 / 37.1 / 37.2，
+# 不存在 platforms;android-37。上游 .github/workflows 用的也是 37.0，这里与其对齐。
+ARG ANDROID_COMPILE_SDK=37.0
 ARG ANDROID_BUILD_TOOLS=37.0.0
 ARG ANDROID_CMDLINE_TOOLS=13114758
 ENV ANDROID_HOME=/opt/android-sdk

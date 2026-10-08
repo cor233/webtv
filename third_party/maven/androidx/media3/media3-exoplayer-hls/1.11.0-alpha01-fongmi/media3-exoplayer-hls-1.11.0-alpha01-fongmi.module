@@ -85,26 +85,6 @@
           "md5": "ca7023f3958ded4ccfec4ef20466ebd6"
         }
       ]
-    },
-    {
-      "name": "releaseVariantReleaseSourcePublication",
-      "attributes": {
-        "org.gradle.category": "documentation",
-        "org.gradle.dependency.bundling": "external",
-        "org.gradle.docstype": "sources",
-        "org.gradle.usage": "java-runtime"
-      },
-      "files": [
-        {
-          "name": "media3-exoplayer-hls-1.11.0-alpha01-fongmi-sources.jar",
-          "url": "media3-exoplayer-hls-1.11.0-alpha01-fongmi-sources.jar",
-          "size": 181521,
-          "sha512": "5bc1f814508e4716afde1afba66c2faa7e979572fffabc3bfb70fb0f16c91ed37a3f441e5432aa11a07c57ca725934197f5644f09828d2cf4d59e3bacb1e7715",
-          "sha256": "ac4dc855c204407b41c27427d56b3f0817310ac1c7da33766d42648481cd74b6",
-          "sha1": "12feaa3ea8eccd931c3fade9a349238c319c45ac",
-          "md5": "7dd3bf860697dee3a7474049b917377c"
-        }
-      ]
     }
   ]
 }

@@ -1,5 +1,32 @@
 # Changelog
 
+## 未发布 — CNB 编译门禁改用自建 Android 镜像
+
+### 修复
+
+- CNB 侧编译门禁此前声明 `cnbcool/android:latest`，但 CNB 的 `cnbcool` 命名空间下**并不存在该镜像**，流水线在 Prepare 阶段就以 `pull access denied` 失败（构建日志实测）。
+- 改为用 `ci/android.Dockerfile` 动态构建：Temurin JDK 21（jammy）+ 发行版 python3.10 + Android cmdline-tools / platform-37 / build-tools 37.0.0，并复制 Go 工具链以支撑 `serverless/webtv-remote-go` 的 `go test`。Dockerfile 有哈希缓存，仅在自身变更时重建。
+- `ci/android.Dockerfile` 里 SDK 平台包名原先写成 `platforms;android-37`，但 Google 仓库中**不存在该包**（只有 `android-37.0` / `37.1` / `37.2`），镜像构建在 `sdkmanager --install` 处以 `Warning: Failed to find package 'platforms;android-37'` 退出。现改为 `platforms;android-37.0`，与 `.github/workflows/*.yml` 中的声明保持一致。
+- 镜像换好后门禁又卡在「中转服务测试」：`go test -race` 需要 cgo，容器里默认 `CGO_ENABLED=0`（`go: -race requires cgo; enable cgo by setting CGO_ENABLED=1`）。Dockerfile 补装 `gcc` / `libc6-dev`，stage 里显式 `export CGO_ENABLED=1`——`.github/workflows/remote-relay.yml` 能在 `ubuntu-latest` 上跑通同样是因为那边默认有 gcc。
+- `main` 的 `push` 门禁漏掉了「中转服务测试」这一关（只 `pull_request` 有），代码合入 main 后 Go 侧再无校验。现补上，两条门禁 stage 一致。
+
+### 说明
+
+- 未改任何业务代码，仅替换编译门禁的构建环境来源。
+
+## 未发布 — 清理 third_party 冗余产物
+
+### 变更
+
+- 删除从未被引用的 `nextlib-media3ext 1.10.0-0.12.1`（非 `-fongmi-softload`）AAR 与 POM：`gradle/libs.versions.toml` 自 5.5.60 起只指向 `-fongmi-softload`，且两者的 `FfmpegVideoDecoder`/`FfmpegVideoRenderer` 并不通用（softload 版多出 `lowres`/`skipFrame`/`skipLoopFilter` 参数与 ABI 入参），保留只会误导后续升级。
+- 删除 `third_party/nextlib-media3ext-compat/` 孤儿目录：其中的 `NextRenderersFactory.java` 是 `softload` AAR 的反编译参考副本，未被任何构建脚本、settings 或源码引用，且与线上 AAR 已有实现重复。
+- 删除本地 Maven 中 19 个 `-sources.jar` / `-javadoc.jar`（4.3 MB）：仅供阅读，构建不消费；同步清理 18 个 `.module` 中对应的 `SourcePublication` / `JavaDocPublication` 变体，避免元数据指向已删文件。
+
+### 说明
+
+- 仅动 `third_party/`，未改任何 Java/Kotlin/Gradle 源码；`.module` 交叉校验通过，引用文件 0 缺失。
+- `-fongmi-softload` 的 AAR、POM、`.module` 原样保留。
+
 ## 5.15.0 — 修复全新安装后首页空白，并补齐 TV 端精简版 (2026-10-07)
 
 ### 修复

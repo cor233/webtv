@@ -120,26 +120,6 @@
           "md5": "f98fffcd5c290cfc20d150c84ca9c77b"
         }
       ]
-    },
-    {
-      "name": "releaseVariantReleaseSourcePublication",
-      "attributes": {
-        "org.gradle.category": "documentation",
-        "org.gradle.dependency.bundling": "external",
-        "org.gradle.docstype": "sources",
-        "org.gradle.usage": "java-runtime"
-      },
-      "files": [
-        {
-          "name": "media3-datasource-okhttp-1.11.0-alpha01-fongmi-sources.jar",
-          "url": "media3-datasource-okhttp-1.11.0-alpha01-fongmi-sources.jar",
-          "size": 6321,
-          "sha512": "4e5fe00ddb459e59624a55c242b9bab03b8d1ca40091b04235b8e61c880116f9e204bf9d5c1b2e3dbfe8c65ae1e633ea6cb490467aa6fc43069d7c052ae8c9b8",
-          "sha256": "d299889968e426adc5c6f13510da0e4ab110085ec408c92cc23e64cab696f45b",
-          "sha1": "4d13e9d0dd4bc0415961e5c2b7849bdce0da00dd",
-          "md5": "364ebb366241636cc22f2c9d7235c0b5"
-        }
-      ]
     }
   ]
 }

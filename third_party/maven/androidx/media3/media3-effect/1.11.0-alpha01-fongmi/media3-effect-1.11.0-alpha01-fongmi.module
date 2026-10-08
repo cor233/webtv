@@ -113,26 +113,6 @@
           "md5": "a02c625030e54e9af4f3a7a8dd368872"
         }
       ]
-    },
-    {
-      "name": "releaseVariantReleaseSourcePublication",
-      "attributes": {
-        "org.gradle.category": "documentation",
-        "org.gradle.dependency.bundling": "external",
-        "org.gradle.docstype": "sources",
-        "org.gradle.usage": "java-runtime"
-      },
-      "files": [
-        {
-          "name": "media3-effect-1.11.0-alpha01-fongmi-sources.jar",
-          "url": "media3-effect-1.11.0-alpha01-fongmi-sources.jar",
-          "size": 249361,
-          "sha512": "7832518aa6cdecf2eaf8282c28d270c9bfcaaf65be253672e734ffbb03ade25c7e7624eafe5c91cb454951417d799ab1ebd470f442ff02f035ffa0945d204942",
-          "sha256": "46813836d49a756b4ef7ad09ad5ad28eddbde3243ca9cf2c8befebe5ab280fca",
-          "sha1": "35e06b293662fb276f235a7ce60f946dba1c66e5",
-          "md5": "cc1a4fdbcbc9ab0fed4a9cf2d76de7c8"
-        }
-      ]
     }
   ]
 }

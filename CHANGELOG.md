@@ -1,5 +1,20 @@
 # Changelog
 
+## 未发布 — EPG 挪到独立分支，与 APK 镜像彻底解耦
+
+### 变更
+
+- EPG（`pl.xml.gz`）从 CNB 镜像仓的 `main:apk/epg/` 挪到**专用 `epg` 分支**。`main` 是发版时用 orphan 分支整体重建的 APK 镜像，每次发布会把 `apk/` 整个换掉；EPG 与 APK 的生命周期完全不同，挤在同一条分支上就只能靠「发版前备份、抓不到再沿用」的补丁兜着。挪到独立分支后，发版流程根本不会碰到它。
+- `epg-sync.yml` 改为推送到 `epg` 分支（分支尚不存在时以 orphan 起一条，兼容首次运行；并修正了首次运行无 `HEAD` 时不能拿 `git diff --cached` 判断的边界）。
+- `scripts/pull_apk.sh` 的 `EPG_URL` 改指 `.../raw/epg/pl.xml.gz`；于是**发版 workflow 里那套 EPG 备份/沿用补丁被删除**（`2f1f04e` 引入的），不再需要。
+- 电视端下载地址不变（`https://pan.imotao.com/file/apk/epg/pl.xml.gz`），**App 侧零改动**。
+
+### 说明
+
+- 切换顺序是「先建分支并验证 → 再改服务器」：已确认 `epg` 分支的 raw 可取（HTTP 200，内容与旧位置逐字节一致）后才动脚本。
+- 服务器上用临时目录做了全流程演练：退出码 0、89 秒、22 个文件逐字节一致，且演练产物 / 线上服务 / `epg` 分支三处的 EPG sha256 完全相同。
+- 部署留了备份 `/root/pull_apk.sh.bak.20261008193512`；`pull_apk.sh` 回归测试 14 条断言仍全绿。
+
 ## 未发布 — 拉取脚本改为「先闸门后同步」，并保护 EPG
 
 ### 修复

@@ -325,17 +325,8 @@ jobs:
           # so the app never routes those downloads through raw.
           # APKs must be git blobs (CNB raw returns a 134-byte LFS pointer for
           # LFS-tracked files, which would break the in-app download).
-          # 重建 orphan 分支会连工作区里的旧 apk/ 一起删掉，其中包含定时任务推上来的
-          # EPG。先把现有那份备份出来，作为下面抓取失败时的兜底 —— 否则一旦
-          # raw.githubusercontent.com 抽风，这次发布就会带着一个**没有 EPG** 的 apk/
-          # 强推上去，宝塔的 rsync --delete 会立刻删掉线上节目单，直到下一次
-          # epg-sync（最长 4 小时）才恢复。
-          prev_epg=""
-          if [ -f apk/epg/pl.xml.gz ]; then
-            prev_epg=$(mktemp)
-            cp apk/epg/pl.xml.gz "$prev_epg"
-          fi
-
+          # EPG 已挪到本仓的 epg 分支（见 epg-sync.yml）：这里重建 main 的 orphan
+          # 分支不会再碰到它，所以原先那套「先备份、抓不到再沿用」的补丁也不需要了。
           git checkout --orphan apk-main
           git rm -rf --cached -q . 2>/dev/null || true
           rm -rf apk .gitattributes
@@ -343,27 +334,6 @@ jobs:
           cp ../dist/*.apk apk/ || true
           cp ../dist/*.json apk/ 2>/dev/null || true
           cp ../dist/index.html apk/ 2>/dev/null || true
-
-          # EPG：优先抓最新，抓不到就沿用镜像里已有的那份；绝不留下空的 epg/。
-          # 顺带校验 gzip 头，避免把错误页当成节目单提交进去（原来的写法既没校验、
-          # 失败了也静默放过）。
-          mkdir -p apk/epg
-          if curl -sSL --fail --max-time 120 -o apk/epg/pl.xml.gz.new \
-               "https://raw.githubusercontent.com/litiande03/epg/master/pl.xml.gz" \
-             && gzip -t apk/epg/pl.xml.gz.new 2>/dev/null; then
-            mv apk/epg/pl.xml.gz.new apk/epg/pl.xml.gz
-            echo "- EPG: refreshed from upstream" >> "$GITHUB_STEP_SUMMARY"
-          else
-            rm -f apk/epg/pl.xml.gz.new
-            if [ -n "$prev_epg" ] && [ -s "$prev_epg" ]; then
-              cp "$prev_epg" apk/epg/pl.xml.gz
-              echo "- EPG: upstream fetch failed, reused the copy from the previous mirror" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "::warning title=EPG missing::上游抓取失败，且镜像里没有可沿用的 pl.xml.gz，本次发布将不带 EPG。"
-            fi
-          fi
-          if [ -n "$prev_epg" ]; then rm -f "$prev_epg"; fi
-
           git add apk/
           git commit -m "${{ github.ref_name }}"
           if git push --force origin apk-main:main 2>&1; then

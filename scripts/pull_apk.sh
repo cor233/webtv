@@ -25,7 +25,7 @@ set -u
 DEST=${DEST:-/www/wwwroot/apkmirror}
 MARKER=${MARKER:-mobile-arm64_v8a.json}
 RAW=${RAW:-https://cnb.cool/code_free/webtv/-/git/raw/main/apk}
-EPG_URL=${EPG_URL:-https://cnb.cool/code_free/webtv/-/git/raw/main/apk/epg/pl.xml.gz}
+EPG_URL=${EPG_URL:-https://cnb.cool/code_free/webtv/-/git/raw/epg/pl.xml.gz}
 CLONE_URL=${CLONE_URL:-https://cnb.cool/code_free/webtv.git}
 LOCK=${LOCK:-/var/lock/pull_apk.lock}
 HEARTBEAT=${HEARTBEAT:-/root/.pull_apk_last}
@@ -45,8 +45,9 @@ fi
 touch "$HEARTBEAT"
 
 # EPG data changes several times a day, independent of app releases: refresh it
-# on every run, BEFORE the APK version gate. Sourced from the CNB mirror (the
-# epg-sync workflow pushes it there), never from GitHub directly.
+# on every run, BEFORE the APK version gate. Sourced from the CNB mirror's
+# dedicated `epg` branch (the epg-sync workflow pushes it there; the release job
+# rebuilds `main` from scratch and never touches this branch), never from GitHub.
 EPG_TMP=$(mktemp -d)
 if curl -fsS --max-time 60 -o "$EPG_TMP/pl.xml.gz" "$EPG_URL" \
    && gzip -t "$EPG_TMP/pl.xml.gz"; then

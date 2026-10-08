@@ -63,13 +63,16 @@
             userPrompt: $userPrompt
 
 # main 分支：轻量编译门禁（Debug 变体，不依赖签名密钥）
+#
+# 构建环境见 ci/android.Dockerfile —— CNB 的 cnbcool 命名空间下没有 Android 镜像，
+# 由 Dockerfile 动态构建并缓存（改 Dockerfile 才会重建）。
 main:
   pull_request:
     - name: 编译门禁
       runner:
         cpus: 8
       docker:
-        image: cnbcool/android:latest
+        build: ci/android.Dockerfile
       stages:
         - name: 准备
           script: |
@@ -98,7 +101,7 @@ main:
       runner:
         cpus: 8
       docker:
-        image: cnbcool/android:latest
+        build: ci/android.Dockerfile
       stages:
         - name: 准备
           script: |

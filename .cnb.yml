@@ -1,0 +1,118 @@
+# CNB 流水线配置 —— code_free/webtv-coding（源码仓）
+#
+# 定位：本仓库只放「源码」，APK 产物一律走 code_free/webtv 镜像仓。
+# 这里补上 GitHub 侧没有的两样东西：
+#   1. PR 自动代码评审（npc:go）—— 上游 6 条 workflow 里唯一的空白
+#   2. 提交前的快速编译门禁 —— 复用同一条 ci，不重复造轮子
+#
+# 完整构建（含签名、10 个变体、发版）仍由 GitHub Actions 的
+# android-release.yml 负责，这里只做「评审 + 轻量校验」，刻意不碰签名密钥。
+
+# 所有分支的 PR：自动代码评审
+"$":
+  pull_request:
+    - name: PR 自动评审
+      docker:
+        image: cnbcool/default-npc:latest
+      stages:
+        - name: npc 评审
+          type: npc:go
+          options:
+            role: 代码审查员
+            systemPrompt: |
+              你是 WebHomeTV（Android 影音播放器壳子）的代码审查员。
+              技术栈：Java 21 + Gradle 多模块（:app / :catvod / :chaquo / :quickjs）、
+              Android mobile + leanback 双 UI、Chaquopy Python 运行时、MPV 播放内核。
+              审查重点按优先级：
+              1. 正确性：并发/线程、生命周期泄漏、空指针、资源未关闭
+              2. 安全：硬编码密钥、明文 HTTP、外部输入未校验、导出组件越权
+              3. 兼容性：Android 7.0(minSdk 24) 到 16(targetSdk 37) 的 API 差异
+              4. 可维护性：重复代码、命名、注释与代码不一致
+              请用中文输出，先给结论（可合/需改/阻塞），再逐条列问题（文件:行 + 原因 + 建议）。
+              没问题就直说没问题，不要凑字数。
+            userPrompt: |
+              审查本次 PR（#$CNB_PULL_REQUEST_IID，标题：$CNB_PULL_REQUEST_TITLE）的代码变更。
+              只评审 diff 涉及的内容，不要泛泛而谈整个仓库。
+
+  # 评论 @NPC 时召唤（保留默认能力：@ 我就能干活）
+  issue.comment@npc:
+    - name: NPC 响应
+      docker:
+        image: cnbcool/default-npc:latest
+      stages:
+        - name: npc go
+          type: npc:go
+  pull_request.comment@npc:
+    - name: NPC 响应
+      docker:
+        image: cnbcool/default-npc:latest
+      stages:
+        - name: npc go
+          type: npc:go
+
+  # 页面手动触发：发版记录 / 任意提问
+  web_trigger:
+    - name: 手动任务
+      docker:
+        image: cnbcool/default-npc:latest
+      stages:
+        - name: npc go
+          type: npc:go
+          options:
+            role: 发布助理
+            userPrompt: $userPrompt
+
+# main 分支：轻量编译门禁（Debug 变体，不依赖签名密钥）
+main:
+  pull_request:
+    - name: 编译门禁
+      runner:
+        cpus: 8
+      docker:
+        image: cnbcool/android:latest
+      stages:
+        - name: 准备
+          script: |
+            set -e
+            echo "sdk.dir=$ANDROID_HOME" > local.properties
+            chmod +x gradlew
+        - name: 编译 TV + 手机端
+          script: |
+            ./gradlew --no-daemon \
+              :app:compileLeanbackFullArm64_v8aDebugJavaWithJavac \
+              :app:compileMobileFullArm64_v8aDebugJavaWithJavac \
+              :catvod:compileDebugJavaWithJavac
+        - name: 单元测试
+          script: |
+            ./gradlew --no-daemon \
+              :app:testLeanbackFullArm64_v8aDebugUnitTest \
+              :app:testMobileFullArm64_v8aDebugUnitTest
+        - name: 中转服务测试
+          script: |
+            if [ -d serverless/webtv-remote-go ]; then
+              cd serverless/webtv-remote-go
+              go test -race ./... && go vet ./...
+            fi
+  push:
+    - name: 编译门禁
+      runner:
+        cpus: 8
+      docker:
+        image: cnbcool/android:latest
+      stages:
+        - name: 准备
+          script: |
+            set -e
+            echo "sdk.dir=$ANDROID_HOME" > local.properties
+            chmod +x gradlew
+        - name: 编译 TV + 手机端
+          script: |
+            ./gradlew --no-daemon \
+              :app:compileLeanbackFullArm64_v8aDebugJavaWithJavac \
+              :app:compileMobileFullArm64_v8aDebugJavaWithJavac \
+              :catvod:compileDebugJavaWithJavac
+        - name: 单元测试
+          script: |
+            ./gradlew --no-daemon \
+              :app:testLeanbackFullArm64_v8aDebugUnitTest \
+              :app:testMobileFullArm64_v8aDebugUnitTest

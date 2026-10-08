@@ -7,6 +7,7 @@ no external assets, so it renders on any network.
 """
 import html
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -27,17 +28,34 @@ ORDER = ['mobile-arm64_v8a', 'mobile-universal', 'mobile-lite-arm64_v8a', 'mobil
 GITHUB = 'https://github.com/motao123/webtv'
 
 
+VERSIONED = re.compile(r'-\d+(?:\.\d+)*$')
+
+
+def flavor_of(manifest: dict) -> str:
+    """Variant key, independent of whether the file name carries a version.
+
+    Manifests from the release workflow name this explicitly; older ones only
+    carry `apk`, so strip a trailing version as a fallback. Release assets are
+    published as <flavor>-<version>.apk so every release gets a URL the CDN has
+    never cached, which is why the bare name can no longer be assumed.
+    """
+    flavor = manifest.get('flavor')
+    if flavor:
+        return flavor
+    return VERSIONED.sub('', Path(manifest['apk']).stem)
+
+
 def size_mb(size: int) -> str:
     return f'{size / 1000 / 1000:.1f} MB'
 
 
 def render(manifests: list) -> str:
-    manifests = sorted(manifests, key=lambda m: ORDER.index(Path(m['apk']).stem) if Path(m['apk']).stem in ORDER else 99)
+    manifests = sorted(manifests, key=lambda m: ORDER.index(flavor_of(m)) if flavor_of(m) in ORDER else 99)
     version = html.escape(manifests[0]['versionName'])
     code = manifests[0]['code']
     rows = []
     for m in manifests:
-        stem = Path(m['apk']).stem
+        stem = flavor_of(m)
         rows.append(f'''      <a class="row" href="{html.escape(m['apk'])}">
         <span class="info"><strong>{html.escape(m['apk'])}</strong><small>{html.escape(DESCRIPTIONS.get(stem, ''))}</small></span>
         <span class="meta">{size_mb(m['size'])}<small>SHA-256 已随更新清单校验</small></span>
@@ -95,7 +113,7 @@ def main() -> None:
     # the release loudly.
     if set(ORDER) != set(DESCRIPTIONS):
         raise SystemExit('ORDER and DESCRIPTIONS must list the same packages')
-    found = {Path(m['apk']).stem for m in manifests}
+    found = {flavor_of(m) for m in manifests}
     if found != set(DESCRIPTIONS):
         missing = sorted(set(DESCRIPTIONS) - found)
         unexpected = sorted(found - set(DESCRIPTIONS))

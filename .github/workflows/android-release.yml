@@ -48,18 +48,38 @@ jobs:
         if: github.event_name == 'push'
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          README_VER=$(sed -n 's/^最新版本：\*\*v\([0-9.]*\)\*\*.*/\1/p' README.md | head -1)
+          # Tolerate both "最新版本：**vX.Y.Z**" and "最新版本 **vX.Y.Z**". The README was
+          # restyled for the repository front page and dropped the colon, which
+          # silently stopped the old pattern from matching: the variable came back
+          # empty and the check failed with a message that blamed the version.
+          README_VER=$(sed -nE 's/^最新版本[：:]?[[:space:]]*\*\*v([0-9.]+)\*\*.*/\1/p' README.md | head -1)
           HERO_VER=$(sed -n 's/.*<span class="sub">v\([0-9.]*\).*/\1/p' docs/index.html | head -1)
           DOWNLOAD_VER=$(sed -n 's/.*最新版本 <strong[^>]*>v\([0-9.]*\)<\/strong>.*/\1/p' docs/index.html | head -1)
           echo "tag=$VERSION readme=$README_VER hero=$HERO_VER download=$DOWNLOAD_VER"
           fail=0
           for pair in "README.md 最新版本:$README_VER" "docs/index.html hero:$HERO_VER" "docs/index.html 下载区:$DOWNLOAD_VER"; do
             name="${pair%%:*}"; value="${pair#*:}"
-            if [ "$value" != "$VERSION" ]; then
+            if [ -z "$value" ]; then
+              echo "::error::$name 找不到版本标记 —— 检查用的正则没命中，请同步更新这里的匹配规则"
+              fail=1
+            elif [ "$value" != "$VERSION" ]; then
               echo "::error::$name shows version \"$value\", expected $VERSION — bump it before tagging"
               fail=1
             fi
           done
+
+          # Release assets ship as <flavor>-<version>.apk so every release gets a URL
+          # no CDN edge has cached. The Pages download buttons have to name those same
+          # files: the bare <flavor>.apk they pointed at stops existing as soon as the
+          # first versioned release is published, and a 404 on the download page is
+          # silent until someone tries it.
+          STALE=$(grep -oE '/download/[a-z0-9_]+(-[0-9][0-9.]*)?\.apk' docs/index.html | grep -vE -- "/download/[a-z0-9_]+-${VERSION}\.apk\$" || true)
+          if [ -n "$STALE" ]; then
+            echo "::error::docs/index.html 的下载链接没跟上版本号，发版后会 404："
+            echo "$STALE" | sort -u | sed 's/^/    /'
+            echo "  修复：bash scripts/bump_version.sh $VERSION"
+            fail=1
+          fi
           exit $fail
 
       # Gradle already rejects unsigned release builds, but only after a full compile.
@@ -223,15 +243,27 @@ jobs:
           expected |= {f'{mode}-lite-{abi}.apk' for mode in ('leanback', 'mobile') for abi in ('universal', 'arm64_v8a')}
           if {p.name for p in apks} != expected:
               raise SystemExit('Expected exactly ten APK variants')
+          # Version the file name. Manifests are served with no-cache but the APK
+          # blobs sit behind a 300s CDN TTL, so reusing one name across releases
+          # lets an edge keep handing out the previous build for up to five minutes
+          # — long enough for the app to download it and fail its sha256 check. A
+          # name that changes per release is a URL no edge has ever seen, so it
+          # always misses and the manifest stays the single source of truth: the
+          # app reads this field and builds its GitHub / mirror / CNB URLs from it.
+          dist_dir = Path('dist')
           for apk in apks:
+              flavor = apk.stem
               sha = hashlib.sha256()
               with apk.open('rb') as stream:
                   for chunk in iter(lambda: stream.read(1024 * 1024), b''):
                       sha.update(chunk)
+              released = apk.with_name(f'{flavor}-{version}.apk')
+              apk.rename(released)
               manifest = dict(name=tag, versionName=version, desc=desc[:1600], code=code,
-                              apk=apk.name, size=apk.stat().st_size, sha256=sha.hexdigest(), cnb=apk.name not in skipped)
-              apk.with_suffix('.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-              print(f'Generated {apk.stem}.json code={code} size={manifest["size"]}')
+                              apk=released.name, flavor=flavor, size=released.stat().st_size,
+                              sha256=sha.hexdigest(), cnb=f'{flavor}.apk' not in skipped)
+              (dist_dir / f'{flavor}.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+              print(f'Generated {flavor}.json -> {released.name} code={code} size={manifest["size"]}')
           PY
 
       - name: Write APK download index
@@ -254,20 +286,22 @@ jobs:
           pattern = rf"(^## {re.escape(version)}[^\n]*\n.*?)(?=^## |\Z)"
           match = re.search(pattern, changelog, re.M | re.S)
           notes = match.group(1).strip() if match else f"## v{version} — Release\n\nBuilt automatically by GitHub Actions."
-          notes += textwrap.dedent("""
+          notes += textwrap.dedent(f"""
 
-          ### 8 个 APK 产物
+          ### 10 个 APK 产物
 
-          - `leanback-universal.apk` — TV 端通用包，适合不确定架构的电视/盒子
-          - `leanback-arm64_v8a.apk` — TV 端 arm64 (v8a)
-          - `leanback-armeabi_v7a.apk` — TV 端 armv7
-          - `mobile-universal.apk` — 手机端通用包，适合不确定架构的手机
-          - `mobile-arm64_v8a.apk` — 手机端 arm64 (v8a)
-          - `mobile-armeabi_v7a.apk` — 手机端 armv7
-          - `mobile-lite-universal.apk` — 手机端精简版通用包（无 MPV 内核与 Python 源）
-          - `mobile-lite-arm64_v8a.apk` — 手机端精简版 arm64 (v8a)
-          - `leanback-lite-universal.apk` — TV 端精简版通用包（无 MPV 内核与 Python 源）
-          - `leanback-lite-arm64_v8a.apk` — TV 端精简版 arm64 (v8a)
+          文件名附带版本号，例如 `mobile-arm64_v8a-{version}.apk` —— 每次发版都是全新的 URL，下载不受 CDN 缓存影响。
+
+          - `leanback-universal` — TV 端通用包，适合不确定架构的电视/盒子
+          - `leanback-arm64_v8a` — TV 端 arm64 (v8a)
+          - `leanback-armeabi_v7a` — TV 端 armv7
+          - `mobile-universal` — 手机端通用包，适合不确定架构的手机
+          - `mobile-arm64_v8a` — 手机端 arm64 (v8a)
+          - `mobile-armeabi_v7a` — 手机端 armv7
+          - `mobile-lite-universal` — 手机端精简版通用包（无 MPV 内核与 Python 源）
+          - `mobile-lite-arm64_v8a` — 手机端精简版 arm64 (v8a)
+          - `leanback-lite-universal` — TV 端精简版通用包（无 MPV 内核与 Python 源）
+          - `leanback-lite-arm64_v8a` — TV 端精简版 arm64 (v8a)
 
           ### 兼容性提示
 

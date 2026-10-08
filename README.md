@@ -164,6 +164,8 @@
 | Android 手机 · 新设备 | `mobile-arm64_v8a.apk` | `mobile-lite-arm64_v8a.apk` |
 | Android 手机 · 老设备 | `mobile-armeabi_v7a.apk` | — |
 
+> 上表是产物标识；实际发布时文件名会附带版本号（如 `mobile-arm64_v8a-5.16.0.apk`），下载时以实际文件名为准。
+
 **选型建议**
 
 - **不确定 CPU 架构** → 选对应设备的 `universal`。

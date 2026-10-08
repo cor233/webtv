@@ -19,12 +19,14 @@ ENV PATH="${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tool
 # 会挂几小时；这里改用发行版自带的 python3.10 并软链出 python3.10 命令。
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl unzip git python3.10 python3.10-venv \
+        ca-certificates curl unzip git gcc libc6-dev python3.10 python3.10-venv \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf "$(command -v python3.10)" /usr/local/bin/python3.10
 
 # serverless/webtv-remote-go 的 go test 也在同一条门禁里跑，镜像需自带 Go。
+# 版本对齐 go.mod 声明的 go 1.22；gcc 见上（-race 需要 cgo）。
 COPY --from=golang:1.22-bookworm /usr/local/go /usr/local/go
+# GOFLAGS=-mod=mod：模块依赖锁定在 go.sum，允许按需写回 go.mod；-race 由 stage 显式开启 CGO。
 ENV PATH="/usr/local/go/bin:${PATH}" GOFLAGS=-mod=mod
 
 RUN mkdir -p "${ANDROID_HOME}/cmdline-tools" \

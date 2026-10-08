@@ -93,6 +93,8 @@ main:
         - name: 中转服务测试
           script: |
             if [ -d serverless/webtv-remote-go ]; then
+              # go test -race 依赖 cgo，需显式打开；gcc 由 Dockerfile 提供
+              export CGO_ENABLED=1
               cd serverless/webtv-remote-go
               go test -race ./... && go vet ./...
             fi
@@ -119,3 +121,11 @@ main:
             ./gradlew --no-daemon \
               :app:testLeanbackFullArm64_v8aDebugUnitTest \
               :app:testMobileFullArm64_v8aDebugUnitTest
+        - name: 中转服务测试
+          script: |
+            if [ -d serverless/webtv-remote-go ]; then
+              # go test -race 依赖 cgo，需显式打开；gcc 由 Dockerfile 提供
+              export CGO_ENABLED=1
+              cd serverless/webtv-remote-go
+              go test -race ./... && go vet ./...
+            fi

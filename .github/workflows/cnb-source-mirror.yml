@@ -1,0 +1,67 @@
+name: CNB source mirror
+
+# 把本仓库的全部源码引用（所有分支 + 所有标签）镜像到 CNB 的 code_free/webtv-coding，
+# 与 APK 镜像仓库 code_free/webtv 是两个独立仓库，互不影响。
+#
+# 触发策略：
+#   - push 到 main / 推送 v* 标签 —— 即时同步（这是绝大多数改动发生的地方）
+#   - 每天一次定时兜底        —— 收拢只在特性分支上的改动、以及分支删除
+#   - 手动 workflow_dispatch  —— 需要立刻对齐时用
+#
+# 同步是「完全一致」语义：CNB 侧多出来的引用会被删除，保证镜像不会漂移。
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  schedule:
+    - cron: "40 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cnb-source-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check CNB_TOKEN
+        id: guard
+        env:
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+        run: |
+          if [ -z "$CNB_TOKEN" ]; then
+            echo "::warning title=CNB Source Mirror Disabled::CNB_TOKEN secret is not configured. Source will NOT sync to cnb.cool. Go to Settings → Secrets → Actions to add it."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mirror every branch and tag
+        if: steps.guard.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # 用 --bare 而不是 --mirror clone：后者会把 GitHub 的 refs/pull/* 一起搬过来，
+          # 既增大体积又会往镜像里塞一堆无意义的引用。
+          rm -rf mirror.git
+          git clone --bare --quiet "https://github.com/${{ github.repository }}.git" mirror.git
+          cd mirror.git
+
+          # --bare clone 只保证分支可达的标签，这里补一次全量标签。
+          git fetch --quiet --tags origin '+refs/heads/*:refs/heads/*'
+
+          # CNB 侧与 GitHub 完全对齐（含删除 GitHub 上已删除的分支）。
+          git push --mirror --quiet "https://cnb:$CNB_TOKEN@cnb.cool/code_free/webtv-coding.git"
+
+          echo "- CNB source mirror: synced \`${{ github.ref_name }}\` → https://cnb.cool/code_free/webtv-coding" >> "$GITHUB_STEP_SUMMARY"

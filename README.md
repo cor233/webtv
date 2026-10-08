@@ -150,7 +150,6 @@
 <table>
 <tr><th align="left">下载渠道</th><th align="left">地址</th></tr>
 <tr><td>GitHub Releases（主）</td><td><a href="https://github.com/motao123/webtv/releases">github.com/motao123/webtv/releases</a></td></tr>
-<tr><td>镜像加速</td><td><a href="https://pan.imotao.com/file/apk/">pan.imotao.com/file/apk/</a></td></tr>
 <tr><td>项目主页</td><td><a href="https://motao123.github.io/webtv/">motao123.github.io/webtv</a></td></tr>
 </table>
 

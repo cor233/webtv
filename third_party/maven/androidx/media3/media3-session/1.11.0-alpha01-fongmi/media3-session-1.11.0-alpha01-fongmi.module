@@ -134,26 +134,6 @@
           "md5": "66183cb41d83b90893cb5d8654aa5ce2"
         }
       ]
-    },
-    {
-      "name": "releaseVariantReleaseSourcePublication",
-      "attributes": {
-        "org.gradle.category": "documentation",
-        "org.gradle.dependency.bundling": "external",
-        "org.gradle.docstype": "sources",
-        "org.gradle.usage": "java-runtime"
-      },
-      "files": [
-        {
-          "name": "media3-session-1.11.0-alpha01-fongmi-sources.jar",
-          "url": "media3-session-1.11.0-alpha01-fongmi-sources.jar",
-          "size": 437899,
-          "sha512": "5f0639efae19554041b443747621a78e8e85f24fd66535587a5639b9efbb5c5e7b66868cb67a4671cb95d4b882e94f669edbed8b70371496b42127813f5d8d6d",
-          "sha256": "f71d0377ae02512e5e0224c9988421af22a7270d6f9e77b315cb2b478d94691e",
-          "sha1": "e5325b3d9653ea466f073463258e9d36afac4d56",
-          "md5": "83e7801a65362628b2b091ef6bcb9474"
-        }
-      ]
     }
   ]
 }

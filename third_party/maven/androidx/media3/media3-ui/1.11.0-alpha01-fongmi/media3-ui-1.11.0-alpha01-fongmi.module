@@ -113,26 +113,6 @@
           "md5": "2cef8ee4251190f8aecb122cb1db8395"
         }
       ]
-    },
-    {
-      "name": "releaseVariantReleaseSourcePublication",
-      "attributes": {
-        "org.gradle.category": "documentation",
-        "org.gradle.dependency.bundling": "external",
-        "org.gradle.docstype": "sources",
-        "org.gradle.usage": "java-runtime"
-      },
-      "files": [
-        {
-          "name": "media3-ui-1.11.0-alpha01-fongmi-sources.jar",
-          "url": "media3-ui-1.11.0-alpha01-fongmi-sources.jar",
-          "size": 121580,
-          "sha512": "a01d15909cc9e222d5db93a4cf9d7d0fc780f816db1549f12e3d6939c6ddac5121b04396beb61165c9b6ffe5733d80cbaa4629b455be2e9566fcf0b5f400d02f",
-          "sha256": "dc6eb9410c2ffa7f19c1c6dfb783915cba9b71199c4d48ccccf1005ffaf32ece",
-          "sha1": "3eeca6bb72b0a3208762acb0770a95a56c0d419a",
-          "md5": "4900642e652b80759878706a5dd97015"
-        }
-      ]
     }
   ]
 }

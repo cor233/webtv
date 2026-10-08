@@ -1,5 +1,18 @@
 # Changelog
 
+## 未发布 — 清理 third_party 冗余产物
+
+### 变更
+
+- 删除从未被引用的 `nextlib-media3ext 1.10.0-0.12.1`（非 `-fongmi-softload`）AAR 与 POM：`gradle/libs.versions.toml` 自 5.5.60 起只指向 `-fongmi-softload`，且两者的 `FfmpegVideoDecoder`/`FfmpegVideoRenderer` 并不通用（softload 版多出 `lowres`/`skipFrame`/`skipLoopFilter` 参数与 ABI 入参），保留只会误导后续升级。
+- 删除 `third_party/nextlib-media3ext-compat/` 孤儿目录：其中的 `NextRenderersFactory.java` 是 `softload` AAR 的反编译参考副本，未被任何构建脚本、settings 或源码引用，且与线上 AAR 已有实现重复。
+- 删除本地 Maven 中 19 个 `-sources.jar` / `-javadoc.jar`（4.3 MB）：仅供阅读，构建不消费；同步清理 18 个 `.module` 中对应的 `SourcePublication` / `JavaDocPublication` 变体，避免元数据指向已删文件。
+
+### 说明
+
+- 仅动 `third_party/`，未改任何 Java/Kotlin/Gradle 源码；`.module` 交叉校验通过，引用文件 0 缺失。
+- `-fongmi-softload` 的 AAR、POM、`.module` 原样保留。
+
 ## 5.15.0 — 修复全新安装后首页空白，并补齐 TV 端精简版 (2026-10-07)
 
 ### 修复

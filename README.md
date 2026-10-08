@@ -350,7 +350,7 @@ TV/
 ├── catvod/                     CatVod 抽象层与 Spider 接口
 ├── chaquo/                     Python 运行时（仅 full 参与打包）
 ├── quickjs/                    JavaScript 运行时
-├── docs/                       开发文档 · 审计报告 · Pages 站点
+├── docs/                       Pages 站点（下载页与封面图）
 ├── webhome-devkit/             WebHome 开发套件（skills / templates / examples）
 ├── serverless/webtv-remote-go/ 自托管公网遥控中转（Go）
 ├── scripts/                    构建与发布脚本
@@ -483,7 +483,7 @@ v5.15.0 修复的已知问题——冷启动时若尚未拿到可用页面上下
 端口由 App 动态分配，请以「设置 → 增强功能 → 管理页面」显示的完整地址为准，并确保设备在同一局域网。
 
 **怎么自己开发 WebHome 首页或注入脚本？**
-先读 [WebHome 扩展开发指南](docs/webhome-extension/README.md)（自包含），再用 [`webhome-devkit/`](webhome-devkit/README.md) 的模板与示例起步。
+先用 [`webhome-devkit/`](webhome-devkit/README.md) 的模板与示例起步（扩展开发指南不随仓库公开，维护者见内部文档）。
 
 </details>
 
@@ -545,11 +545,8 @@ git push origin fix/your-topic
 <div align="center">
 
 **文档** ·
-[应用完整开发文档](docs/应用完整开发文档.md) ·
-[WebHome 扩展开发指南](docs/webhome-extension/README.md) ·
 [开发套件](webhome-devkit/README.md) ·
-[更新日志](CHANGELOG.md) ·
-[代码审计报告](docs/代码审计报告.md)
+[更新日志](CHANGELOG.md)
 
 <sub>基于 <a href="https://github.com/FongMi/TV">FongMi / CatVod</a> 生态二次开发</sub>
 

@@ -1,5 +1,24 @@
 # Changelog
 
+## 未发布 — 确立「GitHub 唯一可写源」，CNB 镜像改为只快进
+
+### 修复
+
+- **`cnb-source-mirror.yml` 的 `git push --mirror` 会破坏 CNB 侧的提交。** `--mirror` 是「强一致 + 删多余引用」语义，实测 dry-run 会把 CNB 的 `main` 从 `a0e9c8c` 强制回滚到 GitHub 的 `4d340ed`，并删除 `refs/notes/npc-push`、`refs/pull/{4,5,6}/*`、`refs/heads/auto/*`。也就是说：**任何在 CNB 侧产生的提交或 PR，都会被下一次同步静默抹掉**（当时已有 `.cnb.yml`、`ci/android.Dockerfile`、third_party 清理等 7 个提交只存在于 CNB 侧）。
+- 改为「只快进、不强制」：分支用不带 `+` 的显式 refspec 推送，标签单独允许强制；并在推送前加**分叉守卫** —— 若某个分支在 CNB 侧领先于 GitHub，直接以 `::error` 失败告警并中止，而不是覆盖。顺带受益的是 `refs/pull/*`、`refs/notes/*` 等平台引用不再被删除。
+- 去掉该步骤的 `continue-on-error: true`：镜像失败必须看得见，此前会被静默吞掉。
+- 令牌改为走 `credential.helper` 而非写进 remote URL，避免日志或报错把 `CNB_TOKEN` 打出来。
+
+### 变更
+
+- **确立单一真源**：GitHub `motao123/webtv` 是唯一可写源，CNB `code_free/webtv-coding` 为只读镜像。此前 CNB 侧已存在的 7 个提交（`.cnb.yml`、`ci/android.Dockerfile`、third_party 冗余清理、发版门禁修复）已全部回流到本仓库，两侧不再分叉。
+- **`.cnb.yml` 去掉 `main: push` 门禁**：镜像推送同样会触发 push 事件，导致同一份提交在 GitHub CI 与 CNB 上各跑一遍完全相同的编译 + 单测（约 9 分钟/次）。保留 `main: pull_request` 门禁与 `npc:go` 评审——它们只在有人真的在 CNB 侧开 PR 时生效，那才是 GitHub 看不见的场景。
+- README 的双仓库架构说明补上「只读镜像、改代码请到 GitHub」的明确约束。
+
+### 说明
+
+- 未改任何业务代码，仅调整同步语义、CI 触发范围与文档。
+
 ## 未发布 — CNB 编译门禁改用自建 Android 镜像
 
 ### 修复

@@ -1,12 +1,22 @@
-# CNB 流水线配置 —— code_free/webtv-coding（源码仓）
+# CNB 流水线配置 —— code_free/webtv-coding（源码**镜像**仓）
 #
-# 定位：本仓库只放「源码」，APK 产物一律走 code_free/webtv 镜像仓。
-# 这里补上 GitHub 侧没有的两样东西：
-#   1. PR 自动代码评审（npc:go）—— 上游 6 条 workflow 里唯一的空白
-#   2. 提交前的快速编译门禁 —— 复用同一条 ci，不重复造轮子
+# ⚠️ 唯一可写源是 GitHub motao123/webtv。本仓库由
+#    .github/workflows/cnb-source-mirror.yml 单向同步（全部分支 + 全部标签）。
+#    要改代码请到 GitHub 开分支 / 发 PR —— 在这里直接提交的改动不会被同步回去，
+#    且下一次同步会把它拦下并告警（镜像已去掉 --mirror 与强制推送，遇到两侧
+#    分叉时显式失败，而不是静默覆盖）。
 #
-# 完整构建（含签名、10 个变体、发版）仍由 GitHub Actions 的
-# android-release.yml 负责，这里只做「评审 + 轻量校验」，刻意不碰签名密钥。
+# 所以这里的流水线只承担 GitHub 侧没有的能力：
+#   1. PR 自动代码评审（npc:go）
+#   2. 在 CNB 上评论召唤 NPC
+#
+# 刻意**不配置 main: push 门禁**：镜像推送本身也会触发 push 事件，而同一份提交
+# 刚刚在 GitHub CI（ci.yml）上跑过完全相同的编译 + 单测，再跑一遍是纯重复消耗
+# （约 9 分钟/次，随每次 push 触发）。保留 main: pull_request 门禁 —— 它只在
+# 有人真的在 CNB 侧开 PR 时才生效，那正是 GitHub 看不见的场景。
+#
+# 完整构建（含签名、10 个变体、发版）仍由 GitHub Actions 的 android-release.yml
+# 负责，这里只做「评审 + 轻量校验」，刻意不碰签名密钥。
 
 # 所有分支的 PR：自动代码评审
 "$":
@@ -35,6 +45,10 @@
               只评审 diff 涉及的内容，不要泛泛而谈整个仓库。
 
   # 评论 @NPC 时召唤（保留默认能力：@ 我就能干活）
+  #
+  # 注意：本仓库是只读镜像。NPC 在这里**不要**直接往 main 提交或合并 PR ——
+  # 那些改动不会被同步回 GitHub，反而会在下一次镜像同步时被拦下。
+  # 需要改代码时，把结论写成建议或 patch，交给 GitHub 侧处理。
   issue.comment@npc:
     - name: NPC 响应
       docker:
@@ -62,43 +76,12 @@
             role: 发布助理
             userPrompt: $userPrompt
 
-# main 分支：轻量编译门禁（Debug 变体，不依赖签名密钥）
+# main 分支：CNB 侧 PR 的轻量编译门禁（Debug 变体，不依赖签名密钥）
 #
 # 构建环境见 ci/android.Dockerfile —— CNB 的 cnbcool 命名空间下没有 Android 镜像，
 # 由 Dockerfile 动态构建并缓存（改 Dockerfile 才会重建）。
 main:
   pull_request:
-    - name: 编译门禁
-      runner:
-        cpus: 8
-      docker:
-        build: ci/android.Dockerfile
-      stages:
-        - name: 准备
-          script: |
-            set -e
-            echo "sdk.dir=$ANDROID_HOME" > local.properties
-            chmod +x gradlew
-        - name: 编译 TV + 手机端
-          script: |
-            ./gradlew --no-daemon \
-              :app:compileLeanbackFullArm64_v8aDebugJavaWithJavac \
-              :app:compileMobileFullArm64_v8aDebugJavaWithJavac \
-              :catvod:compileDebugJavaWithJavac
-        - name: 单元测试
-          script: |
-            ./gradlew --no-daemon \
-              :app:testLeanbackFullArm64_v8aDebugUnitTest \
-              :app:testMobileFullArm64_v8aDebugUnitTest
-        - name: 中转服务测试
-          script: |
-            if [ -d serverless/webtv-remote-go ]; then
-              # go test -race 依赖 cgo，需显式打开；gcc 由 Dockerfile 提供
-              export CGO_ENABLED=1
-              cd serverless/webtv-remote-go
-              go test -race ./... && go vet ./...
-            fi
-  push:
     - name: 编译门禁
       runner:
         cpus: 8

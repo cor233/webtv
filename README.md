@@ -357,8 +357,10 @@ TV/
 └── .cnb.yml                    CNB 侧 PR 评审（npc:go）与编译门禁
 ```
 
-> **双仓库架构**：源码在本仓库（GitHub `motao123/webtv` ↦ CNB `code_free/webtv-coding`，由 `cnb-source-mirror.yml` 自动镜像）；
-> APK 产物镜像在 `code_free/webtv`，由发版流程重建，仓库里不需要任何源码。两边的路径别改混：
+> **双仓库架构**：GitHub `motao123/webtv` 是**唯一可写源**；CNB `code_free/webtv-coding` 是它同步来的**只读镜像**
+> （`cnb-source-mirror.yml`，全部分支 + 全部标签）。**改代码请在 GitHub 开分支 / 发 PR** —— 在 CNB 侧直接提交的改动
+> 不会被同步回来，且下一次镜像同步会把它拦下并告警（镜像只快进、不强制覆盖，不会静默生效）。
+> **APK 产物镜像**在 `code_free/webtv`，由发版流程重建，仓库里不需要任何源码。路径别改混：
 > **代码路径指向源码仓，产物路径（App 内置更新源、宝塔 `pull_apk.sh`）始终指向 `code_free/webtv`。**
 
 ---
@@ -444,8 +446,8 @@ storePassword=your_store_password
 | `pages.yml` | push → main | 部署 GitHub Pages 下载站 |
 | `epg-sync.yml` | 每 4 小时 | 同步 EPG 数据 |
 | `remote-relay.yml` | push / PR | 中转服务测试 |
-| `cnb-source-mirror.yml` | push → main / `v*` 标签 / 每日兜底 | 全分支全标签镜像到 CNB `webtv-coding` |
-| `.cnb.yml`（CNB 侧） | PR / push → main | 编译 + 单测门禁，PR 自动代码评审（`npc:go`） |
+| `cnb-source-mirror.yml` | push → main / `v*` 标签 / 每日兜底 | 全分支全标签镜像到 CNB `webtv-coding`（只快进，遇到分叉显式失败） |
+| `.cnb.yml`（CNB 侧） | CNB 侧 PR / 评论 `@NPC` | PR 自动代码评审（`npc:go`）与轻量编译门禁 |
 
 ---
 
